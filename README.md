@@ -9,5 +9,6 @@ For Database support, I used jugglingDB framework.
 3. HR can add/ manage user
 4. Notice panel
 
-#Screenshots: 
+# Screenshots: 
+
 ![image](https://i.ibb.co/PDDRmrG/image.png)
