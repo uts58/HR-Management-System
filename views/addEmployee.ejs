@@ -1,0 +1,495 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="./../css/all.css" />
+
+    <link rel="shortcut icon" href="./../images/fabicon.jpg">
+
+    <link rel="stylesheet" href="../calender/date_input.css" type="text/css">
+    <script type="text/javascript" src="../calender/firebug/firebug.js"></script>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.1/jquery.min.js"></script>
+    <script type="text/javascript" src="../calender/jquery.date_input.js"></script>
+    <script type="text/javascript">$($.date_input.initialize);</script>
+    <script type="text/javascript" src="../js/jquery-2.0.3.min.js"></script>
+    <script type="text/javascript" src="../js/scriptbreaker-multiple-accordion-1.js"></script>
+    <script type="text/javascript" src="../js/ajax.js"></script>
+    <script type="text/javascript" src="../js/functions.js"></script>
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"> <strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <%if(title=='hr'){ %>
+        <div class="menu-holder">
+            <ul class="nav">
+                <li><a href="#" name="employee" id="checkemployee" >Employee</a>
+                    <ul>
+                        <li><a href="/addEmployee" id="checkemp1">Add new employee</a></li>
+
+                        <li><a href="/addDep" id="checkimp2">Manage Department</a></li>
+                        <li><a href="/addPos" id="checkimp3">Manage Position</a></li>
+                        <li><a href="/viewEmployee" id="checkimp4">Manage Employee</a></li>
+                    </ul>
+                </li>
+                <li><a href="#">Notice</a>
+                    <ul>
+                        <li><a href="/addNotice">Manage Notice</a></li>
+
+                    </ul>
+                </li>
+                <li><a href="#">Leave</a><ul>
+                        <li><a href="/displayLeave">Assign</a></li>
+                        <li><a href="/viewLeavebyAdmin">View Leave Dates</a></li>
+                    </ul></li>
+                <li><a href="#">Performance Appraisal</a><ul>
+                        <li><a href="/addPerformance">Add Appraisal</a></li>
+                        <li><a href="/viewPerformance">Manage Appraisal</a></li>
+                    </ul></li>
+
+
+
+                <!--  <li><a href="#">Recruitment</a>
+                     <ul>
+                         <li><a href="#">Upload Job Vacancy</a></li>
+                         <li><a href="#">Applicants</a></li>
+                     </ul>
+                 </li>
+                <li><a href="#">Employment Welfare</a><ul>
+                     <li><a href="#">Define Organization</a></li>
+                     <li><a href="#">Assign Welfare</a></li>
+                     <li><a href="#">Welfare Setting</a></li>
+                 </ul></li>
+                <li><a href="#">Document Processing</a>
+                    <ul>
+                        <li><a href="/addDocument">Add Document</a></li>
+                        <li><a href="#">view Document</a></li>
+                    </ul>
+                </li>-->
+                <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
+                    <ul>
+                        <!--<li><a href="/message">Message</a></li>-->
+                        <li><a href="/viewDetails?id=<%=userid%>">View Profile</a></li>
+                        <li><a href="/changePassword">Change Password</a></li>
+                        <li><a href="/logout">Log out</a></li>
+                    </ul>
+                </li>
+
+            </ul>
+        </div>
+        <%
+        }
+
+        else if(title=='emp'){ %>
+        <div class="menu-holder">
+            <ul class="nav">
+
+                <li><a href="#">Leave</a><ul>
+                        <li><a href="/addLeave">Leave Request</a></li>
+                        <li><a href="/viewLeave">View Leave History</a></li>
+                    </ul></li>
+
+
+                <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
+                    <ul>
+                        <!--<li><a href="/message">Message</a></li>-->
+                        <li><a href="/viewProfile">View Profile</a></li>
+                        <li><a href="/changePassword">Change Password</a></li>
+                        <li><a href="/logout">Log out</a></li>
+                    </ul>
+                </li>
+
+
+            </ul>
+        </div>
+        <%
+        }
+        %>
+
+
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <div class="innerpage" id="checkinner">
+
+                        <div class="innerpage-form">
+                            <%if(data==''){%>
+                                <h1>Add Employee</h1>
+                                <%
+                                if(saved==1)
+                                {
+                                %>
+                                    <span style="color:#0000FF;">Saved Succuessfully !</span>
+
+                                <%}
+                                %>
+
+                                <form method="post" enctype="multipart/form-data" action="./saveEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()" >
+                                    <span style="color:red; font-size:10px; "> All fields are mandatory excpet Middle name</span>
+                                    <div class="row">
+                                        <label for="emp-id" >Employee Id:</label>
+                                        <div class="text">
+                                            <input readonly="true" class="readonly" id="emp-id" name="txtEmpId" type="text" value=<%=idno%> />
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="first-name">First name:</label>
+                                        <div class="text">
+                                            <input id="first-name" name="txtFirst" type="text" value="" />
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="middle-name">Middle name:</label>
+                                        <div class="text">
+                                            <input id="middle-name" name="txtMiddle" type="text" value='' />
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="last-name">Last name:</label>
+                                        <div class="text">
+                                            <input id="last-name" name="txtLast" type="text" value="" />
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="dep">Department:</label>
+                                        <div class="row">
+                                            <select name='department'>
+                                                <option value="0">------Select Department--------</option>
+                                                <%for(var row in department){%>
+                                                <option  value="<%=department[row]['id']%>"><%=department[row]['departmentName']%></option>
+                                                <%
+                                                }%>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="position">Position:</label>
+                                        <div class="row">
+                                            <select name='position'>
+                                                <option value="0">------Select Position--------</option>
+                                                <%for(var rowp in position){%>
+                                                <option  value="<%=position[rowp]['id']%>"><%=position[rowp]['positionName']%></option>
+                                                <%
+                                                }%>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="country">Country:</label>
+                                        <div class="row">
+                                            <select name='country' id="country">
+                                                <option value="">------Select------</option>
+                                                <option  value="Bangladesh">Bangladesh</option>
+                                                <option  value="Nepal">Nepal</option>
+                                                <option  value="India">India</option>
+                                                <option  value="Pakistan">Pakistan</option>
+                                                <option  value="USA">USA</option>
+                                                <option  value="Germany">Germany</option>
+                                                <option  value="Canada">Canada</option>
+                                                <option  value="Australia">Australia</option>
+
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="homeTown">Home Town:</label>
+                                        <div class="text">
+                                            <input id="homeTown" type="text" name="txtHomeTown" value="" />
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="contact">Contact No.:</label>
+                                        <div class="text">
+                                            <input id="contact" type="text" name="txtContact" value="" onkeypress="return isNumber(event)"/>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="email">E-mail:</label>
+                                        <div class="text">
+                                            <input id="email" type="text" name="txtEmail" value=""/>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="gender">Gender:</label>
+                                        <div class="row">
+                                            <input id="male" class="radio" name="sex" value="1" checked="checked" type="radio" />Male
+                                            <input id="female" class="radio" name="sex" value="0" type="radio" />Female
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="mStatus">Maritial Status:</label>
+                                        <div class="row">
+                                            <select name="maritalStatus">
+                                                <option value="0">------Select------</option>
+                                                <option value="single">Single</option>
+                                                <option value="married">Married</option>
+                                                <option value="divorced">Divorced</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="dob">Date of Birth:</label>
+                                        <div class="row">
+                                            <div class="text">
+                                                <input type="text" name="date" class="date_input" value="01 Jan 2019">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <input class="btn-submit editsubmit" type="submit" value="Submit" />
+                                </form>
+
+
+                            <%}
+                            else if (edit=='1'){%>
+                            <h1>Edit Employee Details</h1>
+                            <form method="post" enctype="multipart/form-data" action="/editEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()">
+                                <div class="row">
+                                    <label for="first-name">First name:</label>
+                                    <div class="text">
+                                        <input id="first-name" name="txtFirst" type="text" value="<%=data['firstName']%>" />
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="middle-name">Middle name:</label>
+                                    <div class="text">
+                                        <input id="middle-name" name="txtMiddle" type="text" value='<%=data['middleName']%>' />
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="last-name">Last name:</label>
+                                    <div class="text">
+                                        <input id="last-name" name="txtLast" type="text" value="<%=data['lastName']%>" />
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="emp-id">Employee Id:</label>
+                                    <div class="text">
+                                        <input id="emp-id" name="txtEmpId" type="text" class="readonly" value='<%=data['id']%>' readonly="true" />
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="dep">Department:</label>
+                                    <div class="row">
+                                        <select name='department'>
+                                            <option>------Select Department--------</option>
+                                            <%for(var row in department){%>
+
+                                            <option  value="<%=department[row]['id']%>"<%if(data['department']==department[row]['id']) {%> selected <%}%>><%=department[row]['departmentName']%></option>
+                                            <%
+                                            }%>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="dep">Position:</label>
+                                    <div class="row">
+                                        <select name='position'>
+                                            <option>------Select Position--------</option>
+                                            <%for(var rowp in position){%>
+                                            <option  value="<%=position[rowp]['id']%>"<%if(data['position']==position[rowp]['id']) {%> selected <%}%>><%=position[rowp]['positionName']%></option>
+                                            <%
+                                            }%>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="country">Country:</label>
+                                    <div class="row">
+                                        <select name='country'>
+                                            <option value="">------Select------</option>
+                                            <option  value="Bangladesh" <%if(data['country']=='Bangladesh') {%> selected <%}%>>Bangladesh</option>
+
+                                            <option  value="Nepal" <%if(data['country']=='Nepal') {%> selected <%}%>>Nepal</option>
+                                            <option  value="India" <%if(data['country']=='India') {%> selected <%}%>>India</option>
+
+                                            <option  value="Pakistan" <%if(data['country']=='Pakistan') {%> selected <%}%>>Pakistan</option>
+
+                                            <option  value="USA" <%if(data['country']=='USA') {%> selected <%}%>>USA</option>
+                                            <option  value="Germany" <%if(data['country']=='Germany') {%> selected <%}%>>Germany</option>
+                                            <option  value="Canada" <%if(data['country']=='Canada') {%> selected <%}%>>Canada</option>
+                                            <option  value="Australia" <%if(data['country']=='Australia') {%> selected <%}%>>Australia</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="homeTown">Home Town:</label>
+                                    <div class="text">
+                                        <input id="homeTown" type="text" name="txtHomeTown" value="<%=data['homeTown']%>" />
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="contact">Contact No.:</label>
+                                    <div class="text">
+                                        <input id="contact" type="text" name="txtContact" value="<%=data['contactNo']%>" onkeypress="return isNumber(event)"/>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="email">E-mail:</label>
+                                    <div class="text">
+                                        <input id="email" type="text" name="txtEmail" value="<%=data['email']%>"/>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="gender">Gender:</label>
+                                    <div class="row">
+                                        <input id="male" class="radio" name="sex" value="1" <%if(data['gender']==1) {%> checked <%}%> type="radio" />Male
+                                        <input id="female" class="radio" name="sex" value="0"<%if(data['gender']==0) {%> checked <%}%> type="radio" />Female
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="mStatus">Maritial Status:</label>
+                                    <div class="row">
+                                        <select name="maritalStatus">
+                                            <option value="">------Select------</option>
+                                            <option value="single"<%if(data['maritalStatus']=='single') {%> selected <%}%>>Single</option>
+                                            <option value="married"<%if(data['maritalStatus']=='married') {%> selected <%}%>>Married</option>
+                                            <option value="divorced"<%if(data['maritalStatus']=='divorced') {%> selected <%}%>>Divorced</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="dob">Date of Birth:</label>
+                                    <div class="row">
+                                        <div class="text">
+                                            <input type="text" name="date" class="date_input" value="<%=data['dateofBirth']%>">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="photograph">Image:</label>
+                                    <div class="row">
+                                        <div class ="editimage">
+
+
+                                            <img src="../photo/<%=data['id']%>.jpg" height="95px" width="95px" />
+
+
+                                        </div>
+                                        <input id="photograph" name="inpFile" type="file" value="" />
+                                    </div>
+                                </div>
+                                <input class="btn-submit editsubmit" type="submit" value="Submit" />
+                            </form>
+                            <%}
+
+                            else if (edit=='0')
+                            {%>
+                            <h1>Employee Details</h1>
+                            <form method="post" action="/editEmp" class="contact-form">
+                                <div class="contact-form-left">
+                                    <div class="row">
+                                        <label for="first-name" class="displayLabel">First name:</label>
+                                        <div class ="capitalize">
+                                            <%=data['firstName']%> <%=data['middleName']%> <%=data['lastName']%>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="row">
+                                        <label for="emp-id" class="displayLabel">Employee Id:</label>
+                                        <div >
+
+                                            <%=data['id']%>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="dep" class="displayLabel">Department:</label>
+                                        <div>
+
+                                            <%for(var row in department){
+                                            if(data['department']==department[row]['id']) {%>
+                                            <%=department[row]['departmentName']%>
+                                            <%}}%>
+                                        </div>
+
+                                    </div>
+                                    <div class="row">
+                                        <label for="dep" class="displayLabel">Position:</label>
+                                        <div>
+
+                                            <%for(var row in position){
+                                            if(data['position']==position[row]['id']) {%>
+                                            <%=position[row]['positionName']%>
+                                            <%}}%>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row">
+                                        <label for="country" class="displayLabel">Country:</label>
+
+                                        <div >
+
+                                            <%=data['country']%>
+                                        </div>
+
+                                    </div>
+                                    <div class="row">
+                                        <label for="homeTown" class="displayLabel">Home Town:</label>
+
+                                        <div >
+
+                                            <%=data['homeTown']%>
+                                        </div>
+
+                                    </div>
+                                    <div class="row">
+                                        <label for="contact" class="displayLabel">Contact No.:</label>
+
+                                        <div >
+
+                                            <%=data['contactNo']%>
+                                        </div>
+
+                                    </div>
+                                    <div class="row">
+                                        <label for="email" class="displayLabel">E-mail:</label>
+
+                                        <div style ="text-transform:none;" >
+
+                                            <%=data['email']%>
+                                        </div>
+
+
+                                    </div>
+                                    <div class="row">
+                                        <label for="gender" class="displayLabel">Gender:</label>
+                                        <div >
+
+                                            <%if(data['gender']==1){%>Male<%}else{%>Female<%}%>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="mStatus" class="displayLabel">Maritial Status:</label>
+                                        <div >
+
+                                            <%=data['maritalStatus']%>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <label for="dob" class="displayLabel">Date of Birth:</label>
+                                        <div >
+                                            <%=data['dateofBirth']%>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                                <div style="clear:both"></div>
+                            </form>
+                            <%}%>
+                            <div style="clear:both;"></div>
+                        </div>
+
+                    </div>
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

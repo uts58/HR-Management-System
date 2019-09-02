@@ -1,0 +1,86 @@
+<%if(title=='hr'){ %>
+<div class="menu-holder">
+    <ul class="nav">
+        <li><a href="#" name="employee" id="checkemployee" >Employee</a>
+            <ul>
+                <li><a href="/addEmployee" id="checkemp1">Add new employee</a></li>
+
+                <li><a href="/addDep" id="checkimp2">Manage Department</a></li>
+                <li><a href="/addPos" id="checkimp3">Manage Position</a></li>
+                <li><a href="/viewEmployee" id="checkimp4">Manage Employee</a></li>
+            </ul>
+        </li>
+        <li><a href="#">Notice</a>
+            <ul>
+                <li><a href="/addNotice">Manage Notice</a></li>
+
+            </ul>
+        </li>
+        <li><a href="#">Leave</a><ul>
+                <li><a href="/displayLeave">Assign</a></li>
+                <li><a href="/viewLeavebyAdmin">View Leave Dates</a></li>
+            </ul></li>
+        <li><a href="#">Performance Appraisal</a><ul>
+                <li><a href="/addPerformance">Add Appraisal</a></li>
+                <li><a href="/viewPerformance">Manage Appraisal</a></li>
+            </ul></li>
+
+
+
+        <!--  <li><a href="#">Recruitment</a>
+             <ul>
+                 <li><a href="#">Upload Job Vacancy</a></li>
+                 <li><a href="#">Applicants</a></li>
+             </ul>
+         </li>
+        <li><a href="#">Employment Welfare</a><ul>
+             <li><a href="#">Define Organization</a></li>
+             <li><a href="#">Assign Welfare</a></li>
+             <li><a href="#">Welfare Setting</a></li>
+         </ul></li>
+        <li><a href="#">Document Processing</a>
+            <ul>
+                <li><a href="/addDocument">Add Document</a></li>
+                <li><a href="#">view Document</a></li>
+            </ul>
+        </li>-->
+        <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
+            <ul>
+                <!--<li><a href="/message">Message</a></li>-->
+                <li><a href="/viewDetails?id=<%=userid%>">View Profile</a></li>
+                <li><a href="/changePassword">Change Password</a></li>
+                <li><a href="/logout">Log out</a></li>
+            </ul>
+        </li>
+
+    </ul>
+</div>
+<%
+}
+
+else if(title=='emp'){ %>
+<div class="menu-holder">
+    <ul class="nav">
+
+        <li><a href="#">Leave</a><ul>
+                <li><a href="/addLeave">Leave Request</a></li>
+                <li><a href="/viewLeave">View Leave History</a></li>
+            </ul></li>
+
+
+        <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
+            <ul>
+                <!--<li><a href="/message">Message</a></li>-->
+                <li><a href="/viewProfile">View Profile</a></li>
+                <li><a href="/changePassword">Change Password</a></li>
+                <li><a href="/logout">Log out</a></li>
+            </ul>
+        </li>
+
+
+    </ul>
+</div>
+<%
+}
+%>
+

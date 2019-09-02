@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="css/all.css" />
+
+    <link rel="shortcut icon" href="/images/fabicon.jpg">
+
+    <link rel="stylesheet" href="../calender/date_input.css" type="text/css">
+    <script type="text/javascript" src="../calender/firebug/firebug.js"></script>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.1/jquery.min.js"></script>
+    <script type="text/javascript" src="../calender/jquery.date_input.js"></script>
+    <script type="text/javascript">$($.date_input.initialize);</script>
+    <script type="text/javascript" src="js/jquery-2.0.3.min.js"></script>
+    <script type="text/javascript" src="js/scriptbreaker-multiple-accordion-1.js"></script>
+    <script type="text/javascript" src="js/ajax.js"></script>
+    <script type="text/javascript" src="js/functions.js"></script>
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"> <strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <% include menu.ejs %>
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <%- body %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
