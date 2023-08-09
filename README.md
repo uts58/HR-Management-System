@@ -8,7 +8,7 @@ Navigate and manage HR functionalities with ease! Our HR Management System, buil
 **1. User Roles:**
 * **Admin:** Highest level of access with capabilities to add and manage HR users.
 * **HR:** Central role with the authority to add and manage regular users or employees.
-* **** The general user role with access to personal details, notices, and more.
+* **Employee:** The general user role with access to personal details, notices, and more.
 
 **2. Notice Panel:** An interactive panel for broadcasting important notices, updates, or announcements to employees.
 
