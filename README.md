@@ -6,17 +6,17 @@ Navigate and manage HR functionalities with ease! Our HR Management System, buil
 
 ## Features
 **1. User Roles:**
-* Admin: Highest level of access with capabilities to add and manage HR users.
-* HR: Central role with the authority to add and manage regular users or employees.
-* Employee: The general user role with access to personal details, notices, and more.
+* **Admin:** Highest level of access with capabilities to add and manage HR users.
+* **HR:** Central role with the authority to add and manage regular users or employees.
+* **** The general user role with access to personal details, notices, and more.
 
 **2. Notice Panel:** An interactive panel for broadcasting important notices, updates, or announcements to employees.
 
 **3. Database Integration:** Built-in support for MySQL databases through the jugglingDB framework, ensuring reliable data storage and efficient retrieval operations.
 
 **Prerequisites**
-* Node.js (Specify version, e.g., Node.js 14+)
-* MySQL (Specify version if necessary)
+* Node.js
+* MySQL
 * Any other dependencies or global tools that are required
 
 ## Setup Instructions
