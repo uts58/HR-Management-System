@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="css/all.css" />
+  <link rel="shortcut icon" href="/images/fabicon.jpg">
+
+  <link rel="stylesheet" href="../calender/date_input.css" type="text/css">
+  <script type="text/javascript" src="../calender/firebug/firebug.js"></script>
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.1/jquery.min.js"></script>
+  <script type="text/javascript" src="../calender/jquery.date_input.js"></script>
+  <script type="text/javascript">$($.date_input.initialize);</script>
+  <script type="text/javascript" src="js/jquery-2.0.3.min.js"></script>
+  <script type="text/javascript" src="js/scriptbreaker-multiple-accordion-1.js"></script>
+  <script type="text/javascript" src="js/ajax.js"></script>
+  <script type="text/javascript" src="js/functions.js"></script>
+  <title><%= title %></title>
+</head>
+  <body>
+  <div id="wrapper">
+    <div id="header"> <strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+      <div class="menu-holder">
+        <ul class="nav">
+        </ul>
+      </div>
+    </div>
+    <div id="main">
+      <div class="box">
+        <div class="holder">
+          <div class="frame">
+            <div class="three-columns">
+              <div class="column">
+                <div class="heading blog">
+                  <h2>User Login</h2>
+                </div>
+                <form name="userlogin" method="post">
+                  <table>
+                    <tr>
+                      <td><label for="username">Username:</label></td>
+                      <td><input id="txtUsername" type="text" name="txtUsername" value="" /></td>
+                    </tr>
+                    <tr>
+                      <td><label for="password">Password:</label></td>
+                      <td><input id="txtPassword" type="password" name="txtPassword" value="" onkeypress="searchKeyPress(event);" /></td>
+                    </tr>
+                    <tr>
+                      <td><input id="btnSubmit" class="btn-submit editsubmit" type="button" value="Submit" onclick="if(verify()){authentication()}" /></td>
+                      <td><input class="btn-reset editsubmit" type="reset" value="Reset" /></td>
+                    </tr>
+                  </table>
+                </form>
+              </div>
+              <div class="column">
+                <div class="heading about">
+                  <h2>About Us</h2>
+                </div>
+
+                <p class="wellpara">A Human Resources Management System (HRMS) or Human Resources Information System (HRIS), refers to the systems and processes at the
+                  intersection between human resource management (HRM) and information technology.
+                  It merges HRM as a discipline and in particular its basic HR activities and processes with the information technology field,
+                  whereas the programming of data processing systems evolved into standardized routines and packages of enterprise resource planning
+                  (ERP) software. </p>
+              </div>
+
+              <div class="column">
+                <div class="heading get-touch">
+                  <h2>Recent Notices</h2>
+                </div>
+                <div class="notice">
+                  <ul class="topnav">
+                    <%
+                    var con=0;
+                    for(var r in notices){}
+                    for(var i=r; i>=0;i-- ){
+                    if(notices[i]['type']=='1'){
+                    if(con<5){
+                    %>
+
+                      <li class="mainlink">
+
+                        <a href="#"> <%= notices[i]["title"] %> </a>
+
+                        <ul style="display: none; margin-left:0px;">
+
+                          <li style="list-style: none; text-align:justify; ">
+                            <%= notices[i]['notice']%>
+                            <span class="noticedate"><%= notices[i]["date"] %></span>
+                          </li>
+
+
+                        </ul>
+                      </li>
+
+                    <% con++;
+                    }}}%>
+                  </ul>
+                  <!--  <a href=''class="seeall">see more..</a> -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="css/all.css" />
+
+    <link rel="shortcut icon" href="/images/fabicon.jpg">
+
+    <link rel="stylesheet" href="../calender/date_input.css" type="text/css">
+    <script type="text/javascript" src="../calender/firebug/firebug.js"></script>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.1/jquery.min.js"></script>
+    <script type="text/javascript" src="../calender/jquery.date_input.js"></script>
+    <script type="text/javascript">$($.date_input.initialize);</script>
+    <script type="text/javascript" src="js/jquery-2.0.3.min.js"></script>
+    <script type="text/javascript" src="js/scriptbreaker-multiple-accordion-1.js"></script>
+    <script type="text/javascript" src="js/ajax.js"></script>
+    <script type="text/javascript" src="js/functions.js"></script>
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"> <strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <%if(title=='hr'){ %>
+        <div class="menu-holder">
+            <ul class="nav">
+                <li><a href="#" name="employee" id="checkemployee" >Employee</a>
+                    <ul>
+                        <li><a href="hr/addEmployee" id="checkemp1">Add new employee</a></li>
+                        <li><a href="hr/addDep" id="checkimp2">Manage Department</a></li>
+                        <li><a href="hr/addPos" id="checkimp3">Manage Position</a></li>
+                        <li><a href="hr/viewEmployee" id="checkimp4">Manage Employee</a></li>
+                    </ul>
+                </li>
+                <li><a href="#">Notice</a>
+                    <ul>
+                        <li><a href="/addNotice">Manage Notice</a></li>
+
+                    </ul>
+                </li>
+                <li><a href="#">Leave</a><ul>
+                        <li><a href="/displayLeave">Assign</a></li>
+                        <li><a href="/viewLeavebyAdmin">View Leave Dates</a></li>
+                    </ul></li>
+                <li><a href="#">Performance Appraisal</a><ul>
+                        <li><a href="/addPerformance">Add Appraisal</a></li>
+                        <li><a href="/viewPerformance">Manage Appraisal</a></li>
+                    </ul>
+                </li>
+                <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
+                    <ul>
+                        <li><a href="/viewDetails?id=<%=userid%>">View Profile</a></li>
+                        <li><a href="/changePassword">Change Password</a></li>
+                        <li><a href="/logout">Log out</a></li>
+                    </ul>
+                </li>
+
+            </ul>
+        </div>
+        <%
+        }
+
+        else if(title=='emp'){ %>
+        <div class="menu-holder">
+            <ul class="nav">
+
+                <li><a href="#">Leave</a><ul>
+                        <li><a href="/addLeave">Leave Request</a></li>
+                        <li><a href="/viewLeave">View Leave History</a></li>
+                    </ul></li>
+
+
+                <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
+                    <ul>
+                        <!--<li><a href="/message">Message</a></li>-->
+                        <li><a href="/viewProfile">View Profile</a></li>
+                        <li><a href="/changePassword">Change Password</a></li>
+                        <li><a href="/logout">Log out</a></li>
+                    </ul>
+                </li>
+
+
+            </ul>
+        </div>
+        <%
+        }
+        %>
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <div >
+                        <div class="adminlog">
+                            <span style="font-weight: bold;"> Welcome <%=useracc%> !<br></span>
+
+                            <div class="margindown"></div>
+                            <%if(title=='in'){
+                            if(leave!=0){
+                            %>
+                            <span class="notification"><a href="/displayLeave">Leave application <%=leave%></a></span>
+                            <%
+                            }
+                            else{}
+                            }
+                            else{
+                                console.log(leave)
+                            if(leave!=0){
+                            %>
+                                <span class="notification"><a href="/viewLeave">The admin views your Leave request</a></span>
+                            <%
+                            }
+                            else{
+                            }
+                            }
+                            %>
+                        </div>
+
+                        <div class="noticeinner">
+                            <h2 style="margin-left:15px;">Recent Notices</h2>
+                            <ul class="topnav">
+                                <%
+                                var con=0;
+                                for(var r in notices){}
+                                for(var i=r; i>=0;i-- ){
+                                if(con<5){
+                                %>
+
+                                    <li class="mainlink">
+
+                                        <a href='#'><%= notices[i]["title"] %></a>
+
+                                        <ul style="display: none;">
+
+                                            <li style="list-style: none; text-align:justify;">
+                                                <%= notices[i]['notice']%>
+                                                <span class="noticedate"><%= notices[i]["date"] %></span>
+                                            </li>
+
+                                        </ul>
+                                    </li>
+
+                                <% con++;
+                                }}%>
+                            </ul>
+                            <!-- <a href=''class="seeall">see more..</a> -->
+                        </div>
+
+                        <div class="contentpart">
+                            <h2>Our Company Policy</h2>
+
+                            The payroll module automates the pay process by gathering data on employee time and attendance, calculating various deductions and taxes, and generating periodic pay cheques and employee tax reports. Data is generally fed from the human resources and time keeping modules to calculate automatic deposit and manual cheque writing capabilities.
+
+
+
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
