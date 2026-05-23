@@ -50,7 +50,9 @@ router.get('/home', async function(req, res) {
 router.post("/actAdmin", async function(req, res) {
     const { username, password } = req.body;
     try {
-        const user = await prisma.person.findFirst({ where: { Name: username, password } });
+        const user = await prisma.person.findFirst({
+            where: { Name: { equals: username, mode: 'insensitive' }, password }
+        });
         if (user) {
             req.session.idno = user.id;
             req.session.name = username;

@@ -20,7 +20,7 @@ async function main() {
     await prisma.person.upsert({
         where: { id: '1' },
         update: {},
-        create: { id: '1', Name: 'Admin', password: 'admin123', access: 1 }
+        create: { id: '1', Name: 'admin', password: 'admin123', access: 1 }
     });
     await prisma.employee.upsert({
         where: { id: 1 },
@@ -32,7 +32,7 @@ async function main() {
     await prisma.person.upsert({
         where: { id: '2' },
         update: {},
-        create: { id: '2', Name: 'John', password: 'emp123', access: 0 }
+        create: { id: '2', Name: 'john', password: 'emp123', access: 0 }
     });
     await prisma.employee.upsert({
         where: { id: 2 },
@@ -49,8 +49,8 @@ async function main() {
     await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('notice', 'id'), MAX(id)) FROM notice`;
 
     console.log('Seed complete.');
-    console.log('  HR login  — username: Admin   password: admin123');
-    console.log('  Emp login — username: John    password: emp123');
+    console.log('  HR login  — username: admin   password: admin123');
+    console.log('  Emp login — username: john    password: emp123');
 }
 
 main()

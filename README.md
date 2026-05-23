@@ -52,8 +52,8 @@ Navigate and manage HR functionalities with ease. Whether you're an Admin, HR, o
    Default credentials after seeding:
    | Role | Username | Password |
    |------|----------|----------|
-   | HR Admin | `Admin` | `admin123` |
-   | Employee | `John` | `emp123` |
+   | HR Admin | `admin` | `admin123` |
+   | Employee | `john` | `emp123` |
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
