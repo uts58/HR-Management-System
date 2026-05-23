@@ -43,10 +43,17 @@ Navigate and manage HR functionalities with ease. Whether you're an Admin, HR, o
    docker compose up --build
    ```
 
-4. First time only — create the database tables:
+4. First time only — create the database tables and seed data:
    ```bash
    docker compose exec app npx prisma db push
+   docker compose exec app npm run db:seed
    ```
+
+   Default credentials after seeding:
+   | Role | Username | Password |
+   |------|----------|----------|
+   | HR Admin | `Admin` | `admin123` |
+   | Employee | `John` | `emp123` |
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
@@ -87,9 +94,10 @@ Navigate and manage HR functionalities with ease. Whether you're an Admin, HR, o
    cp .env.example .env
    ```
 
-4. Create the database tables:
+4. Create the database tables and seed data:
    ```bash
    npm run db:push
+   npm run db:seed
    ```
 
 5. Start the application:
@@ -107,6 +115,7 @@ Navigate and manage HR functionalities with ease. Whether you're an Admin, HR, o
 |--------------------|-------------------------------------------------------|
 | `npm start`        | Start the application                                 |
 | `npm run db:push`  | Push the Prisma schema to the database (no migration history) |
+| `npm run db:seed`  | Seed departments, positions, admin user, and sample employee |
 | `npm run migrate`  | Run Prisma migrations (development)                   |
 | `npm run generate` | Regenerate the Prisma client after schema changes     |
 
