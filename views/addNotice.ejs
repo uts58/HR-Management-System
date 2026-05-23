@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="/css/all.css" />
+    <link rel="shortcut icon" href="/images/fabicon.jpg">
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"><strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <%- include('menu') %>
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <h1>Manage Notices</h1>
+                    <% if (saved == 1) { %><span style="color:#0000FF;">Notice posted successfully!</span><br/><% } %>
+
+                    <form method="post" action="/saveNotice" class="contact-form" style="margin-bottom:20px;">
+                        <div class="row">
+                            <label for="noticeTitle">Title:</label>
+                            <div class="text">
+                                <input id="noticeTitle" name="noticeTitle" type="text" value="" />
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label for="notice">Notice:</label>
+                            <div class="text">
+                                <textarea id="notice" name="notice" rows="4" style="width:300px;"></textarea>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label for="type">Type:</label>
+                            <div class="row">
+                                <select name="type" id="type">
+                                    <option value="0">General</option>
+                                    <option value="1">Urgent</option>
+                                    <option value="2">Holiday</option>
+                                </select>
+                            </div>
+                        </div>
+                        <input class="btn-submit editsubmit" type="submit" value="Post Notice" />
+                    </form>
+
+                    <table class="altrowstable" id="alternatecolor">
+                        <tr>
+                            <th>Id</th>
+                            <th>Title</th>
+                            <th>Notice</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                        <% for (var row in notices) { %>
+                        <tr>
+                            <td><%= notices[row]['id'] %></td>
+                            <td><%= notices[row]['title'] %></td>
+                            <td style="max-width:300px;"><%= notices[row]['notice'] %></td>
+                            <td><%= notices[row]['date'] %></td>
+                            <td><a href="/deleteNotice?id=<%= notices[row]['id'] %>" onclick="return confirm('Delete this notice?')">Delete</a></td>
+                        </tr>
+                        <% } %>
+                        <% if (notices.length === 0) { %>
+                        <tr><td colspan="5" style="text-align:center;">No notices posted yet.</td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -3,20 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "db:push": "prisma db push"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "body-parser": "^1.20.5",
     "cookie-parser": "~1.4.3",
     "debug": "~2.6.9",
     "ejs": "~3.1.10",
     "express": "~4.22.2",
-    "http-errors": "~1.6.2",
-    "morgan": "~1.9.0",
-    "body-parser": "^1.20.5",
     "express-session": "latest",
-    "jugglingdb": "0.2.x",
-    "jugglingdb-mysql": "latest",
+    "http-errors": "~1.6.2",
     "method-override": "latest",
-    "mysql": "latest"
+    "morgan": "^1.10.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3"
   }
 }

@@ -3,11 +3,11 @@
     <ul class="nav">
         <li><a href="#" name="employee" id="checkemployee" >Employee</a>
             <ul>
-                <li><a href="/addEmployee" id="checkemp1">Add new employee</a></li>
+                <li><a href="/hr/addEmployee" id="checkemp1">Add new employee</a></li>
 
-                <li><a href="/addDep" id="checkimp2">Manage Department</a></li>
-                <li><a href="/addPos" id="checkimp3">Manage Position</a></li>
-                <li><a href="/viewEmployee" id="checkimp4">Manage Employee</a></li>
+                <li><a href="/hr/addDep" id="checkimp2">Manage Department</a></li>
+                <li><a href="/hr/addPos" id="checkimp3">Manage Position</a></li>
+                <li><a href="/hr/viewEmployee" id="checkimp4">Manage Employee</a></li>
             </ul>
         </li>
         <li><a href="#">Notice</a>
@@ -47,7 +47,7 @@
         <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
             <ul>
                 <!--<li><a href="/message">Message</a></li>-->
-                <li><a href="/viewDetails?id=<%=userid%>">View Profile</a></li>
+                <li><a href="/hr/viewDetails?id=<%=userid%>">View Profile</a></li>
                 <li><a href="/changePassword">Change Password</a></li>
                 <li><a href="/logout">Log out</a></li>
             </ul>
@@ -71,7 +71,7 @@ else if(title=='emp'){ %>
         <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
             <ul>
                 <!--<li><a href="/message">Message</a></li>-->
-                <li><a href="/viewProfile">View Profile</a></li>
+                <li><a href="/hr/viewProfile">View Profile</a></li>
                 <li><a href="/changePassword">Change Password</a></li>
                 <li><a href="/logout">Log out</a></li>
             </ul>

@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Person {
+  id       String @id
+  Name     String
+  password String
+  access   Int    @default(0)
+
+  @@map("person")
+}
+
+model Employee {
+  id            Int     @id
+  firstName     String
+  middleName    String?
+  lastName      String
+  department    Int
+  position      Int
+  country       String?
+  homeTown      String?
+  contactNo     String?
+  email         String?
+  gender        Int?
+  maritalStatus String?
+  dateofBirth   String?
+
+  @@map("employee")
+}
+
+model Department {
+  id             Int    @id @default(autoincrement())
+  departmentName String
+
+  @@map("department")
+}
+
+model Position {
+  id           Int    @id @default(autoincrement())
+  positionName String
+
+  @@map("position")
+}
+
+model EmpLeave {
+  id          Int     @id @default(autoincrement())
+  empid       String
+  leaveType   String?
+  leaveStart  String?
+  leaveEnd    String?
+  description String?
+  status      Int     @default(0)
+  read        Int     @default(0)
+
+  @@map("empleave")
+}
+
+model Notice {
+  id     Int     @id @default(autoincrement())
+  title  String
+  type   Int?
+  notice String
+  date   String?
+
+  @@map("notice")
+}
+
+model Message {
+  id   Int     @id @default(autoincrement())
+  from Int
+  to   Int
+  msg  String?
+  date String?
+  read Int     @default(0)
+
+  @@map("message")
+}
+
+model Performance {
+  id            Int     @id @default(autoincrement())
+  empId         Int
+  project_name  String?
+  project_begin String?
+  project_end   String?
+  rating        Int?
+
+  @@map("performance")
+}

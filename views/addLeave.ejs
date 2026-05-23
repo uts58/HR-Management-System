@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="/css/all.css" />
+    <link rel="shortcut icon" href="/images/fabicon.jpg">
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"><strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <%- include('menu') %>
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <div class="innerpage">
+                        <div class="innerpage-form">
+                            <h1>Leave Request</h1>
+                            <% if (saved == 1) { %><span style="color:#0000FF;">Leave request submitted successfully!</span><br/><% } %>
+
+                            <form method="post" action="/saveLeave" class="contact-form">
+                                <div class="row">
+                                    <label for="leaveType">Leave Type:</label>
+                                    <div class="row">
+                                        <select name="leaveType" id="leaveType">
+                                            <option value="Sick Leave">Sick Leave</option>
+                                            <option value="Annual Leave">Annual Leave</option>
+                                            <option value="Casual Leave">Casual Leave</option>
+                                            <option value="Maternity Leave">Maternity Leave</option>
+                                            <option value="Unpaid Leave">Unpaid Leave</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="leaveStart">From Date:</label>
+                                    <div class="text">
+                                        <input id="leaveStart" name="leaveStart" type="text" placeholder="YYYY-MM-DD" value="" />
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="leaveEnd">To Date:</label>
+                                    <div class="text">
+                                        <input id="leaveEnd" name="leaveEnd" type="text" placeholder="YYYY-MM-DD" value="" />
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="description">Reason:</label>
+                                    <div class="text">
+                                        <textarea id="description" name="description" rows="3" style="width:300px;"></textarea>
+                                    </div>
+                                </div>
+                                <input class="btn-submit editsubmit" type="submit" value="Submit Request" />
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
