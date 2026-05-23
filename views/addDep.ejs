@@ -1,0 +1,55 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="/css/all.css" />
+    <link rel="shortcut icon" href="/images/fabicon.jpg">
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"><strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <%- include('menu') %>
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <h1>Manage Departments</h1>
+                    <% if (saved == 1) { %><span style="color:#0000FF;">Saved Successfully!</span><br/><% } %>
+                    <% if (error) { %><span style="color:red;"><%= error %></span><br/><% } %>
+
+                    <form method="post" action="/hr/saveDep" class="contact-form" style="margin-bottom:20px;">
+                        <div class="row">
+                            <label for="depName">Department Name:</label>
+                            <div class="text">
+                                <input id="depName" name="depName" type="text" value="" />
+                            </div>
+                        </div>
+                        <input class="btn-submit editsubmit" type="submit" value="Add Department" />
+                    </form>
+
+                    <table class="altrowstable" id="alternatecolor">
+                        <tr>
+                            <th>Id</th>
+                            <th>Department Name</th>
+                            <th>Action</th>
+                        </tr>
+                        <% for (var row in departments) { %>
+                        <tr>
+                            <td><%= departments[row]['id'] %></td>
+                            <td><%= departments[row]['departmentName'] %></td>
+                            <td><a href="/hr/deleteDep?id=<%= departments[row]['id'] %>" onclick="return confirm('Delete this department?')">Delete</a></td>
+                        </tr>
+                        <% } %>
+                        <% if (departments.length === 0) { %>
+                        <tr><td colspan="3" style="text-align:center;">No departments added yet.</td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

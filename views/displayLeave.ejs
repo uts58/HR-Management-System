@@ -1,0 +1,61 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="/css/all.css" />
+    <link rel="shortcut icon" href="/images/fabicon.jpg">
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"><strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <%- include('menu') %>
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <h1>Pending Leave Requests</h1>
+
+                    <table class="altrowstable" id="alternatecolor">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Leave Type</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Description</th>
+                            <th style="width:180px;">Action</th>
+                        </tr>
+                        <%
+                        for (var row in leaves) {
+                            var empName = leaves[row]['empid'];
+                            for (var e in employees) {
+                                if (String(employees[e]['id']) === String(leaves[row]['empid'])) {
+                                    empName = employees[e]['firstName'] + ' ' + employees[e]['lastName'];
+                                    break;
+                                }
+                            }
+                        %>
+                        <tr>
+                            <td class="capitalize"><%= empName %></td>
+                            <td><%= leaves[row]['leaveType'] %></td>
+                            <td><%= leaves[row]['leaveStart'] %></td>
+                            <td><%= leaves[row]['leaveEnd'] %></td>
+                            <td><%= leaves[row]['description'] %></td>
+                            <td>
+                                <a href="/assignLeave?id=<%= leaves[row]['id'] %>&status=1" onclick="return confirm('Approve this leave?')">Approve</a> |
+                                <a href="/assignLeave?id=<%= leaves[row]['id'] %>&status=2" onclick="return confirm('Reject this leave?')">Reject</a>
+                            </td>
+                        </tr>
+                        <% } %>
+                        <% if (leaves.length === 0) { %>
+                        <tr><td colspan="6" style="text-align:center;">No pending leave requests.</td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

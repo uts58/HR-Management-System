@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="/css/all.css" />
+    <link rel="shortcut icon" href="/images/fabicon.jpg">
+    <title>HRM</title>
+</head>
+<body>
+<div id="wrapper">
+    <div id="header"><strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
+        <%- include('menu') %>
+    </div>
+    <div id="main">
+        <div class="box">
+            <div class="holder">
+                <div class="frame">
+                    <h1>Performance Appraisals</h1>
+
+                    <table class="altrowstable" id="alternatecolor">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Project</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Rating</th>
+                            <th>Action</th>
+                        </tr>
+                        <%
+                        for (var row in performances) {
+                            var empName = performances[row]['empId'];
+                            for (var e in employees) {
+                                if (employees[e]['id'] === performances[row]['empId']) {
+                                    empName = employees[e]['firstName'] + ' ' + employees[e]['lastName'];
+                                    break;
+                                }
+                            }
+                        %>
+                        <tr>
+                            <td class="capitalize"><%= empName %></td>
+                            <td><%= performances[row]['project_name'] %></td>
+                            <td><%= performances[row]['project_begin'] %></td>
+                            <td><%= performances[row]['project_end'] %></td>
+                            <td><%= performances[row]['rating'] %>/5</td>
+                            <td><a href="/deletePerformance?id=<%= performances[row]['id'] %>" onclick="return confirm('Delete this appraisal?')">Delete</a></td>
+                        </tr>
+                        <% } %>
+                        <% if (performances.length === 0) { %>
+                        <tr><td colspan="6" style="text-align:center;">No appraisals recorded yet.</td></tr>
+                        <% } %>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

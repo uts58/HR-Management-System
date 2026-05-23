@@ -25,11 +25,11 @@
             <ul class="nav">
                 <li><a href="#" name="employee" id="checkemployee" >Employee</a>
                     <ul>
-                        <li><a href="/addEmployee" id="checkemp1">Add new employee</a></li>
+                        <li><a href="/hr/addEmployee" id="checkemp1">Add new employee</a></li>
 
-                        <li><a href="/addDep" id="checkimp2">Manage Department</a></li>
-                        <li><a href="/addPos" id="checkimp3">Manage Position</a></li>
-                        <li><a href="/viewEmployee" id="checkimp4">Manage Employee</a></li>
+                        <li><a href="/hr/addDep" id="checkimp2">Manage Department</a></li>
+                        <li><a href="/hr/addPos" id="checkimp3">Manage Position</a></li>
+                        <li><a href="/hr/viewEmployee" id="checkimp4">Manage Employee</a></li>
                     </ul>
                 </li>
                 <li><a href="#">Notice</a>
@@ -69,7 +69,7 @@
                 <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
                     <ul>
                         <!--<li><a href="/message">Message</a></li>-->
-                        <li><a href="/viewDetails?id=<%=userid%>">View Profile</a></li>
+                        <li><a href="/hr/viewDetails?id=<%=userid%>">View Profile</a></li>
                         <li><a href="/changePassword">Change Password</a></li>
                         <li><a href="/logout">Log out</a></li>
                     </ul>
@@ -93,7 +93,7 @@
                 <li><a class="userlogin admincolor" href="#"><%=useracc%></a>
                     <ul>
                         <!--<li><a href="/message">Message</a></li>-->
-                        <li><a href="/viewProfile">View Profile</a></li>
+                        <li><a href="/hr/viewProfile">View Profile</a></li>
                         <li><a href="/changePassword">Change Password</a></li>
                         <li><a href="/logout">Log out</a></li>
                     </ul>
@@ -126,7 +126,7 @@
                                 <%}
                                 %>
 
-                                <form method="post" enctype="multipart/form-data" action="./saveEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()" >
+                                <form method="post" enctype="multipart/form-data" action="/hr/saveEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()" >
                                     <span style="color:red; font-size:10px; "> All fields are mandatory excpet Middle name</span>
                                     <div class="row">
                                         <label for="emp-id" >Employee Id:</label>
@@ -244,7 +244,7 @@
                             <%}
                             else if (edit=='1'){%>
                             <h1>Edit Employee Details</h1>
-                            <form method="post" enctype="multipart/form-data" action="/editEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()">
+                            <form method="post" enctype="multipart/form-data" action="/hr/editEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()">
                                 <div class="row">
                                     <label for="first-name">First name:</label>
                                     <div class="text">
@@ -377,7 +377,7 @@
                             else if (edit=='0')
                             {%>
                             <h1>Employee Details</h1>
-                            <form method="post" action="/editEmp" class="contact-form">
+                            <form method="post" action="/hr/editEmp" class="contact-form">
                                 <div class="contact-form-left">
                                     <div class="row">
                                         <label for="first-name" class="displayLabel">First name:</label>

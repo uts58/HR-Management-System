@@ -1,0 +1,37 @@
+services:
+  app:
+    build:
+      context: .
+      target: release
+    image: hr-management-system:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-hruser}:${DB_PASS}@db:5432/${DB_NAME:-hrdb}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-hrdb}
+      POSTGRES_USER:     ${DB_USER:-hruser}
+      POSTGRES_PASSWORD: ${DB_PASS:?DB_PASS must be set}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hruser} -d ${DB_NAME:-hrdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  db_data:
