@@ -14,7 +14,7 @@ app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(exSession({ secret: 'my top secret', saveUninitialized: true, resave: false }));
+app.use(exSession({ secret: process.env.SESSION_SECRET || 'change-me', saveUninitialized: true, resave: false }));
 app.use(cookieParser());
 app.use(methodOverride());
 app.use(express.static(path.join(__dirname, 'public')));

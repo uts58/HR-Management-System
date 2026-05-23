@@ -118,8 +118,6 @@
                             <th>Name</th>
                             <th>Position</th>
                             <th>Email</th>
-
-                            <th>Password</th>
                             <th>Action</th>
 
                         </tr>
@@ -148,16 +146,6 @@
 
 
                                 <%}}%>
-                                <%
-                                for(var rows in log) {
-
-                                if(user[row]['id']==log[rows]['id']){
-                                %>
-                                    <td><%= log[row]["password"]%></td>
-
-                                <%}}%>
-
-
                                 <td style="width:180px;">
                                     <a href=/hr/viewDetails?id=<%=user[row]["id"]%>>View Details </a>|
                                     <a href=/hr/editEmployee?id=<%=user[row]["id"]%>>Edit </a>|

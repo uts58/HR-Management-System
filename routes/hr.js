@@ -112,10 +112,9 @@ router.get("/viewProfile", async function(req, res) {
 router.get("/viewEmployee", async function(req, res) {
     if (!req.session.name) return res.redirect("/");
     try {
-        const [employees, positions, persons] = await Promise.all([
+        const [employees, positions] = await Promise.all([
             prisma.employee.findMany(),
-            prisma.position.findMany(),
-            prisma.person.findMany()
+            prisma.position.findMany()
         ]);
         res.render("viewEmployee", {
             title: "hr",
@@ -123,7 +122,7 @@ router.get("/viewEmployee", async function(req, res) {
             userid: req.session.idno,
             user: employees,
             data: positions,
-            log: persons
+            log: []
         });
     } catch (err) {
         console.error(err);
