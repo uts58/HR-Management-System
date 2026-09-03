@@ -14,11 +14,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "body-parser": "^1.20.6",
+    "body-parser": "^2.3.0",
     "cookie-parser": "~1.4.7",
     "debug": "~2.6.9",
     "ejs": "~3.1.10",
-    "express": "~4.22.2",
+    "express": "~5.2.1",
     "express-session": "latest",
     "http-errors": "~1.6.2",
     "method-override": "latest",
