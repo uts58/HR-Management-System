@@ -22,7 +22,7 @@
     "express-session": "latest",
     "http-errors": "~1.6.2",
     "method-override": "latest",
-    "morgan": "^1.11.0"
+    "morgan": "^1.12.1"
   },
   "devDependencies": {
     "prisma": "^6.19.3"
