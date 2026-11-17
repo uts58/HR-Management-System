@@ -5,3 +5,11 @@ npm-debug.log*
 .env*
 *.log
 .DS_Store
+
+# New app and platform files are not part of the legacy image
+web
+docs
+docker
+.github
+compose*.yml
+.claude

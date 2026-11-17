@@ -1,0 +1,35 @@
+# Local development database only. Apps run on the host:
+#
+#   docker compose -f compose.dev.yml up -d
+#   cd web && npm run dev          # new app  -> http://localhost:3000
+#   npm start                      # legacy   -> http://localhost:3000 (run one at a time, or set PORT)
+#
+# Databases created on first start (fresh volume):
+#   hrdb         legacy app (matches root .env.example)
+#   hr_web       new app (matches web/.env.example)
+#   hr_web_test  new app integration tests
+#
+# Reset everything: docker compose -f compose.dev.yml down -v
+name: hr-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hrdb
+      POSTGRES_USER: hruser
+      POSTGRES_PASSWORD: changeme
+      WEB_DB_NAMES: "hr_web hr_web_test"
+    ports:
+      - "${DEV_DB_PORT:-5432}:5432"
+    volumes:
+      - dev_db_data:/var/lib/postgresql/data
+      - ./docker/postgres/create-web-dbs.sh:/docker-entrypoint-initdb.d/10-create-web-dbs.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hruser -d hrdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dev_db_data:

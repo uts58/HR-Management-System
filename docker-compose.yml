@@ -1,4 +1,20 @@
+# Production-like stack.
+#
+#   Legacy app only (unchanged default):
+#     docker compose up -d
+#   Legacy app + new web app (profile "web"):
+#     docker compose --profile web up -d --build
+#
+# Both apps share one Postgres server but use SEPARATE databases:
+#   legacy -> ${DB_NAME:-hrdb}
+#   web    -> ${WEB_DB_NAME:-hr_web}   (created by the db-init job)
+#
+# Start order for the web profile:
+#   db (healthy) -> db-init (exits 0) -> web-migrate (exits 0) -> web
+# For local development with `npm run dev` use compose.dev.yml instead.
+
 services:
+  # ---------------------------------------------------------------- legacy
   app:
     build:
       context: .
@@ -18,6 +34,7 @@ services:
     tmpfs:
       - /tmp
 
+  # ---------------------------------------------------------------- shared
   db:
     image: postgres:16-alpine
     environment:
@@ -33,6 +50,67 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+
+  # ---------------------------------------------------------------- new app
+  # Creates the web app database if missing (idempotent; safe on the existing
+  # legacy volume, where initdb scripts would never run).
+  db-init:
+    image: postgres:16-alpine
+    profiles: ["web"]
+    environment:
+      PGHOST: db
+      PGUSER: ${DB_USER:-hruser}
+      PGPASSWORD: ${DB_PASS}
+      PGDATABASE: ${DB_NAME:-hrdb}
+      WEB_DB_NAMES: ${WEB_DB_NAME:-hr_web}
+    volumes:
+      - ./docker/postgres/create-web-dbs.sh:/scripts/create-web-dbs.sh:ro
+    command: ["sh", "/scripts/create-web-dbs.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # Applies Prisma migrations (`prisma migrate deploy`) then exits.
+  web-migrate:
+    build:
+      context: ./web
+      target: migrator
+    image: hr-web-migrate:latest
+    profiles: ["web"]
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-hruser}:${DB_PASS}@db:5432/${WEB_DB_NAME:-hr_web}
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  web:
+    build:
+      context: ./web
+      target: runner
+    image: hr-web:latest
+    profiles: ["web"]
+    ports:
+      - "${WEB_PORT:-3001}:3000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-hruser}:${DB_PASS}@db:5432/${WEB_DB_NAME:-hr_web}
+      # Not marked required here so the legacy-only `docker compose up` keeps
+      # working without them; the app itself refuses to boot if they are
+      # missing or invalid (src/env.ts).
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-Asia/Dhaka}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      web-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Next.js writes ISR / image-optimisation cache here.
+      - /app/.next/cache:uid=1001,gid=1001
 
 volumes:
   db_data:
