@@ -10,6 +10,8 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${DB_USER:-hruser}:${DB_PASS}@db:5432/${DB_NAME:-hrdb}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      COOKIE_SECURE: ${COOKIE_SECURE:-auto}
+      TRUST_PROXY: ${TRUST_PROXY:-}
     depends_on:
       db:
         condition: service_healthy
