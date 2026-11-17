@@ -1,6 +1,41 @@
 var express = require('express');
 var router = express.Router();
 var prisma = require('../lib/prisma');
+var pw = require('../lib/password');
+
+// Name is not unique, so try each candidate (bounded) rather than findFirst.
+var MAX_LOGIN_CANDIDATES = 10;
+
+async function findUserByCredentials(username, plain) {
+    if (typeof username !== 'string' || typeof plain !== 'string' || !username || !plain) {
+        return null;
+    }
+    const candidates = await prisma.person.findMany({
+        where: { Name: { equals: username, mode: 'insensitive' } },
+        orderBy: { id: 'asc' },
+        take: MAX_LOGIN_CANDIDATES
+    });
+    if (candidates.length === 0) {
+        await pw.burnTime(plain);
+        return null;
+    }
+    for (const user of candidates) {
+        const result = await pw.verifyPassword(plain, user.password);
+        if (result.ok) {
+            if (result.needsUpgrade) {
+                // Lazy upgrade of a legacy plaintext password. Only overwrite if
+                // the row still holds the value we just verified.
+                const hashed = await pw.hashPassword(plain);
+                await prisma.person.updateMany({
+                    where: { id: user.id, password: user.password },
+                    data: { password: hashed }
+                });
+            }
+            return user;
+        }
+    }
+    return null;
+}
 
 router.get('/', async function(req, res) {
     try {
@@ -48,11 +83,10 @@ router.get('/home', async function(req, res) {
 });
 
 router.post("/actAdmin", async function(req, res) {
-    const { username, password } = req.body;
+    const username = req.body.username;
+    const password = req.body.password;
     try {
-        const user = await prisma.person.findFirst({
-            where: { Name: { equals: username, mode: 'insensitive' }, password }
-        });
+        const user = await findUserByCredentials(username, password);
         if (user) {
             req.session.idno = user.id;
             req.session.name = username;
@@ -267,17 +301,25 @@ router.get("/changePassword", function(req, res) {
 router.post("/savePassword", async function(req, res) {
     if (!req.session.name) return res.redirect("/");
     const { currentPassword, newPassword, confirmPassword } = req.body;
+    if (typeof newPassword !== 'string' || typeof currentPassword !== 'string' || !newPassword) {
+        return res.redirect('/changePassword?error=New+password+is+required');
+    }
     if (newPassword !== confirmPassword) {
         return res.redirect('/changePassword?error=Passwords+do+not+match');
     }
+    // bcrypt only uses the first 72 bytes; reject longer passwords rather than truncate silently.
+    if (Buffer.byteLength(newPassword, 'utf8') > 72) {
+        return res.redirect('/changePassword?error=Password+is+too+long');
+    }
     try {
         const user = await prisma.person.findUnique({ where: { id: req.session.idno } });
-        if (!user || user.password !== currentPassword) {
+        const check = user ? await pw.verifyPassword(currentPassword, user.password) : { ok: false };
+        if (!check.ok) {
             return res.redirect('/changePassword?error=Current+password+is+incorrect');
         }
         await prisma.person.update({
             where: { id: req.session.idno },
-            data: { password: newPassword }
+            data: { password: await pw.hashPassword(newPassword) }
         });
         res.redirect('/changePassword?success=1');
     } catch (err) {

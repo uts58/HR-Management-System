@@ -1,14 +1,12 @@
 var express = require('express');
 var router = express.Router();
+var crypto = require('crypto');
 var prisma = require('../lib/prisma');
+var pw = require('../lib/password');
 
+// Initial password for a new employee (CSPRNG; stored only as a bcrypt hash).
 function randomString() {
-    var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz";
-    var result = '';
-    for (var i = 0; i < 8; i++) {
-        result += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return result;
+    return crypto.randomBytes(12).toString('base64url');
 }
 
 router.get("/addEmployee", async function(req, res) {
@@ -211,6 +209,7 @@ router.post("/saveEmp", async function(req, res) {
         dob:          req.body.date
     };
     try {
+        const initialPasswordHash = await pw.hashPassword(randomString());
         await prisma.$transaction([
             prisma.employee.create({
                 data: {
@@ -233,7 +232,7 @@ router.post("/saveEmp", async function(req, res) {
                 data: {
                     id:       String(posData.empId),
                     Name:     posData.firstName,
-                    password: randomString(),
+                    password: initialPasswordHash,
                     access:   0
                 }
             })

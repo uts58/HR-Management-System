@@ -7,7 +7,8 @@
     "migrate": "prisma migrate dev",
     "generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.js",
+    "db:hash-passwords": "node prisma/hash-passwords.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

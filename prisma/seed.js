@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { hashPassword } = require('../lib/password');
 const prisma = new PrismaClient();
 
 async function main() {
@@ -20,7 +21,7 @@ async function main() {
     await prisma.person.upsert({
         where: { id: '1' },
         update: {},
-        create: { id: '1', Name: 'admin', password: 'admin123', access: 1 }
+        create: { id: '1', Name: 'admin', password: await hashPassword('admin123'), access: 1 }
     });
     await prisma.employee.upsert({
         where: { id: 1 },
@@ -32,7 +33,7 @@ async function main() {
     await prisma.person.upsert({
         where: { id: '2' },
         update: {},
-        create: { id: '2', Name: 'john', password: 'emp123', access: 0 }
+        create: { id: '2', Name: 'john', password: await hashPassword('emp123'), access: 0 }
     });
     await prisma.employee.upsert({
         where: { id: 2 },
