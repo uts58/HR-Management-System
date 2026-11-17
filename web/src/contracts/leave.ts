@@ -4,6 +4,7 @@
  */
 
 import type { Actor, EmployeeId, IsoDate, LeaveRequestId, Timestamp } from './common';
+import type { EmploymentStatus } from './employee';
 
 /** Legacy free-text values from the leave form, stored verbatim. */
 export const LEAVE_TYPES = [
@@ -27,6 +28,8 @@ export interface LeaveRequest {
   employeeId: EmployeeId;
   /** "First Last"; "Unknown employee" if the record is gone (legacy orphan rows). */
   employeeName: string;
+  /** null for legacy orphan rows; the UI marks TERMINATED employees. */
+  employeeStatus: EmploymentStatus | null;
   /** string, not LeaveType: migrated rows may contain other values. */
   leaveType: string;
   startDate: IsoDate | null; // null only for legacy rows whose text could not be parsed
@@ -82,6 +85,7 @@ export interface LeaveService {
   /**
    * HR_ADMIN. PENDING -> decision; sets decidedAt, decidedBy, seenByEmployee=false.
    * Throws NOT_FOUND; CONFLICT if already decided.
+   * (Terminating an employee rejects their PENDING requests automatically.)
    */
   decideLeaveRequest(
     actor: Actor,

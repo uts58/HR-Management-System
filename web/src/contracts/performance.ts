@@ -4,6 +4,7 @@
  */
 
 import type { Actor, AppraisalId, EmployeeId, IsoDate, Timestamp } from './common';
+import type { EmploymentStatus } from './employee';
 
 /** Legacy rating select, 1..5. */
 export const RATINGS = [1, 2, 3, 4, 5] as const;
@@ -21,6 +22,7 @@ export interface Appraisal {
   id: AppraisalId;
   employeeId: EmployeeId;
   employeeName: string; // "Unknown employee" for legacy orphan rows
+  employeeStatus: EmploymentStatus | null; // null for legacy orphan rows
   projectName: string | null; // nullable for legacy rows
   projectStart: IsoDate | null;
   projectEnd: IsoDate | null;
@@ -29,7 +31,7 @@ export interface Appraisal {
 }
 
 export interface CreateAppraisalInput {
-  employeeId: EmployeeId; // must exist
+  employeeId: EmployeeId; // must exist and be ACTIVE
   projectName: string; // trimmed, 1..200
   projectStart: IsoDate;
   projectEnd: IsoDate; // >= projectStart
@@ -40,7 +42,7 @@ export interface PerformanceService {
   /** HR_ADMIN. All appraisals, newest first. */
   listAppraisals(actor: Actor): Promise<Appraisal[]>;
 
-  /** HR_ADMIN. Throws VALIDATION (incl. unknown employee). */
+  /** HR_ADMIN. Throws VALIDATION (incl. unknown or TERMINATED employee). */
   createAppraisal(actor: Actor, input: CreateAppraisalInput): Promise<Appraisal>;
 
   /** HR_ADMIN. Throws NOT_FOUND. */

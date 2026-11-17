@@ -9,14 +9,17 @@ import type { Actor, DepartmentId, PositionId } from './common';
 export interface Department {
   id: DepartmentId;
   name: string;
-  /** Employees currently assigned; the UI disables Delete when > 0. */
+  /** ACTIVE employees assigned. */
   employeeCount: number;
+  /** All employees referencing it, TERMINATED included; the UI disables Delete when > 0. */
+  totalEmployeeCount: number;
 }
 
 export interface Position {
   id: PositionId;
   name: string;
   employeeCount: number;
+  totalEmployeeCount: number;
 }
 
 /** Name: trimmed, 1..100 chars, unique case-insensitive within its table. */
@@ -36,8 +39,9 @@ export interface OrgService {
   createDepartment(actor: Actor, input: CreateDepartmentInput): Promise<Department>;
 
   /**
-   * HR_ADMIN. Throws NOT_FOUND; CONFLICT when employees are assigned
-   * (legacy deleted anyway and left employees pointing at a missing department).
+   * HR_ADMIN. Throws NOT_FOUND; CONFLICT when any employee references it,
+   * TERMINATED ones included (their history keeps the reference). Legacy
+   * deleted anyway and left employees pointing at a missing department.
    */
   deleteDepartment(actor: Actor, id: DepartmentId): Promise<void>;
 
@@ -47,6 +51,6 @@ export interface OrgService {
   /** HR_ADMIN. Throws VALIDATION, CONFLICT (duplicate name). */
   createPosition(actor: Actor, input: CreatePositionInput): Promise<Position>;
 
-  /** HR_ADMIN. Throws NOT_FOUND; CONFLICT when employees hold the position. */
+  /** HR_ADMIN. Throws NOT_FOUND; CONFLICT when any employee (incl. TERMINATED) references it. */
   deletePosition(actor: Actor, id: PositionId): Promise<void>;
 }

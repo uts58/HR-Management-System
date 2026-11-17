@@ -24,18 +24,14 @@ export interface CreateNoticeInput {
   type: NoticeType; // default GENERAL in the form
 }
 
-/** Default number of notices on the login page and dashboard (legacy showed 5). */
+/** Default number of notices on the dashboard (legacy showed 5). */
 export const RECENT_NOTICE_LIMIT = 5;
 
 export interface NoticeService {
-  /**
-   * PUBLIC, no actor: the login page shows recent notices to anonymous
-   * visitors (legacy parity; Security to confirm this stays public).
-   * Newest first, at most `limit` (default RECENT_NOTICE_LIMIT).
-   */
-  listPublicNotices(limit?: number): Promise<Notice[]>;
+  // No anonymous access: notices are internal and live behind login.
+  // Legacy showed them on the public login page (intentional change).
 
-  /** Any signed-in role. Dashboard list, newest first. */
+  /** Any signed-in role. Dashboard list, newest first, at most `limit` (default RECENT_NOTICE_LIMIT). */
   listRecentNotices(actor: Actor, limit?: number): Promise<Notice[]>;
 
   /** HR_ADMIN. All notices, newest first. */

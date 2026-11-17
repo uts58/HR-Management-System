@@ -1,6 +1,6 @@
 # ADR-0001: Target stack
 
-- Status: Accepted
+- Status: Accepted (revised 2026-11-17: auth library changed to Better Auth by director ruling)
 - Date: 2026-11-17
 - Deciders: Engineering director, Tech Lead
 
@@ -15,7 +15,7 @@ The legacy app is Express 4 + EJS + jQuery 2 + Bootstrap on Prisma 6/Postgres, a
 | Framework | Next.js 16.x, App Router | 16.4 is the current minor. Pin the minor in `package.json` and take the monthly security releases. |
 | Language | TypeScript, `strict: true` | Also `noUncheckedIndexedAccess`. Contracts are checked with `exactOptionalPropertyTypes` too. |
 | Data | Prisma + PostgreSQL | The Data lead picks the Prisma major. Prisma is only imported in `web/src/server/**` and `web/prisma/**` (ADR-0003). |
-| Auth | Auth.js v5 (`next-auth@beta`), Credentials provider | The Auth.js project is now part of Better Auth. v5 still works, but Security should note the migration path in their ADR. |
+| Auth | Better Auth 1.7.x (`better-auth`, `@better-auth/prisma-adapter`), username + password, database-backed sessions | Picked over Auth.js v5, which never left beta and is in maintenance now that the project is part of Better Auth. We're greenfield, so we take the maintained option. Kept behind our own `web/src/auth` API (ADR-0004). |
 | UI | Tailwind CSS + shadcn/ui | Components are copied into `web/src/components/ui` (Frontend owns them). |
 | Validation | Zod 4 | ADR-0005 |
 | Unit/integration tests | Vitest | ADR-0008 |
@@ -28,9 +28,11 @@ Version-specific facts we rely on:
 - **Next.js 16 renamed `middleware.ts` to `proxy.ts`** (exported function `proxy`). `middleware` is deprecated. Proxy runs on the Node.js runtime by default. The ownership map's `web/src/middleware.ts` therefore becomes **`web/src/proxy.ts`** (ADR-0002).
 - Next.js says Server Functions must check auth themselves and Proxy must not be the only check. Changing a matcher or moving an action to another route can silently remove Proxy coverage (ADR-0004).
 - Forms use Server Actions with React 19's `useActionState`.
+- Better Auth: Prisma adapter, `username` plugin, `nextCookies` plugin for server actions, `toNextJsHandler` route handler, `getSessionCookie` for optimistic proxy checks. Its built-in rate limiter applies only to HTTP requests to `/api/auth/*`, not to server-side `auth.api` calls (ADR-0004).
 
 ## Consequences
 
-- Server Components plus Server Actions replace the Express routes. There is no separate REST API unless we need one later. Route handlers are only for Auth.js (`app/api/auth/[...nextauth]`) and a health check.
+- Server Components plus Server Actions replace the Express routes. There is no separate REST API unless we need one later. Route handlers are only for Better Auth (`app/api/auth/[...all]`) and a health check.
 - Teams have to keep up with Next.js monthly security releases. Platform owns Dependabot/Renovate for `web/`.
-- Auth.js upstream is in maintenance under Better Auth. We use it behind our own `web/src/auth` API (ADR-0004), so we can replace it later without touching callers.
+- Better Auth adds its own tables (`user`, `session`, `account`, `verification`) to the Prisma schema, which Data owns. Our `user` fields go in through `additionalFields`.
+- Callers only see `web/src/auth`, so the auth library can still be replaced later without touching them.

@@ -10,10 +10,10 @@ Ownership: **Frontend** owns pages and their `actions.ts` (`web/src/app/**`). **
 
 | # | Legacy route | New page / action | Service / auth fn | Role | Page+action owner | Notes |
 |---|---|---|---|---|---|---|
-| 1 | `GET /` (login form + recent notices) | `/login` page; `/` redirects to `/dashboard` or `/login` | `noticeService.listPublicNotices` | anonymous | Security (form), Frontend (layout, notices) | Notices stay public (parity, Security to confirm) |
-| 2 | `POST /actAdmin` (AJAX, returns `true`/`false`) | `signIn` action | `AuthActions.signIn` | anonymous | Security | Normal form post with `useActionState` instead of jQuery AJAX. Hashed passwords, stable username |
+| 1 | `GET /` (login form + recent notices) | `/login` page; `/` redirects to `/dashboard` or `/login` | – | anonymous | Security (form), Frontend (layout) | **[CHANGE]** No notices on the login page. They moved behind login (director ruling) |
+| 2 | `POST /actAdmin` (AJAX, returns `true`/`false`) | Sign-in form → `signInWithUsername` (browser → Better Auth `POST /api/auth/sign-in/username`) | `AuthClientApi.signInWithUsername` | anonymous | Security | Not a server action, so Better Auth's rate limiter applies. Hashed passwords, stable username, terminated users rejected |
 | 3 | `GET /logout` | `signOut` action (POST, from the user menu) | `AuthActions.signOut` | any | Security | No more GET mutation |
-| 4 | `GET /home` (welcome, notices, leave badge) | `/dashboard` | `listRecentNotices`, `countPendingLeaveRequests` (HR) / `countMyUnseenDecisions` (EMP) | any | Frontend / Backend | Fixes the `title=='in'` bug: HR now sees the pending count |
+| 4 | `GET /home` (welcome, notices, leave badge) | `/dashboard` (the only place notices are shown to employees) | `listRecentNotices`, `countPendingLeaveRequests` (HR) / `countMyUnseenDecisions` (EMP) | any | Frontend / Backend | Fixes the `title=='in'` bug: HR now sees the pending count |
 | 5 | `GET /changePassword` | `/change-password` page | – | any | Security | Also the forced page while `mustChangePassword` is set |
 | 6 | `POST /savePassword` | `changePassword` action | `AuthActions.changePassword` | any | Security | Field errors instead of `?error=` query string |
 
@@ -21,15 +21,15 @@ Ownership: **Frontend** owns pages and their `actions.ts` (`web/src/app/**`). **
 
 | # | Legacy route | New page / action | Service fn | Role | Page+action owner | Notes |
 |---|---|---|---|---|---|---|
-| 7 | `GET /hr/viewEmployee` | `/employees` | `employeeService.listEmployees` | HR_ADMIN | Frontend / Backend | Shows all employees incl. admin, with a role badge (legacy hid id 1) |
+| 7 | `GET /hr/viewEmployee` | `/employees` (status filter: Active by default, Terminated, All) | `employeeService.listEmployees` | HR_ADMIN | Frontend / Backend | Shows the admin too, with a role badge (legacy hid id 1). Terminated employees hidden by default |
 | 8 | `GET /hr/addEmployee` | `/employees/new` | `getEmployeeFormOptions` | HR_ADMIN | Frontend / Backend | No "next id" preview. The DB assigns the id |
 | 9 | `POST /hr/saveEmp` | `createEmployee` action → success screen with one-time credentials | `createEmployee` | HR_ADMIN | Frontend / Backend | Legacy route probably always failed (multipart not parsed, QA to confirm). New accounts get a visible temporary password |
 | 10 | `GET /hr/viewDetails?id=` | `/employees/[id]` (read-only) | `getEmployee` | HR_ADMIN | Frontend / Backend | Fixes the IDOR (any user could view anyone) |
 | 11 | `GET /hr/editEmployee?id=` | `/employees/[id]/edit` | `getEmployee`, `getEmployeeFormOptions` | HR_ADMIN | Frontend / Backend | |
 | 12 | `POST /hr/editEmp` | `updateEmployee` action | `updateEmployee` | HR_ADMIN | Frontend / Backend | Username no longer follows first name |
-| 13 | `GET /hr/deleteEmployee?id=` | `deleteEmployee` action (POST + confirm dialog) on `/employees` and `/employees/[id]` | `deleteEmployee` | HR_ADMIN | Frontend / Backend | Cascades leave and appraisals. Self-delete / last-admin blocked |
+| 13 | `GET /hr/deleteEmployee?id=` | `terminateEmployee` action (POST + confirm dialog) on `/employees` and `/employees/[id]` | `terminateEmployee` | HR_ADMIN | Frontend / Backend | **[CHANGE]** Soft delete: status TERMINATED, login disabled, sessions revoked, pending leave rejected, history kept. No hard delete in v1. Self / last active admin blocked |
 | 14 | `GET /hr/viewProfile` | `/profile` | `getMyProfile` | any | Frontend / Backend | Also replaces HR's "View Profile" link (`viewDetails?id=self`) |
-| – | *(none)* | `resetEmployeePassword` action on `/employees/[id]` | `resetEmployeePassword` | HR_ADMIN | Frontend / Backend | **[NEW]**, pending director approval |
+| – | *(none)* | `resetEmployeePassword` action on `/employees/[id]` | `resetEmployeePassword` | HR_ADMIN | Frontend / Backend | **[NEW]**, approved by director. Revokes the user's sessions |
 
 ## Departments and positions (`/hr/*`)
 
@@ -65,7 +65,7 @@ Ownership: **Frontend** owns pages and their `actions.ts` (`web/src/app/**`). **
 
 | # | Legacy route | New page / action | Service fn | Role | Page+action owner | Notes |
 |---|---|---|---|---|---|---|
-| 30 | `GET /addPerformance` | `/appraisals/new` | `employeeService.listEmployeeOptions` | HR_ADMIN | Frontend / Backend | |
+| 30 | `GET /addPerformance` | `/appraisals/new` | `employeeService.listEmployeeOptions` | HR_ADMIN | Frontend / Backend | Picker lists ACTIVE employees only |
 | 31 | `POST /savePerformance` | `createAppraisal` action | `performanceService.createAppraisal` | HR_ADMIN | Frontend / Backend | Employee, project, dates, rating all required |
 | 32 | `GET /viewPerformance` | `/appraisals` | `listAppraisals` | HR_ADMIN | Frontend / Backend | |
 | 33 | `GET /deletePerformance?id=` | `deleteAppraisal` action (POST + confirm) | `deleteAppraisal` | HR_ADMIN | Frontend / Backend | |
