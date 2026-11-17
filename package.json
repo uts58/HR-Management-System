@@ -8,6 +8,7 @@
     "generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "db:session-table": "node prisma/create-session-table.js",
     "db:hash-passwords": "node prisma/hash-passwords.js"
   },
   "prisma": {

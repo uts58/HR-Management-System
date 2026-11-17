@@ -12,6 +12,7 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
       COOKIE_SECURE: ${COOKIE_SECURE:-auto}
       TRUST_PROXY: ${TRUST_PROXY:-}
+      SESSION_TABLE_AUTO_CREATE: ${SESSION_TABLE_AUTO_CREATE:-false}
     depends_on:
       db:
         condition: service_healthy
