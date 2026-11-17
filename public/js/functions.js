@@ -137,7 +137,7 @@ function verify_addemp()
     }
     else if(!filter.test(email)) {
         alert('Please provide a valid email address');
-        addemp.email.focus();
+        addemp.txtEmail.focus();
         return false;
     }
     else if(addemp.maritalStatus.value=='0'){
@@ -148,11 +148,6 @@ function verify_addemp()
     else if(addemp.date.value==''){
         alert('Please select the Date of Birth');
         addemp.date.focus();
-        return false;
-    }
-    else if(addemp.inpFile && addemp.inpFile.value==''){
-        alert('Please select the Photograph');
-        addemp.inpFile.focus();
         return false;
     }
     return true;
