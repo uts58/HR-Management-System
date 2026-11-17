@@ -1,0 +1,196 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  # -------------------------------------------------------------------------
+  web-quality:
+    name: web / lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+
+  # -------------------------------------------------------------------------
+  web-build:
+    name: web / build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: next build
+        run: npm run build
+        env:
+          SKIP_ENV_VALIDATION: "1"
+
+  # -------------------------------------------------------------------------
+  web-integration:
+    name: web / integration tests (Postgres)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hruser
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: hr_web_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hruser -d hr_web_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      BETTER_AUTH_URL: http://localhost:3000
+      APP_TIME_ZONE: Asia/Dhaka
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+      - run: npm run test:integration
+
+  # -------------------------------------------------------------------------
+  web-e2e:
+    name: web / e2e (Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hruser
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: hr_web_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hruser -d hr_web_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      BETTER_AUTH_URL: http://localhost:3000
+      APP_TIME_ZONE: Asia/Dhaka
+    steps:
+      - uses: actions/checkout@v7
+      - name: Detect e2e tests
+        id: detect
+        shell: bash
+        run: |
+          if compgen -G "tests/e2e/**/*.spec.ts" > /dev/null || compgen -G "tests/e2e/*.spec.ts" > /dev/null; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Playwright specs in web/tests/e2e yet; skipping e2e."
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.detect.outputs.has_tests == 'true'
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - if: steps.detect.outputs.has_tests == 'true'
+        run: npm ci
+      - if: steps.detect.outputs.has_tests == 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.detect.outputs.has_tests == 'true'
+        run: npx prisma migrate deploy
+      - if: steps.detect.outputs.has_tests == 'true'
+        run: npm run build
+      - if: steps.detect.outputs.has_tests == 'true'
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure() && steps.detect.outputs.has_tests == 'true'
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7
+
+  # -------------------------------------------------------------------------
+  web-docker:
+    name: web / docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build runner image
+        uses: docker/build-push-action@v7
+        with:
+          context: web
+          target: runner
+          push: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+      - name: Build migrator image
+        uses: docker/build-push-action@v7
+        with:
+          context: web
+          target: migrator
+          push: false
+          cache-from: type=gha,scope=web
+
+  # -------------------------------------------------------------------------
+  legacy:
+    name: legacy / install + syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: node --check on all legacy JS
+        shell: bash
+        run: |
+          find . -name '*.js' \
+            -not -path './node_modules/*' \
+            -not -path './web/*' \
+            -not -path './.github/*' \
+            -print0 | xargs -0 -n1 node --check
+          node --check bin/www

@@ -1,0 +1,64 @@
+# Directory ownership for the legacy -> Next.js migration.
+# The handles below are team placeholders. Replace them with real GitHub
+# teams (org/team) before enabling "Require review from Code Owners".
+# When several patterns match a file, the LAST matching pattern wins, so
+# specific paths come after general ones.
+
+# Default: Platform reviews anything not claimed below.
+*                               @hr/platform
+
+# ---- Legacy app (frozen except for wiring) -------------------------------
+/app.js                         @hr/platform
+/bin/                           @hr/platform
+/lib/                           @hr/platform
+/routes/                        @hr/platform
+/views/                         @hr/platform
+/public/                        @hr/platform
+/prisma/                        @hr/data
+/legacy-tests/                  @hr/qa
+
+# ---- Platform / DevOps ---------------------------------------------------
+/.github/                       @hr/platform
+/docker/                        @hr/platform
+/docker-compose.yml             @hr/platform
+/compose.dev.yml                @hr/platform
+/docs/platform/                 @hr/platform
+/web/Dockerfile                 @hr/platform
+/web/.dockerignore              @hr/platform
+/web/package.json               @hr/platform
+/web/package-lock.json          @hr/platform
+/web/next.config.ts             @hr/platform
+/web/tsconfig.json              @hr/platform
+/web/eslint.config.mjs          @hr/platform
+/web/vitest.config.mts          @hr/platform
+/web/playwright.config.ts       @hr/platform
+/web/prisma7.config.ts          @hr/platform @hr/data
+/web/src/env.ts                 @hr/platform
+/web/src/instrumentation.ts     @hr/platform
+/web/.env.example               @hr/platform
+
+# ---- Architect -----------------------------------------------------------
+/docs/architecture/             @hr/architect
+/web/src/contracts/             @hr/architect
+
+# ---- Data ----------------------------------------------------------------
+/web/prisma/                    @hr/data
+/scripts/migrate-legacy/        @hr/data
+
+# ---- Security ------------------------------------------------------------
+/web/src/auth/                  @hr/security
+/web/src/proxy.ts               @hr/security
+
+# ---- Backend -------------------------------------------------------------
+/web/src/server/                @hr/backend
+/web/src/lib/                   @hr/backend
+/web/src/lib/utils.ts           @hr/frontend
+
+# ---- Frontend ------------------------------------------------------------
+/web/src/app/                   @hr/frontend
+/web/src/components/            @hr/frontend
+/web/components.json            @hr/frontend
+/web/src/app/api/health/        @hr/platform
+
+# ---- QA ------------------------------------------------------------------
+/web/tests/                     @hr/qa
