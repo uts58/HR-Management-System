@@ -6,21 +6,17 @@
 
     <link rel="shortcut icon" href="/images/fabicon.jpg">
 
-    <link rel="stylesheet" href="../calender/date_input.css" type="text/css">
-    <script type="text/javascript" src="../calender/firebug/firebug.js"></script>
-    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.1/jquery.min.js"></script>
-    <script type="text/javascript" src="../calender/jquery.date_input.js"></script>
-    <script type="text/javascript">$($.date_input.initialize);</script>
-    <script type="text/javascript" src="js/jquery-2.0.3.min.js"></script>
-    <script type="text/javascript" src="js/scriptbreaker-multiple-accordion-1.js"></script>
-    <script type="text/javascript" src="js/ajax.js"></script>
-    <script type="text/javascript" src="js/functions.js"></script>
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <script type="text/javascript" src="/vendor/jquery/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/scriptbreaker-multiple-accordion-1.js"></script>
+    <script type="text/javascript" src="/js/ajax.js"></script>
+    <script type="text/javascript" src="/js/functions.js"></script>
     <title>HRM</title>
 </head>
 <body>
 <div id="wrapper">
     <div id="header"> <strong><a href="/home"><h1>Human Resource Menagement Portal</h1></a></strong>
-        <% include menu.ejs %>
+        <%- include('menu') %>
     </div>
     <div id="main">
         <div class="box">

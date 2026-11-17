@@ -21,6 +21,7 @@
                             <% if (saved == 1) { %><span style="color:#0000FF;">Leave request submitted successfully!</span><br/><% } %>
 
                             <form method="post" action="/saveLeave" class="contact-form">
+<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                                 <div class="row">
                                     <label for="leaveType">Leave Type:</label>
                                     <div class="row">

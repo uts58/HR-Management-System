@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var crypto = require('crypto');
 var prisma = require('../lib/prisma');
+var { requireLogin, requireHR } = require('../lib/auth');
 var pw = require('../lib/password');
 
 // Initial password for a new employee (CSPRNG; stored only as a bcrypt hash).
@@ -9,8 +10,7 @@ function randomString() {
     return crypto.randomBytes(12).toString('base64url');
 }
 
-router.get("/addEmployee", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
+router.get("/addEmployee", requireHR, async function(req, res) {
     try {
         const [departments, positions, lastEmp] = await Promise.all([
             prisma.department.findMany(),
@@ -34,16 +34,16 @@ router.get("/addEmployee", async function(req, res) {
     }
 });
 
-router.get("/editEmployee", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
-    var id = require('url').parse(req.url, true).query.id;
+router.get("/editEmployee", requireHR, async function(req, res) {
+    var id = parseInt(req.query.id, 10);
     if (!id) return res.redirect('/');
     try {
         const [employee, departments, positions] = await Promise.all([
-            prisma.employee.findUnique({ where: { id: parseInt(id) } }),
+            prisma.employee.findUnique({ where: { id } }),
             prisma.department.findMany(),
             prisma.position.findMany()
         ]);
+        if (!employee) return res.status(404).send('Employee not found');
         res.render("addEmployee", {
             title: "hr",
             useracc: req.session.name,
@@ -59,16 +59,16 @@ router.get("/editEmployee", async function(req, res) {
     }
 });
 
-router.get("/viewDetails", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
-    var id = require('url').parse(req.url, true).query.id;
+router.get("/viewDetails", requireHR, async function(req, res) {
+    var id = parseInt(req.query.id, 10);
     if (!id) return res.redirect('/');
     try {
         const [employee, departments, positions] = await Promise.all([
-            prisma.employee.findUnique({ where: { id: parseInt(id) } }),
+            prisma.employee.findUnique({ where: { id } }),
             prisma.department.findMany(),
             prisma.position.findMany()
         ]);
+        if (!employee) return res.status(404).send('Employee not found');
         res.render("addEmployee", {
             title: "hr",
             useracc: req.session.name,
@@ -84,14 +84,14 @@ router.get("/viewDetails", async function(req, res) {
     }
 });
 
-router.get("/viewProfile", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
+router.get("/viewProfile", requireLogin, async function(req, res) {
     try {
         const [employee, departments, positions] = await Promise.all([
-            prisma.employee.findUnique({ where: { id: parseInt(req.session.idno) } }),
+            prisma.employee.findUnique({ where: { id: parseInt(req.session.idno, 10) } }),
             prisma.department.findMany(),
             prisma.position.findMany()
         ]);
+        if (!employee) return res.status(404).send('Employee not found');
         res.render("addEmployee", {
             title: "emp",
             useracc: req.session.name,
@@ -107,8 +107,7 @@ router.get("/viewProfile", async function(req, res) {
     }
 });
 
-router.get("/viewEmployee", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
+router.get("/viewEmployee", requireHR, async function(req, res) {
     try {
         const [employees, positions] = await Promise.all([
             prisma.employee.findMany(),
@@ -128,13 +127,14 @@ router.get("/viewEmployee", async function(req, res) {
     }
 });
 
-router.get("/deleteEmployee", async function(req, res) {
-    if (!req.session.name) return res.redirect('/hr/viewEmployee');
-    var id = require('url').parse(req.url, true).query.id;
+router.post("/deleteEmployee", requireHR, async function(req, res) {
+    var id = parseInt(req.body.id, 10);
     if (!id) return res.redirect('/hr/viewEmployee');
+    // Don't let an HR user delete their own account.
+    if (String(id) === String(req.session.idno)) return res.redirect('/hr/viewEmployee');
     try {
         await prisma.$transaction([
-            prisma.employee.delete({ where: { id: parseInt(id) } }),
+            prisma.employee.delete({ where: { id } }),
             prisma.person.delete({ where: { id: String(id) } })
         ]);
     } catch (err) {
@@ -143,8 +143,7 @@ router.get("/deleteEmployee", async function(req, res) {
     res.redirect('/hr/viewEmployee');
 });
 
-router.post("/editEmp", async function(req, res) {
-    if (!req.session.name) return res.redirect('/');
+router.post("/editEmp", requireHR, async function(req, res) {
     const posData = {
         firstName:    req.body.txtFirst,
         middleName:   req.body.txtMiddle,
@@ -191,8 +190,7 @@ router.post("/editEmp", async function(req, res) {
     }
 });
 
-router.post("/saveEmp", async function(req, res) {
-    if (!req.session.name) return res.redirect('/');
+router.post("/saveEmp", requireHR, async function(req, res) {
     const posData = {
         firstName:    req.body.txtFirst,
         middleName:   req.body.txtMiddle,
@@ -262,8 +260,7 @@ router.post("/saveEmp", async function(req, res) {
 
 // ─── Department management ────────────────────────────────────────────────────
 
-router.get("/addDep", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
+router.get("/addDep", requireHR, async function(req, res) {
     try {
         const departments = await prisma.department.findMany({ orderBy: { id: 'asc' } });
         res.render("addDep", {
@@ -280,8 +277,7 @@ router.get("/addDep", async function(req, res) {
     }
 });
 
-router.post("/saveDep", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
+router.post("/saveDep", requireHR, async function(req, res) {
     const { depName } = req.body;
     if (!depName || !depName.trim()) return res.redirect('/hr/addDep?error=Name+required');
     try {
@@ -293,9 +289,8 @@ router.post("/saveDep", async function(req, res) {
     }
 });
 
-router.get("/deleteDep", async function(req, res) {
-    if (!req.session.name) return res.redirect('/hr/addDep');
-    const id = parseInt(req.query.id);
+router.post("/deleteDep", requireHR, async function(req, res) {
+    const id = parseInt(req.body.id, 10);
     if (!id) return res.redirect('/hr/addDep');
     try {
         await prisma.department.delete({ where: { id } });
@@ -307,8 +302,7 @@ router.get("/deleteDep", async function(req, res) {
 
 // ─── Position management ──────────────────────────────────────────────────────
 
-router.get("/addPos", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
+router.get("/addPos", requireHR, async function(req, res) {
     try {
         const positions = await prisma.position.findMany({ orderBy: { id: 'asc' } });
         res.render("addPos", {
@@ -325,8 +319,7 @@ router.get("/addPos", async function(req, res) {
     }
 });
 
-router.post("/savePos", async function(req, res) {
-    if (!req.session.name) return res.redirect("/");
+router.post("/savePos", requireHR, async function(req, res) {
     const { posName } = req.body;
     if (!posName || !posName.trim()) return res.redirect('/hr/addPos?error=Name+required');
     try {
@@ -338,9 +331,8 @@ router.post("/savePos", async function(req, res) {
     }
 });
 
-router.get("/deletePos", async function(req, res) {
-    if (!req.session.name) return res.redirect('/hr/addPos');
-    const id = parseInt(req.query.id);
+router.post("/deletePos", requireHR, async function(req, res) {
+    const id = parseInt(req.body.id, 10);
     if (!id) return res.redirect('/hr/addPos');
     try {
         await prisma.position.delete({ where: { id } });

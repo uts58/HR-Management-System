@@ -42,7 +42,7 @@
                             <td><%= performances[row]['project_begin'] %></td>
                             <td><%= performances[row]['project_end'] %></td>
                             <td><%= performances[row]['rating'] %>/5</td>
-                            <td><a href="/deletePerformance?id=<%= performances[row]['id'] %>" onclick="return confirm('Delete this appraisal?')">Delete</a></td>
+                            <td><form method="post" action="/deletePerformance" class="inline-form" onsubmit="return confirm('Delete this appraisal?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><input type="hidden" name="id" value="<%= performances[row]['id'] %>" /><button type="submit" class="link-button">Delete</button></form></td>
                         </tr>
                         <% } %>
                         <% if (performances.length === 0) { %>

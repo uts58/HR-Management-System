@@ -20,6 +20,7 @@
                     <% if (error) { %><span style="color:red;"><%= error %></span><br/><% } %>
 
                     <form method="post" action="/hr/savePos" class="contact-form" style="margin-bottom:20px;">
+<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                         <div class="row">
                             <label for="posName">Position Name:</label>
                             <div class="text">
@@ -39,7 +40,7 @@
                         <tr>
                             <td><%= positions[row]['id'] %></td>
                             <td><%= positions[row]['positionName'] %></td>
-                            <td><a href="/hr/deletePos?id=<%= positions[row]['id'] %>" onclick="return confirm('Delete this position?')">Delete</a></td>
+                            <td><form method="post" action="/hr/deletePos" class="inline-form" onsubmit="return confirm('Delete this position?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><input type="hidden" name="id" value="<%= positions[row]['id'] %>" /><button type="submit" class="link-button">Delete</button></form></td>
                         </tr>
                         <% } %>
                         <% if (positions.length === 0) { %>

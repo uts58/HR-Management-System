@@ -150,7 +150,7 @@ function verify_addemp()
         addemp.date.focus();
         return false;
     }
-    else if(addemp.inpFile.value==''){
+    else if(addemp.inpFile && addemp.inpFile.value==''){
         alert('Please select the Photograph');
         addemp.inpFile.focus();
         return false;
