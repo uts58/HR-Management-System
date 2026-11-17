@@ -3,7 +3,8 @@ var router = express.Router();
 var prisma = require('../lib/prisma');
 var { requireLogin, requireHR } = require('../lib/auth');
 var pw = require('../lib/password');
-var { rateLimit } = require('express-rate-limit');
+var { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+var sessionDb = require('../lib/session');
 
 var LOGIN_WINDOW_MS = 15 * 60 * 1000;
 function tooMany(req, res) {
@@ -17,14 +18,16 @@ var loginIpLimiter = rateLimit({
     legacyHeaders: false,
     handler: tooMany
 });
-// Per username, to slow distributed guessing against one account.
+// Per username + IP: limits guessing against one account from one client
+// without letting an attacker elsewhere lock that account out for everyone.
 var loginUserLimiter = rateLimit({
     windowMs: LOGIN_WINDOW_MS,
     limit: parseInt(process.env.LOGIN_RATE_LIMIT_USER, 10) || 10,
     standardHeaders: false,
     legacyHeaders: false,
     keyGenerator: function(req) {
-        return 'user:' + String((req.body && req.body.username) || '').toLowerCase().slice(0, 100);
+        var user = String((req.body && req.body.username) || '').toLowerCase().slice(0, 100);
+        return 'user:' + ipKeyGenerator(req.ip) + ':' + user;
     },
     handler: tooMany
 });
@@ -215,12 +218,25 @@ router.get("/displayLeave", requireHR, async function(req, res) {
 router.post("/assignLeave", requireHR, async function(req, res) {
     const id = parseInt(req.body.id, 10);
     const status = parseInt(req.body.status, 10);
-    // 1 = approved, 2 = rejected
-    if (!id || (status !== 1 && status !== 2)) return res.redirect('/displayLeave');
+    // 1 = approved, 2 = rejected; anything else is a bad request.
+    if (!id || String(status) !== String(req.body.status).trim() || (status !== 1 && status !== 2)) {
+        return res.status(400).send('Invalid leave request or decision.');
+    }
     try {
-        await prisma.empLeave.update({ where: { id }, data: { status, read: 0 } });
+        // Only a pending (status 0) request can be decided.
+        const result = await prisma.empLeave.updateMany({
+            where: { id, status: 0 },
+            data: { status, read: 0 }
+        });
+        if (result.count === 0) {
+            const exists = await prisma.empLeave.count({ where: { id } });
+            return exists
+                ? res.status(409).send('This leave request has already been decided.')
+                : res.status(404).send('Leave request not found.');
+        }
     } catch (err) {
         console.error(err);
+        return res.status(500).send('Server error');
     }
     res.redirect('/displayLeave');
 });
@@ -348,6 +364,12 @@ router.post("/savePassword", loginIpLimiter, requireLogin, async function(req, r
             where: { id: req.session.idno },
             data: { password: await pw.hashPassword(newPassword) }
         });
+        // Sign out every other session of this user; keep the current one.
+        try {
+            await sessionDb.destroyOtherSessions(req.session.idno, req.sessionID);
+        } catch (err) {
+            console.error('Could not revoke other sessions after password change:', err);
+        }
         res.redirect('/changePassword?success=1');
     } catch (err) {
         console.error(err);
