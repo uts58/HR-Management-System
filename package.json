@@ -14,15 +14,21 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "bcryptjs": "3.0.3",
     "body-parser": "^1.20.6",
+    "connect-pg-simple": "10.0.0",
     "cookie-parser": "~1.4.7",
+    "csrf-sync": "4.2.1",
     "debug": "~2.6.9",
     "ejs": "~3.1.10",
-    "express": "~4.22.2",
-    "express-session": "latest",
+    "express": "~4.22.3",
+    "express-rate-limit": "8.7.4",
+    "express-session": "1.19.0",
+    "helmet": "8.3.0",
     "http-errors": "~1.6.2",
-    "method-override": "latest",
-    "morgan": "^1.11.0"
+    "jquery": "3.7.1",
+    "morgan": "^1.11.0",
+    "pg": "8.23.1"
   },
   "devDependencies": {
     "prisma": "^6.19.3"
