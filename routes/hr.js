@@ -177,11 +177,9 @@ router.post("/editEmp", requireHR, async function(req, res) {
                     maritalStatus: posData.maritalStatus,
                     dateofBirth:  posData.dob
                 }
-            }),
-            prisma.person.update({
-                where: { id: String(posData.empId) },
-                data: { Name: posData.firstName }
             })
+            // The login name (Person.Name) is deliberately NOT changed here:
+            // renaming an employee must not change how they log in.
         ]);
         res.redirect('/hr/viewEmployee');
     } catch (err) {
