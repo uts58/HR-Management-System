@@ -114,7 +114,7 @@ var csrf = csrfSync({
 });
 app.use(csrf.csrfSynchronisedProtection);
 app.use(function(req, res, next) {
-    if (req.method === 'GET') res.locals.csrfToken = csrf.generateToken(req);
+    res.locals.csrfToken = csrf.generateToken(req);
     next();
 });
 
