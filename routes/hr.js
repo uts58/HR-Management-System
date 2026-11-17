@@ -296,6 +296,11 @@ router.post("/deleteDep", requireHR, async function(req, res) {
     const id = parseInt(req.body.id, 10);
     if (!id) return res.redirect('/hr/addDep');
     try {
+        const inUse = await prisma.employee.count({ where: { department: id } });
+        if (inUse > 0) {
+            return res.redirect('/hr/addDep?error=' + encodeURIComponent(
+                'Cannot delete this department: ' + inUse + ' employee(s) still belong to it.'));
+        }
         await prisma.department.delete({ where: { id } });
     } catch (err) {
         console.error(err);
@@ -338,6 +343,11 @@ router.post("/deletePos", requireHR, async function(req, res) {
     const id = parseInt(req.body.id, 10);
     if (!id) return res.redirect('/hr/addPos');
     try {
+        const inUse = await prisma.employee.count({ where: { position: id } });
+        if (inUse > 0) {
+            return res.redirect('/hr/addPos?error=' + encodeURIComponent(
+                'Cannot delete this position: ' + inUse + ' employee(s) still hold it.'));
+        }
         await prisma.position.delete({ where: { id } });
     } catch (err) {
         console.error(err);
