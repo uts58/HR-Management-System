@@ -118,11 +118,14 @@
                                 {
                                 %>
                                     <span style="color:#0000FF;">Saved Succuessfully !</span>
+                                    <% if (typeof initialPassword !== "undefined" && initialPassword) { %>
+                                    <br/><span style="color:#0000FF;">Login for the new employee: username <strong><%= newUsername %></strong>, temporary password <strong><%= initialPassword %></strong>. This is shown only once; give it to the employee and ask them to change it.</span>
+                                    <% } %>
 
                                 <%}
                                 %>
 
-                                <form method="post" enctype="multipart/form-data" action="/hr/saveEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()" >
+                                <form method="post" action="/hr/saveEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()" >
 <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                                     <span style="color:red; font-size:10px; "> All fields are mandatory excpet Middle name</span>
                                     <div class="row">
@@ -241,7 +244,7 @@
                             <%}
                             else if (edit=='1'){%>
                             <h1>Edit Employee Details</h1>
-                            <form method="post" enctype="multipart/form-data" action="/hr/editEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()">
+                            <form method="post" action="/hr/editEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()">
 <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                                 <div class="row">
                                     <label for="first-name">First name:</label>
@@ -353,19 +356,6 @@
                                         <div class="text">
                                             <input type="text" name="date" class="date_input" value="<%=data['dateofBirth']%>">
                                         </div>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <label for="photograph">Image:</label>
-                                    <div class="row">
-                                        <div class ="editimage">
-
-
-                                            <img src="../photo/<%=data['id']%>.jpg" height="95px" width="95px" />
-
-
-                                        </div>
-                                        <input id="photograph" name="inpFile" type="file" value="" />
                                     </div>
                                 </div>
                                 <input class="btn-submit editsubmit" type="submit" value="Submit" />

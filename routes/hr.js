@@ -207,7 +207,8 @@ router.post("/saveEmp", requireHR, async function(req, res) {
         dob:          req.body.date
     };
     try {
-        const initialPasswordHash = await pw.hashPassword(randomString());
+        const initialPassword = randomString();
+        const initialPasswordHash = await pw.hashPassword(initialPassword);
         await prisma.$transaction([
             prisma.employee.create({
                 data: {
@@ -241,6 +242,8 @@ router.post("/saveEmp", requireHR, async function(req, res) {
             prisma.position.findMany(),
             prisma.employee.findFirst({ orderBy: { id: 'desc' }, select: { id: true } })
         ]);
+        // Shown to HR exactly once (POST response, not cacheable); only the hash is stored.
+        res.set('Cache-Control', 'no-store');
         res.render("addEmployee", {
             title: "hr",
             useracc: req.session.name,
@@ -250,7 +253,9 @@ router.post("/saveEmp", requireHR, async function(req, res) {
             department: departments,
             position: positions,
             idno: lastEmp ? lastEmp.id + 1 : 1,
-            saved: 1
+            saved: 1,
+            newUsername: posData.firstName,
+            initialPassword
         });
     } catch (err) {
         console.error(err);
