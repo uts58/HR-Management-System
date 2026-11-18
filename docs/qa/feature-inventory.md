@@ -4,7 +4,7 @@ Status: Phase 0 baseline, written from a full read of the legacy code and checke
 Scope: everything a user can see or trigger in the legacy app at the repo root (`app.js`, `routes/index.js`, `routes/hr.js`, `views/*.ejs`, `public/js/*`).
 Purpose: this is the functional spec for the Next.js rewrite. A feature is done in `web/` when the matching tests in `legacy-tests/` pass there (see `test-strategy.md`).
 
-Line references are to the legacy code at commit `4f8c6bc`. The Security lead is patching the legacy app in parallel, so line numbers in `routes/` will drift; the behaviour described here is the pre-patch baseline.
+Line references are to the legacy code at commit `4f8c6bc` (pre-hardening). Sections 1-10 describe that baseline. The Security lead's hardening (merge `ab2c98d`) has since fixed many of the defects. **Section 11 has the current status of each defect, and section 11.1 lists the user-visible changes the hardening made.** Where the two differ, section 11 wins.
 
 ## 1. Roles and session model
 
@@ -256,48 +256,69 @@ See 3.3 (HR's own profile, via `/hr/viewDetails?id=<own id>`) and 3.6 (employee'
 
 ## 11. Known defects
 
-Each entry has a stable ID. `legacy-tests` marks tests for the correct behaviour with `knownDefect('<ID>')`, which makes them expected-to-fail on legacy.
+Each entry has a stable ID. Its status lives in `legacy-tests/support/defects.ts`, which must match this table:
+- **open:** the E2E test asserts the correct behaviour and is expected to fail on legacy (`test.fail`).
+- **fixed:** fixed in the hardened legacy (merge `ab2c98d`). The E2E test must pass.
+- **partial:** mitigated only. The fixed part must pass, and the remaining gap is described here.
+
+The rewrite must close every item, whatever its legacy status.
 
 ### Functional bugs
-| ID | Severity | Summary | Location | E2E |
+| ID | Severity | Summary (pre-hardening) | Location (at `4f8c6bc`) | Status | E2E |
+|---|---|---|---|---|---|
+| BUG-01 | Critical | Add-employee form is multipart; no multipart parser; nothing is saved and no error is shown | views/addEmployee.ejs:129, app.js:15-16, routes/hr.js:196-261 | **fixed**: form is urlencoded | pass |
+| BUG-02 | Critical | Edit-employee requires a photo and is multipart, so the update never applies; redirects as if it succeeded | views/addEmployee.ejs:247, public/js/functions.js:197, routes/hr.js:189-192 | **fixed**: photo field removed, form urlencoded | pass |
+| BUG-03 | High | New employees get a random password nobody sees; username = first name | routes/hr.js:232-239 | **fixed**: temporary password shown once to HR after saving (stored hashed). Username is still the first name (see BUG-24) | pass (new test: new hire logs in) |
+| BUG-04 | Medium | Editing first name silently renames the login | routes/hr.js:184-187 | **fixed**: edit no longer touches `person.Name` | pass (new test) |
+| BUG-05 | High | Empty new password accepted; user locked out | routes/index.js:270-281, public/js/functions.js:54 | **fixed**: "New password is required"; also rejects > 72 bytes | pass |
+| BUG-06 | Medium | HR dashboard shows the employee leave message and link instead of the pending count | views/welcome.ejs:97-115 | open | expected-fail |
+| BUG-07 | Medium | Departments/positions in use can be deleted; employees left blank; list columns shift | routes/hr.js:297-307, 342-352; views/viewEmployee.ejs:634-643 | **fixed**: delete refused with "Cannot delete this department/position: N employee(s)…" | pass (×2) |
+| BUG-08 | Low | Deleting an employee orphans their leave and appraisals (raw id shown) | routes/hr.js:138-141 | open | inventory only |
+| BUG-09 | Medium | Unknown employee id gives 500 on details/edit | routes/hr.js:44-61, 69-86 | **fixed**: 404 "Employee not found" | pass |
+| BUG-10 | Low | Session of a deleted user gives 500 on `/home` | routes/index.js:19,24 | **fixed**: `requireLogin` re-reads the person on every request and ends the session (lib/auth.js) | pass (new test) |
+| BUG-11 | Medium | Appraisal without employee fails silently | routes/index.js:202-219 | open | expected-fail |
+| BUG-12 | Medium | Leave dates unvalidated (empty, free text, end < start) | routes/index.js:301-321 | open | expected-fail |
+| BUG-13 | Low | Notice date stored in server locale; notice ordering relies on physical row order | routes/index.js:7,20,103; views/welcome.ejs:121-125; views/index.ejs:71-76 | open | inventory only |
+| BUG-14 | Low | `editEmployee`/`viewDetails` without id redirect to the login page | routes/hr.js:42,67 | open (now a 404 "Employee not found" instead; still not a useful page) | inventory only |
+| BUG-15 | Low | Broken asset references (`calender/*`, http jQuery 1.3.1) throw JS errors on every legacy-layout page; login labels not linked to inputs | views/index.ejs:8-12,39-44; views/welcome.ejs:9-13; views/addEmployee.ejs, viewEmployee.ejs heads | **partial**: broken scripts removed (jQuery now served locally from `/vendor/jquery`). Login labels still not linked (`for="username"` vs `id="txtUsername"`) | inventory only |
+| BUG-16 | Low | Employee id 1 hard-coded as hidden in the list | views/viewEmployee.ejs:622 | open | inventory only |
+| BUG-17 | Cosmetic | Welcome shows the username as typed ("Welcome ADMIN") | routes/index.js:58 | **partial**: side effect of the session fix. The welcome now shows the stored `person.Name`, i.e. the login name, not the person's real name | covered by the case-insensitive login test |
+| BUG-18 | Low | Edit form placeholder options have no value (NaN on submit) | views/addEmployee.ejs:276,289 | open | inventory only |
+| BUG-19 | Low | Employee id = max+1 computed at render, client-controlled | routes/hr.js:20,30,217 | open | inventory only |
+| BUG-20 | Cosmetic | Typos: "Menagement", "Succuessfully", "Maritial", "excpet" | views/*.ejs | open | inventory only |
+| BUG-21 | Medium | `assignLeave` accepts any status; non-0/1/2 values lose the request | routes/index.js:150-153 | **fixed**: only 1/2 accepted (400 otherwise); only pending requests can be decided (409 if already decided, 404 if unknown) | integration-level (not reachable through the UI) |
+| BUG-22 | Low | Leave pages force the employee menu; HR can file leave | routes/index.js:291-299, 323-339 | open | inventory only |
+| BUG-23 | Low | Change-password message reflected from the query string | routes/index.js:262, views/changePassword.ejs | open | inventory only |
+| BUG-24 | Medium | Logins are not unique (first name + password); ambiguous login | routes/hr.js:235, routes/index.js:53-55 | **partial**: login tries up to 10 same-named accounts against the password, so same-named users with different passwords can each log in. Names are still not unique, an 11th same-named account cannot log in, and two same-named users with the same password both land in the lower id | inventory only |
+
+### Security defects
+| ID | Summary (pre-hardening) | Location (at `4f8c6bc`) | Status | E2E |
 |---|---|---|---|---|
-| BUG-01 | Critical | Add-employee form is multipart; no multipart parser; nothing is saved and no error is shown | views/addEmployee.ejs:129, app.js:15-16, routes/hr.js:196-261 | expected-fail |
-| BUG-02 | Critical | Edit-employee requires a photo (`functions.js:197`) and is multipart, so the update never applies; redirects as if it succeeded | views/addEmployee.ejs:247, public/js/functions.js:197, routes/hr.js:189-192 | expected-fail |
-| BUG-03 | High | New employees get a random password nobody sees; username = first name | routes/hr.js:232-239 | inventory only |
-| BUG-04 | Medium | Editing first name silently renames the login | routes/hr.js:184-187 | inventory only |
-| BUG-05 | High | Empty new password accepted; user locked out | routes/index.js:270-281, public/js/functions.js:54 | expected-fail |
-| BUG-06 | Medium | HR dashboard shows the employee leave message and link instead of the pending count | views/welcome.ejs:97-115 | expected-fail |
-| BUG-07 | Medium | Departments/positions in use can be deleted; employees left blank; list columns shift | routes/hr.js:297-307, 342-352; views/viewEmployee.ejs:634-643 | expected-fail (×2) |
-| BUG-08 | Low | Deleting an employee orphans their leave and appraisals (raw id shown) | routes/hr.js:138-141 | inventory only |
-| BUG-09 | Medium | Unknown employee id gives 500 on details/edit | routes/hr.js:44-61, 69-86 | expected-fail |
-| BUG-10 | Low | Session of a deleted user gives 500 on `/home` | routes/index.js:19,24 | inventory only |
-| BUG-11 | Medium | Appraisal without employee fails silently | routes/index.js:202-219 | expected-fail |
-| BUG-12 | Medium | Leave dates unvalidated (empty, free text, end < start) | routes/index.js:301-321 | expected-fail |
-| BUG-13 | Low | Notice date stored in server locale; notice ordering relies on physical row order | routes/index.js:7,20,103; views/welcome.ejs:121-125; views/index.ejs:71-76 | inventory only |
-| BUG-14 | Low | `editEmployee`/`viewDetails` without id redirect to the login page | routes/hr.js:42,67 | inventory only |
-| BUG-15 | Low | Broken asset references (`calender/*`, http jQuery 1.3.1) throw JS errors on every legacy-layout page; login labels not linked to inputs | views/index.ejs:8-12,39-44; views/welcome.ejs:9-13; views/addEmployee.ejs, viewEmployee.ejs heads | inventory only |
-| BUG-16 | Low | Employee id 1 hard-coded as hidden in the list | views/viewEmployee.ejs:622 | inventory only |
-| BUG-17 | Cosmetic | Welcome shows the username as typed ("Welcome ADMIN") | routes/index.js:58 | inventory only |
-| BUG-18 | Low | Edit form placeholder options have no value (NaN on submit) | views/addEmployee.ejs:276,289 | inventory only |
-| BUG-19 | Low | Employee id = max+1 computed at render, client-controlled | routes/hr.js:20,30,217 | inventory only |
-| BUG-20 | Cosmetic | Typos: "Menagement", "Succuessfully", "Maritial", "excpet" | views/*.ejs | inventory only |
-| BUG-21 | Medium | `assignLeave` accepts any status; non-0/1/2 values lose the request | routes/index.js:150-153 | inventory only |
-| BUG-22 | Low | Leave pages force the employee menu; HR can file leave | routes/index.js:291-299, 323-339 | inventory only |
-| BUG-23 | Low | Change-password message reflected from the query string | routes/index.js:262, views/changePassword.ejs | inventory only |
-| BUG-24 | Medium | Logins are not unique (first name + password); ambiguous login | routes/hr.js:235, routes/index.js:53-55 | inventory only |
+| SEC-01 | No role checks: any logged-in employee can open and use every HR page and action | every handler in routes/hr.js; routes/index.js:77-252 | **fixed**: `requireHR` on every HR route, 403 "Forbidden" (lib/auth.js) | pass (×10) |
+| SEC-02 | IDOR: any user can view any employee via `/hr/viewDetails?id=` | routes/hr.js:64-87 | **fixed**: `viewDetails` is HR-only; employees use `/hr/viewProfile` | pass |
+| SEC-03 | Plaintext passwords (storage, compare, seed) | prisma/schema.prisma:13; routes/index.js:54,275,280; routes/hr.js:236 | **fixed**: bcrypt; plaintext rows upgraded on next login; `npm run db:hash-passwords` | not E2E-observable |
+| SEC-04 | State-changing GETs: delete employee/department/position/notice/appraisal, approve/reject leave, logout | routes/hr.js:133,297,342; routes/index.js:70,113,147,242 | **fixed**: all are POST forms ("Delete", "Approve", "Reject", "Log out" are now buttons) | covered indirectly (the suite clicks the buttons) |
+| SEC-05 | No CSRF protection on any POST form | all forms | **fixed**: synchronizer token (`csrf-sync`), `_csrf` field / `X-CSRF-Token` header | covered indirectly |
+| SEC-06 | Session: fallback secret `change-me`, no regeneration on login (fixation), default cookie flags, `saveUninitialized: true` | app.js:17; routes/index.js:57 | **fixed**: secret required in production, regenerate on login, httpOnly + sameSite=lax, Postgres session store, other sessions revoked on password change | inventory only |
+| SEC-07 | No brute-force protection on login | routes/index.js:50 | **fixed**: per IP (20 / 15 min) and per username+IP (10 / 15 min) | pass (new test: throttled, and not locked out from another source) |
 
-### Security defects (being patched by the Security lead)
-| ID | Summary | Location | E2E |
-|---|---|---|---|
-| SEC-01 | No role checks: any logged-in employee can open and use every HR page and action (add/edit/delete employees, departments, positions, notices, approve leave, appraisals) | every handler in routes/hr.js; routes/index.js:77-252 | expected-fail (×10) |
-| SEC-02 | IDOR: any user can view any employee via `/hr/viewDetails?id=` | routes/hr.js:64-87 | expected-fail |
-| SEC-03 | Plaintext passwords (storage, compare, seed) | prisma/schema.prisma:13; routes/index.js:54,275,280; routes/hr.js:236 | not E2E-observable |
-| SEC-04 | State-changing GETs: delete employee/department/position/notice/appraisal, approve/reject leave, logout | routes/hr.js:133,297,342; routes/index.js:70,113,147,242 | not E2E-observable |
-| SEC-05 | No CSRF protection on any POST form | all forms | not E2E-observable |
-| SEC-06 | Session: fallback secret `change-me`, no regeneration on login (fixation), default cookie flags, `saveUninitialized: true` | app.js:17; routes/index.js:57 | inventory only |
-| SEC-07 | No brute-force protection on login | routes/index.js:50 | inventory only |
+The E2E suite deliberately does not test SEC-03/04/05 internals (hashing, HTTP verbs, tokens). Those belong in unit and integration tests for the new app (see `test-strategy.md`).
 
-The E2E suite deliberately does not test SEC-03/04/05 internals (hashing, HTTP verbs, tokens), so that it keeps passing after the patch. Those belong in unit and integration tests for the new app (see `test-strategy.md`).
+### 11.1 User-visible changes made by the hardening (update to sections 2-10)
+- **Log out** is a POST button in the user drop-down. `GET /logout` no longer exists (404).
+- **Deletes** (employee, department, position, notice, appraisal) and **Approve/Reject** are buttons that submit POST forms. The confirm dialogs are unchanged.
+- **Login page:** opening it creates a session (it carries the CSRF token), and the AJAX login sends the token in `X-CSRF-Token`. New alerts: "Too many login attempts. Please wait a few minutes and try again." (429) and "Your session expired. The page will reload; please try again." (403, stale token).
+- **Add employee:** after saving, HR sees "Login for the new employee: username <first name>, temporary password <…>. This is shown only once…".
+- **Edit employee:** no photo field. Renaming does not change the login.
+- **Department/position delete** of an in-use item shows "Cannot delete this department: N employee(s) still belong to it." / "Cannot delete this position: N employee(s) still hold it.".
+- **Change password:** "New password is required" (empty) and "Password is too long" (> 72 bytes). A change also signs out the user's other sessions.
+- **Employees** opening any HR URL get a bare 403 "Forbidden" page. Unknown routes get 404 "Not found".
+- **`/hr/viewDetails`** is HR-only. An unknown or missing id gives 404 "Employee not found".
+- **Welcome** shows the stored login name (BUG-17).
+- **Operational:** the app needs a Postgres session table (`npm run db:session-table`) and requires `SESSION_SECRET` in production. Behind a proxy, set `TRUST_PROXY` to the exact hop count.
+
+### 11.2 What this means for the rewrite
+The hardened legacy is now the parity baseline. At a minimum the rewrite must match it on: HR-only authorization on the server, POST + CSRF for every mutation, hashed passwords, session regeneration on login and revocation on password change, login throttling per username+source, a one-time initial credential for new employees, logins unaffected by renames, refusing to delete in-use departments/positions, and 404 for unknown records.
 
 ## 12. Not in scope / dead code
 - `message` table and the commented-out "Message" menu item: no routes. The messaging feature does not exist.

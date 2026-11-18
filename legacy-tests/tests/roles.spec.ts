@@ -1,12 +1,12 @@
-import { test, expect } from '../support/fixtures';
+import { test, expect, csrfToken } from '../support/fixtures';
 import { uid, users } from '../support/data';
 import { knownDefect } from '../support/defects';
 import { hrOnlyPages, routes } from '../support/routes';
 
 /**
  * Correct behaviour: HR-only screens and actions are unavailable to employees.
- * The legacy app only checks "is logged in", so these are expected failures (SEC-01/02)
- * until the Security lead's role checks land; then run with FIXED_DEFECTS=SEC-01,SEC-02.
+ * Pre-hardening legacy only checked "is logged in" (SEC-01/02). Both are fixed in the
+ * hardened legacy, so these must pass (see support/defects.ts).
  */
 test.describe('Role enforcement', () => {
   for (const p of hrOnlyPages) {
@@ -20,7 +20,14 @@ test.describe('Role enforcement', () => {
   test('employee cannot create a department by submitting the form directly', async ({ employee, hr }) => {
     knownDefect('SEC-01', 'no role checks: any logged-in employee can use every HR page and action');
     const name = uid('Hacked dept');
-    await employee.page.request.post(routes.api.saveDepartment, { form: { depName: name }, maxRedirects: 0 });
+    // Send the employee's own valid CSRF token, so a refusal comes from the role check,
+    // not from CSRF protection.
+    await employee.page.goto(routes.home);
+    const token = await csrfToken(employee.page);
+    const form: Record<string, string> = { depName: name };
+    if (token) form._csrf = token;
+    const res = await employee.page.request.post(routes.api.saveDepartment, { form, maxRedirects: 0 });
+    expect(res.status(), 'HR-only action should be refused (403) or bounced (3xx), not succeed').not.toBe(200);
     await hr.departments.open();
     await expect(hr.departments.row(name)).toHaveCount(0);
   });

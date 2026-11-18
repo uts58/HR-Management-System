@@ -12,6 +12,15 @@ BEGIN;
 
 TRUNCATE TABLE person, employee, department, position, empleave, notice, message, performance RESTART IDENTITY;
 
+-- Patched legacy keeps sessions in Postgres (legacy_session.session, see prisma/legacy-session-table.sql).
+-- Drop them too so no session from a previous run points at a re-created user id.
+DO $$
+BEGIN
+  IF to_regclass('legacy_session.session') IS NOT NULL THEN
+    EXECUTE 'TRUNCATE TABLE legacy_session.session';
+  END IF;
+END $$;
+
 -- ── prisma/seed.js data ──────────────────────────────────────────────────────
 INSERT INTO department (id, "departmentName") VALUES
   (1, 'Human Resources'), (2, 'Engineering'), (3, 'Finance'), (4, 'Marketing');
@@ -39,13 +48,15 @@ INSERT INTO person (id, "Name", password, access) VALUES
   ('3', 'mary',  'mary123',  0),   -- change-password happy path
   ('4', 'temp',  'temp123',  0),   -- deleted by the employee-delete test
   ('5', 'paula', 'paula123', 0),   -- empty-new-password test (may be locked out on legacy)
-  ('6', 'olive', 'olive123', 0);   -- occupies department/position 5
+  ('6', 'olive', 'olive123', 0),   -- occupies department/position 5; renamed by the BUG-04 test
+  ('7', 'gone',  'gone123',  0);   -- deleted while logged in (BUG-10 test)
 
 INSERT INTO employee (id, "firstName", "middleName", "lastName", department, position, email, gender, country, "contactNo", "homeTown", "maritalStatus", "dateofBirth") VALUES
   (3, 'Mary',  '', 'Major',    3, 3, 'mary@company.com',  0, 'Canada',  '555-0103', 'Toronto', 'married', '02 Feb 1991'),
   (4, 'Temp',  '', 'Worker',   4, 4, 'temp@company.com',  1, 'India',   '555-0104', 'Delhi',   'single',  '03 Mar 1992'),
   (5, 'Paula', '', 'Weak',     3, 3, 'paula@company.com', 0, 'Germany', '555-0105', 'Berlin',  'single',  '04 Apr 1993'),
-  (6, 'Olive', '', 'Occupant', 5, 5, 'olive@company.com', 0, 'Nepal',   '555-0106', 'Pokhara', 'single',  '05 May 1994');
+  (6, 'Olive', '', 'Occupant', 5, 5, 'olive@company.com', 0, 'Nepal',   '555-0106', 'Pokhara', 'single',  '05 May 1994'),
+  (7, 'Gone',  '', 'Soon',     4, 4, 'gone@company.com',  1, 'USA',     '555-0107', 'Boston',  'single',  '06 Jun 1995');
 
 -- Keep autoincrement sequences ahead of the explicit ids above.
 SELECT setval(pg_get_serial_sequence('department', 'id'), (SELECT MAX(id) FROM department));

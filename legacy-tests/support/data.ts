@@ -14,6 +14,7 @@ export const users = {
   temp: { id: 4, username: 'temp', password: 'temp123', fullName: 'Temp Worker' },
   paula: { id: 5, username: 'paula', password: 'paula123', fullName: 'Paula Weak' },
   olive: { id: 6, username: 'olive', password: 'olive123', fullName: 'Olive Occupant' },
+  gone: { id: 7, username: 'gone', password: 'gone123', fullName: 'Gone Soon' },
 } satisfies Record<string, TestUser>;
 
 export const john = {

@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { routes } from '../routes';
-import { Dialogs, field, Nav, rowWith } from './base';
+import { Dialogs, field, Nav, rowWith, rowAction } from './base';
 
 export interface EmployeeForm {
   firstName: string;
@@ -67,6 +67,19 @@ export class EmployeePages {
     await expect(this.page.getByText(/saved succ?u?essfully/i)).toBeVisible();
   }
 
+  /**
+   * After adding an employee, HR is shown the new login once
+   * (legacy: "Login for the new employee: username X, temporary password Y.").
+   */
+  async readInitialCredentials(): Promise<{ username: string; password: string }> {
+    const msg = this.page.getByText(/temporary password/i).first();
+    await expect(msg).toBeVisible();
+    const text = (await msg.innerText()).replace(/\s+/g, ' ');
+    const m = text.match(/username:?\s*(\S+?)[,;]?\s+temporary password:?\s*([A-Za-z0-9_\-+/=!@#$%^&*]+)/i);
+    if (!m) throw new Error(`could not read credentials from: ${text}`);
+    return { username: m[1], password: m[2] };
+  }
+
   async openDetails(name: string | RegExp) {
     await this.row(name).getByRole('link', { name: /view details/i }).click();
     await expect(this.page.getByRole('heading', { name: /employee details/i })).toBeVisible();
@@ -79,8 +92,9 @@ export class EmployeePages {
 
   async delete(name: string | RegExp) {
     this.dialogs.acceptConfirms = true;
-    await this.row(name).getByRole('link', { name: /delete/i }).click();
+    await rowAction(this.row(name), /delete/i).click();
     await expect(this.page.getByRole('heading', { name: /employees listing/i })).toBeVisible();
+    this.dialogs.acceptConfirms = true;
   }
 
   /** Asserts the details/profile page shows each value (label/value pairs). */

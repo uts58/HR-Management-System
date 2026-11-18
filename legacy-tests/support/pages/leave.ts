@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { Dialogs, expectMessage, Nav, rowWith } from './base';
+import { Dialogs, expectMessage, Nav, rowWith, rowAction } from './base';
 
 export interface LeaveForm {
   type: 'Sick Leave' | 'Annual Leave' | 'Casual Leave' | 'Maternity Leave' | 'Unpaid Leave';
@@ -54,7 +54,7 @@ export class LeavePages {
 
   async decide(reason: string, decision: 'Approve' | 'Reject') {
     this.dialogs.acceptConfirms = true;
-    await this.row(reason).getByRole('link', { name: decision }).or(this.row(reason).getByRole('button', { name: decision })).first().click();
+    await rowAction(this.row(reason), decision).click();
     await expect(this.page.getByRole('heading', { name: /pending leave requests/i })).toBeVisible();
   }
 

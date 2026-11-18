@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { Dialogs, expectMessage, Nav, rowWith } from './base';
+import { Dialogs, expectMessage, Nav, rowWith, rowAction } from './base';
 
 export interface AppraisalForm {
   employee?: string; // visible employee name; omit to leave unselected
@@ -42,7 +42,7 @@ export class PerformancePages {
 
   async delete(project: string) {
     this.dialogs.acceptConfirms = true;
-    await this.row(project).getByRole('link', { name: /delete/i }).or(this.row(project).getByRole('button', { name: /delete/i })).first().click();
+    await rowAction(this.row(project), /delete/i).click();
     await expect(this.page.getByRole('heading', { name: /performance appraisals/i })).toBeVisible();
   }
 }

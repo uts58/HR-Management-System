@@ -85,7 +85,7 @@ Rules:
 
 1. **Inventory is the contract.** Each feature in `feature-inventory.md` gets a row in the parity checklist (a GitHub project or table) with columns: feature, legacy test(s), web test(s), status (`not started` / `ported` / `green`), owner.
 2. **A feature is done** when its ported E2E tests pass in `web/` CI, its unit/integration tests exist per section 2, and any linked BUG/SEC item is green with `FIXED_DEFECTS=all`.
-3. **Legacy suite stays green against legacy** (with expected failures) until cut-over. If the Security lead's patch fixes SEC-01/02/BUG-xx, those `test.fail` tests start "unexpectedly passing", and Playwright reports that as a failure. That is the signal to add the ID to `FIXED_DEFECTS` in CI (and later remove the `knownDefect()` call).
+3. **Legacy suite stays green against legacy** (with expected failures) until cut-over. When a legacy change fixes an open defect, its `test.fail` test starts "unexpectedly passing", and Playwright reports that as a failure. That is the signal to mark it `fixed` in `support/defects.ts` and in inventory section 11, in the same PR as the fix. The Security hardening went through this step: SEC-01..07, BUG-01..05, 07, 09, 10 and 21 are fixed, and BUG-15, 17 and 24 are partial.
 4. **Behaviour changes need sign-off.** Any deliberate deviation from legacy, other than fixing a listed defect, needs a product decision recorded in inventory section 13 before the test is changed.
 5. **Cut-over gate:** all checklist rows are green; the E2E suite is green on Chromium/Firefox/WebKit; coverage gates are met; zero open Critical/High defects; a11y scan is clean.
 
@@ -96,12 +96,12 @@ Rules:
 | `web-unit` | every PR touching `web/` | `vitest run --project unit --coverage` |
 | `web-integration` | every PR touching `web/` | Postgres service container → `prisma migrate deploy` → `vitest run --project integration --coverage` |
 | `web-e2e` | every PR touching `web/` | Postgres service → build → `next start` → reset/seed → `playwright test` (Chromium) |
-| `legacy-e2e` | PRs touching the legacy app or `legacy-tests/`; nightly | Postgres service → `npx prisma db push` → `npm start` → `legacy-tests: npm test` |
+| `legacy-e2e` | PRs touching the legacy app or `legacy-tests/`; nightly | Postgres service → `npx prisma db push` → `npm run db:session-table` → `TRUST_PROXY=1 npm start` → `legacy-tests: npm test` |
 | `web-e2e-matrix` | nightly | E2E on Firefox + WebKit, a11y scan |
 
 ## 7. Running the legacy suite locally
 
-Requirements: Node 18+, Docker (or any Postgres 16), and the legacy app's dependencies (`npm ci` at repo root).
+Requirements: Node 22+, Docker (or any Postgres 16), and the legacy app's dependencies (`npm ci` at repo root). These steps target the hardened legacy app (merge `ab2c98d` and later).
 
 ```bash
 # 1. Postgres on a spare port (the suite truncates this database)
@@ -112,7 +112,10 @@ export DATABASE_URL=postgresql://hruser:qa_pass@localhost:55432/hrdb_qa
 # 2. Legacy app (repo root)
 npm ci
 npx prisma db push
-PORT=3100 SESSION_SECRET=dev npm start          # or let Playwright start it: START_LEGACY=1
+npm run db:session-table                         # Postgres session store; the app exits without it
+# TRUST_PROXY=1 is required for the suite: each test context sends its own X-Forwarded-For,
+# so the login rate limit (20/IP, 10/username+IP per 15 min, in memory) applies per test.
+PORT=3100 SESSION_SECRET=dev TRUST_PROXY=1 npm start   # or let Playwright start it: START_LEGACY=1
 
 # 3. Suite
 cd legacy-tests
@@ -130,6 +133,10 @@ Environment variables:
 | `DATABASE_URL` | (required unless `RESET_DB=0`) | DB to truncate and seed before the run |
 | `RESET_DB` | `1` | `0` skips the reset (runs will not be repeatable) |
 | `START_LEGACY` | unset | `1` makes Playwright start `node ../app.js` |
-| `FIXED_DEFECTS` | empty | comma list of defect IDs (or `all`) that are no longer expected to fail |
+| `FIXED_DEFECTS` | empty | extra comma list of defect IDs (or `all`) not expected to fail, on top of `support/defects.ts` |
+| `LEGACY_BASELINE` | unset | `unpatched` expects every known defect to fail (for running against pre-hardening commit `4f8c6bc`) |
+| `VARY_CLIENT_IP` | `1` | `0` stops sending a per-context `X-Forwarded-For` (the run will then trip the login rate limit) |
 
-Repeatability: `fixtures/seed.sql` truncates every table and loads the `prisma/seed.js` data plus QA-only users (`mary`, `temp`, `paula`, `olive`) and an in-use department and position, so destructive tests never touch shared data. Tests also create uniquely named records. The suite can be re-run any number of times; each run starts from the same state.
+Defect status: `legacy-tests/support/defects.ts` records each defect as open / fixed / partial, matching inventory section 11. Only **open** defects are expected failures. When a fix lands, flip the status in both places in the same PR.
+
+Repeatability: `fixtures/seed.sql` truncates every table (and the `legacy_session.session` table if present) and loads the `prisma/seed.js` data, plus QA-only users (`mary`, `temp`, `paula`, `olive`, `gone`) and an in-use department and position. Destructive tests therefore never touch shared data, and tests also create uniquely named records. Seeded passwords are plaintext; the hardened app upgrades each one to bcrypt on first login, so no hashing step is needed. The rate limiter's counters live in app memory and are **not** cleared by the DB reset. The per-context client IP is what keeps re-runs from accumulating against one bucket, so don't remove it without raising the limits instead (`LOGIN_RATE_LIMIT_IP` / `LOGIN_RATE_LIMIT_USER`, test environments only).

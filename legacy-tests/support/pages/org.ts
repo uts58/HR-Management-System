@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { Dialogs, expectMessage, Nav, rowWith } from './base';
+import { Dialogs, expectMessage, Nav, rowWith, rowAction } from './base';
 
 /** Departments and positions share the same "name + table with Delete" page shape. */
 export class LookupPage {
@@ -51,7 +51,7 @@ export class LookupPage {
 
   async delete(name: string, confirm = true) {
     this.dialogs.acceptConfirms = confirm;
-    await this.row(name).getByRole('link', { name: /delete/i }).or(this.row(name).getByRole('button', { name: /delete/i })).first().click();
+    await rowAction(this.row(name), /delete/i).click();
     await expect(this.page.getByRole('heading', { name: this.cfg.heading })).toBeVisible();
     this.dialogs.acceptConfirms = true;
   }

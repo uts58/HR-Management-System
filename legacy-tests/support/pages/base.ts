@@ -36,6 +36,11 @@ export function rowWith(page: Page, text: string | RegExp): Locator {
   return page.getByRole('row').filter({ hasText: text });
 }
 
+/** An action in a table row: a link (pre-patch legacy) or a button (POST form). */
+export function rowAction(row: Locator, name: string | RegExp): Locator {
+  return row.getByRole('link', { name }).or(row.getByRole('button', { name })).first();
+}
+
 /** Asserts a visible message, or (legacy) a native dialog, matching `text`. */
 export async function expectMessage(page: Page, dialogs: Dialogs, text: RegExp) {
   await expect
@@ -56,10 +61,14 @@ export class Nav {
    * so hover the top-level item first if the link is hidden.
    */
   async click(linkText: string | RegExp) {
+    await this.page.waitForLoadState();
     const link = this.link(linkText).first();
-    if (!(await link.isVisible())) {
-      await link.locator('xpath=ancestor::li[last()]').hover();
-    }
+    // Re-hover until the drop-down is open: a hover done while a previous form
+    // submission is still navigating is lost when the new page loads.
+    await expect(async () => {
+      if (!(await link.isVisible())) await link.locator('xpath=ancestor::li[last()]').hover({ timeout: 2_000 });
+      await expect(link).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
     await link.click();
   }
 
@@ -67,8 +76,12 @@ export class Nav {
     await this.click('Log out');
   }
 
-  /** Menu link, including ones currently collapsed inside a drop-down. */
+  /**
+   * Menu entry (link, or a button such as the POST "Log out"), including entries
+   * currently collapsed inside a drop-down.
+   */
   link(linkText: string | RegExp): Locator {
-    return this.page.getByRole('link', { name: linkText, exact: typeof linkText === 'string', includeHidden: true });
+    const opts = { name: linkText, exact: typeof linkText === 'string', includeHidden: true };
+    return this.page.getByRole('link', opts).or(this.page.getByRole('button', opts));
   }
 }

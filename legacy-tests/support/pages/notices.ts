@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { routes } from '../routes';
-import { Dialogs, expectMessage, Nav, rowWith } from './base';
+import { Dialogs, expectMessage, Nav, rowWith, rowAction } from './base';
 
 export type NoticeType = 'General' | 'Urgent' | 'Holiday';
 
@@ -29,7 +29,7 @@ export class NoticePages {
 
   async delete(title: string) {
     this.dialogs.acceptConfirms = true;
-    await this.row(title).getByRole('link', { name: /delete/i }).or(this.row(title).getByRole('button', { name: /delete/i })).first().click();
+    await rowAction(this.row(title), /delete/i).click();
     await expect(this.page.getByRole('heading', { name: /manage notices/i })).toBeVisible();
   }
 
