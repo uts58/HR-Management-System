@@ -43,8 +43,8 @@
                             <td><%= leaves[row]['leaveEnd'] %></td>
                             <td><%= leaves[row]['description'] %></td>
                             <td>
-                                <a href="/assignLeave?id=<%= leaves[row]['id'] %>&status=1" onclick="return confirm('Approve this leave?')">Approve</a> |
-                                <a href="/assignLeave?id=<%= leaves[row]['id'] %>&status=2" onclick="return confirm('Reject this leave?')">Reject</a>
+                                <form method="post" action="/assignLeave" class="inline-form" onsubmit="return confirm('Approve this leave?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><input type="hidden" name="id" value="<%= leaves[row]['id'] %>" /><input type="hidden" name="status" value="1" /><button type="submit" class="link-button">Approve</button></form> |
+                                <form method="post" action="/assignLeave" class="inline-form" onsubmit="return confirm('Reject this leave?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><input type="hidden" name="id" value="<%= leaves[row]['id'] %>" /><input type="hidden" name="status" value="2" /><button type="submit" class="link-button">Reject</button></form>
                             </td>
                         </tr>
                         <% } %>

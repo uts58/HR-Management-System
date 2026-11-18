@@ -49,7 +49,7 @@
                 <!--<li><a href="/message">Message</a></li>-->
                 <li><a href="/hr/viewDetails?id=<%=userid%>">View Profile</a></li>
                 <li><a href="/changePassword">Change Password</a></li>
-                <li><a href="/logout">Log out</a></li>
+                <li><form method="post" action="/logout" class="inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="link-button nav-link-button">Log out</button></form></li>
             </ul>
         </li>
 
@@ -73,7 +73,7 @@ else if(title=='emp'){ %>
                 <!--<li><a href="/message">Message</a></li>-->
                 <li><a href="/hr/viewProfile">View Profile</a></li>
                 <li><a href="/changePassword">Change Password</a></li>
-                <li><a href="/logout">Log out</a></li>
+                <li><form method="post" action="/logout" class="inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="link-button nav-link-button">Log out</button></form></li>
             </ul>
         </li>
 
