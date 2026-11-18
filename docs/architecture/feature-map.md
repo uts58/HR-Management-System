@@ -54,18 +54,18 @@ Ownership: **Frontend** owns pages and their `actions.ts` (`web/src/app/**`). **
 
 | # | Legacy route | New page / action | Service fn | Role | Page+action owner | Notes |
 |---|---|---|---|---|---|---|
-| 24 | `GET /addLeave` | `/leave/apply` | – | EMPLOYEE | Frontend | Date pickers instead of free text |
+| 24 | `GET /addLeave` | `/leave/apply` | – | EMPLOYEE | Frontend | Date pickers instead of free text. Type select uses `REQUESTABLE_LEAVE_TYPES` (no `OTHER`) |
 | 25 | `POST /saveLeave` | `applyForLeave` action | `leaveService.applyForLeave` | EMPLOYEE | Frontend / Backend | end ≥ start |
 | 26 | `GET /viewLeave` (also marks decided rows read) | `/leave/history` + `markLeaveDecisionsSeen` action called once after render | `listMyLeaveRequests`, `markMyLeaveDecisionsSeen` | EMPLOYEE | Frontend / Backend | Read and mark-seen are split (no side effects in GET) |
 | 27 | `GET /displayLeave` (pending queue) | `/leave/requests` | `listPendingLeaveRequests` | HR_ADMIN | Frontend / Backend | Oldest first |
 | 28 | `GET /assignLeave?id=&status=` | `decideLeave` action (Approve / Reject buttons, confirm) | `decideLeaveRequest` | HR_ADMIN | Frontend / Backend | Only PENDING → APPROVED/REJECTED. Records decidedBy/At |
-| 29 | `GET /viewLeavebyAdmin` | `/leave/all` | `listAllLeaveRequests` | HR_ADMIN | Frontend / Backend | Same columns as legacy (employee, type, from, to, reason, status) |
+| 29 | `GET /viewLeavebyAdmin` | `/leave/all` | `listAllLeaveRequests` | HR_ADMIN | Frontend / Backend | Same columns as legacy (employee, type, from, to, reason, status). Migrated rows may show `OTHER` type, "—" for unparseable dates, and "Unknown employee #N" for placeholder employees |
 
 ## Performance appraisal
 
 | # | Legacy route | New page / action | Service fn | Role | Page+action owner | Notes |
 |---|---|---|---|---|---|---|
-| 30 | `GET /addPerformance` | `/appraisals/new` | `employeeService.listEmployeeOptions` | HR_ADMIN | Frontend / Backend | Picker lists ACTIVE employees only |
+| 30 | `GET /addPerformance` | `/appraisals/new` | `employeeService.listEmployeeOptions` | HR_ADMIN | Frontend / Backend | Picker lists ACTIVE, non-placeholder employees only |
 | 31 | `POST /savePerformance` | `createAppraisal` action | `performanceService.createAppraisal` | HR_ADMIN | Frontend / Backend | Employee, project, dates, rating all required |
 | 32 | `GET /viewPerformance` | `/appraisals` | `listAppraisals` | HR_ADMIN | Frontend / Backend | |
 | 33 | `GET /deletePerformance?id=` | `deleteAppraisal` action (POST + confirm) | `deleteAppraisal` | HR_ADMIN | Frontend / Backend | |

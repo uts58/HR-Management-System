@@ -26,7 +26,7 @@ type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: AppErr
    | `ZodError` | `VALIDATION` + `fieldErrors` (from `z.flattenError`) |
    | `ServiceError` | its code/message/fieldErrors |
    | `AuthError` | `UNAUTHENTICATED` / `FORBIDDEN` |
-   | Prisma unique violation (P2002) not already handled | `CONFLICT` |
+   | Prisma unique violation (P2002) not already handled | `CONFLICT`. Services must handle the known ones themselves, so the user gets the field error. That includes the hand-written `lower(name)` indexes on department/position, whose violation may not name the field. |
    | Prisma record not found (P2025) | `NOT_FOUND` |
    | anything else | `INTERNAL`, message "Something went wrong. Please try again." The real error is logged server-side with a request id. |
 3. `redirect()`/`notFound()` throw control-flow errors in Next.js. `runAction` must rethrow them (`unstable_rethrow` from `next/navigation`; Backend to confirm the current API name).

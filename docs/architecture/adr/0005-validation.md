@@ -19,7 +19,7 @@ Legacy validation exists only in browser JavaScript (`verify_addemp`, `verify`),
    - in the client form (shadcn `Form` + `react-hook-form` with `zodResolver`, or plain `useActionState`, Frontend's choice) for instant feedback;
    - in the server action (`safeParse` on FormData-derived data) as the authoritative check;
    - in the service (`parse`) as a guard (ADR-0003).
-4. Enum values come from the `as const` tuples in contracts (`z.enum(LEAVE_TYPES)`), so UI selects, schemas and types never drift.
+4. Enum values come from the `as const` tuples in contracts (e.g. `z.enum(REQUESTABLE_LEAVE_TYPES)` for new leave requests; `LEAVE_TYPES` also includes `OTHER`, which only migrated rows use), so UI selects, schemas and types never drift.
 5. FormData coercion (strings to numbers, empty string to null) happens inside the schema (`z.coerce.number()`, preprocess `'' -> null`). Forms post field names equal to contract property names (`firstName`, not `txtFirst`).
 6. Cross-field rules (end ≥ start, newPassword === confirmPassword) use `.refine`/`.superRefine` with `path` set to the field that gets the error.
 7. Rules that need the database (unique name, department exists) are checked in the service and thrown as `ServiceError('VALIDATION'|'CONFLICT', fieldErrors)`, so they show up in the form the same way.

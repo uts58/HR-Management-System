@@ -3,10 +3,10 @@
  * Business rules: docs/architecture/contracts.md#notice
  */
 
-import type { Actor, NoticeId, Timestamp } from './common';
+import type { Actor, NoticeId, Timestamp } from "./common";
 
 /** Legacy `notice.type`: 0 = general, 1 = urgent, 2 = holiday. */
-export const NOTICE_TYPES = ['GENERAL', 'URGENT', 'HOLIDAY'] as const;
+export const NOTICE_TYPES = ["GENERAL", "URGENT", "HOLIDAY"] as const;
 export type NoticeType = (typeof NOTICE_TYPES)[number];
 
 export interface Notice {
@@ -14,7 +14,7 @@ export interface Notice {
   title: string;
   body: string;
   type: NoticeType;
-  /** Legacy `date` was a locale string; migrated values are parsed or left null. */
+  /** Legacy `date` was a locale string; migrated values are parsed or null. */
   createdAt: Timestamp | null;
 }
 
@@ -31,7 +31,10 @@ export interface NoticeService {
   // No anonymous access: notices are internal and live behind login.
   // Legacy showed them on the public login page (intentional change).
 
-  /** Any signed-in role. Dashboard list, newest first, at most `limit` (default RECENT_NOTICE_LIMIT). */
+  /**
+   * Any signed-in role. Dashboard list, newest first, at most `limit`
+   * (default RECENT_NOTICE_LIMIT).
+   */
   listRecentNotices(actor: Actor, limit?: number): Promise<Notice[]>;
 
   /** HR_ADMIN. All notices, newest first. */
