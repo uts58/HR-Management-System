@@ -29,6 +29,8 @@ export default defineConfig({
           include: [
             "src/**/*.{test,spec}.{ts,tsx}",
             "tests/unit/**/*.{test,spec}.{ts,tsx}",
+            // Platform lint tooling tests (local rules + import boundaries)
+            "eslint/**/*.test.mjs",
           ],
         },
       },
