@@ -38,7 +38,8 @@ export type IsoDate = string & { readonly __brand: "IsoDate" };
 
 /**
  * A point in time (createdAt, decidedAt). Stored as timestamptz (UTC).
- * Rendered in the org time zone (APP_TIME_ZONE) by one shared formatter.
+ * Displayed in the viewer's browser time zone; APP_TIME_ZONE only defines
+ * the business day (ADR-0007).
  */
 export type Timestamp = Date;
 

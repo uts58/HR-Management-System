@@ -29,7 +29,7 @@ Version-specific facts we rely on:
 - **Next.js 16 renamed `middleware.ts` to `proxy.ts`** (exported function `proxy`). `middleware` is deprecated. Proxy runs on the Node.js runtime by default. The ownership map's `web/src/middleware.ts` therefore becomes **`web/src/proxy.ts`** (ADR-0002).
 - Next.js says Server Functions must check auth themselves and Proxy must not be the only check. Changing a matcher or moving an action to another route can silently remove Proxy coverage (ADR-0004).
 - Forms use Server Actions with React 19's `useActionState`.
-- `cacheComponents: true` (create-next-app 16.4 default). Request-time data (session, cookies) has to render inside `<Suspense>` and must never sit inside `'use cache'` (ADR-0004).
+- `cacheComponents` is **off** (director ruling): nearly every page is per-user and rendered at request time, so the Cache Components constraints don't apply.
 - Better Auth: Prisma adapter, `username` plugin, `nextCookies` plugin for server actions, `toNextJsHandler` route handler, `getSessionCookie` for optimistic proxy checks. Its built-in rate limiter applies only to HTTP requests to `/api/auth/*`, not to server-side `auth.api` calls (ADR-0004).
 
 ## Consequences

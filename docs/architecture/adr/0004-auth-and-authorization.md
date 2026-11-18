@@ -74,9 +74,4 @@ Terminated employees can't sign in, and their existing sessions stop working.
 - Platform adds a lint check that flags `'use server'` files where no exported function calls `requireRole`/`requireSession`, plus a `no-restricted-imports` rule for `better-auth` outside `web/src/auth/`.
 - A DB read per request is the price of instant revocation. The load is trivial at this app's scale.
 - `createLoginAccount` has to write Better Auth's tables inside our transaction, so it can't go through `auth.api` (which uses its own adapter connection). Security implements it with the same argon2id `hash` function the Better Auth config uses, plus Prisma `tx` writes, and covers it with tests.
-- **Cache Components is on** (`cacheComponents: true`, Platform scaffold). Reading the session is request-time data (`headers()`), so:
-  - `getSession`/`requireRole` must never be called inside a `'use cache'` scope;
-  - pages that read the session render that part inside `<Suspense>`, or the build fails on uncached data outside a boundary;
-  - per-user data is never cached with plain `'use cache'`.
-
-  Frontend and Security follow the Next.js "Authentication with Cache Components" guide.
+- `cacheComponents` is **off** (director ruling), so no Suspense or `'use cache'` constraints apply to session reads. Protected pages are dynamic because they read `headers()`. Never put per-user data in a shared cache (`unstable_cache` or a `fetch` cache).
