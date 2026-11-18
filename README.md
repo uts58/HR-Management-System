@@ -153,7 +153,7 @@ Consequences:
 ## Running Locally (without Docker)
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 22+ (Docker image uses Node 26)
 - PostgreSQL 16+
 
 ### Setup

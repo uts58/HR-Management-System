@@ -1,5 +1,5 @@
 # ---- deps stage ----
-FROM node:18-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
@@ -7,7 +7,7 @@ RUN npm ci --omit=dev
 RUN npx prisma generate
 
 # ---- release stage ----
-FROM node:18-alpine AS release
+FROM node:26-alpine AS release
 
 RUN apk add --no-cache tini
 
