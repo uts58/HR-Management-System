@@ -30,29 +30,82 @@ Owner: Platform / DevOps. Status: **draft (Phase 0)**.
 ```
 
 **Host:** a single Linux VM with Docker Engine and the Compose plugin, at
-least 2 vCPU, 4 GB RAM and an SSD. The repo's `docker-compose.yml` is the
-base, and a production override file sets the proxy, secrets and resource
-limits.
+least 2 vCPU, 4 GB RAM and an SSD. Start the stack with:
 
-**Reverse proxy:**
+```bash
+docker compose -f docker-compose.yml -f compose.prod.yml --profile web up -d
+```
 
-- Caddy: `hr.example.com { reverse_proxy web:3000 }` handles certificates
-  automatically.
-- Send HSTS (`max-age=31536000`) and set `X-Forwarded-Proto`/`-For`.
-  `BETTER_AUTH_URL` must equal the public `https://` origin.
-- Only ports 80 and 443 are published on the host. `web` and `db` must not
-  publish ports in production. Remove the `ports:` entries in the override.
-- Optional: rate-limit `/api/auth/*` at the proxy.
+`docker-compose.yml` is the base. The production override
+[`compose.prod.yml`](../../compose.prod.yml) adds Caddy, unpublishes the
+app ports (`ports: !reset []`), sets `TRUST_PROXY=1` for the legacy app, and
+derives `BETTER_AUTH_URL` from `APP_DOMAIN`.
+
+**Reverse proxy (Caddy, [`docker/caddy/Caddyfile`](../../docker/caddy/Caddyfile)):**
+
+- Caddy obtains and renews Let's Encrypt certificates for `APP_DOMAIN`
+  automatically and redirects HTTP to HTTPS. It sends HSTS
+  (`max-age=31536000; includeSubDomains`), `nosniff` and a referrer policy.
+- `UPSTREAM` picks the backend: `app:3000` (legacy, the default) or
+  `web:3000`. Changing it is the cutover switch.
+- `BETTER_AUTH_URL` must equal the public `https://` origin.
+- Only Caddy publishes ports (80, 443/tcp, 443/udp). `app`, `web` and `db`
+  are reachable only on the internal Docker network.
+- Optional: rate-limit `/api/auth/*` (needs a Caddy rate-limit plugin) or
+  rely on Better Auth's built-in rate limiter.
+
+**Forwarded headers and client IPs:**
+
+- **Caddy overwrites `X-Forwarded-For`.** No `trusted_proxies` is
+  configured, so Caddy discards client-supplied `X-Forwarded-For`,
+  `X-Forwarded-Proto` and `X-Forwarded-Host` (anti-spoofing) and sets them
+  itself. `X-Forwarded-For` then holds exactly one address, the TCP peer
+  that connected to Caddy, and `X-Forwarded-Proto` is `https`.
+- Because there is exactly one trusted hop, the legacy app runs with
+  **`TRUST_PROXY=1`** (Express `trust proxy` = 1, set in `compose.prod.yml`).
+  `req.ip` and `req.secure` then come from Caddy's headers and cannot be
+  spoofed by clients. Better Auth in the new app reads the client IP from
+  `X-Forwarded-For` for rate limiting, which is safe for the same reason.
+- If a CDN or load balancer is ever placed in front of Caddy, add its ranges
+  to Caddy's `trusted_proxies` and raise the hop count (TRUST_PROXY=2, and
+  the equivalent Better Auth setting) together. Changing only one of them
+  either lets clients spoof their IP or makes every request look as if it
+  came from the CDN.
+- Never publish `app` or `web` ports directly in production. A client that
+  reaches the app without going through Caddy can set any
+  `X-Forwarded-For` it likes.
+
+**Database roles:**
+
+- The legacy app keeps its existing credentials (`DB_USER`, the Postgres
+  superuser created by the image).
+- The new app connects as **`hr_web_app`** (`WEB_DB_USER`/`WEB_DB_PASS`).
+  It is a `NOSUPERUSER NOCREATEDB NOCREATEROLE` login role that owns only
+  the `hr_web` database. On PG15+ that also makes it owner of the database's
+  `public` schema, so `prisma migrate deploy` can run DDL.
+- The `db-init` job ([`docker/postgres/create-web-dbs.sh`](../../docker/postgres/create-web-dbs.sh))
+  creates the role and database idempotently. It rotates the role's password
+  to `WEB_DB_PASS` on every run and revokes `CONNECT` from `PUBLIC` on both
+  `hr_web` and `hrdb`, so the web role cannot even connect to the legacy
+  database. `db-init` is the only web-profile service that uses superuser
+  credentials.
+- The legacy data migration (`scripts/migrate-legacy/`) reads `hrdb` with
+  the legacy credentials and writes `hr_web` as `hr_web_app`.
 
 **App containers:**
 
 - `web` runs the image built from `web/Dockerfile` (target `runner`). It runs
   as non-root (uid 1001) with a read-only rootfs plus tmpfs for `/tmp` and
   `.next/cache`, and it is restarted with `unless-stopped`.
-- The `HEALTHCHECK` calls `GET /api/health`. The proxy health check should
-  call the same endpoint.
+- The `HEALTHCHECK` calls `GET /api/health`. Once `UPSTREAM` points at
+  `web`, the proxy health check should call the same endpoint.
 - Env validation happens at boot (`src/env.ts`). A bad config makes the
-  container exit, so nothing broken gets served.
+  container exit, so nothing broken gets served. `SKIP_ENV_VALIDATION` is
+  honoured only during `next build`. At runtime it is ignored with a loud
+  warning.
+- `APP_TIME_ZONE` is required and has **no default**. Set it explicitly for
+  every deployment to the organisation's IANA zone. The DB stores UTC, and
+  this zone only defines the business day.
 - **Migrations run as a separate step.** The `web-migrate` image (target
   `migrator`) runs `prisma migrate deploy` once per release, before the new
   `web` image starts. Compose enforces the order with
@@ -127,7 +180,7 @@ usage for the DB volume, and alerts on backup job failure.
 5. `docker compose --profile web up -d web`. Wait for it to report healthy.
 6. Smoke tests: log in for each role, run the key HR flows, and run
    Playwright against prod (`PLAYWRIGHT_BASE_URL`) with a test account.
-7. Switch the proxy upstream from `app:3000` to `web:3000`. Optionally
+7. Set `UPSTREAM=web:3000` and recreate Caddy (`docker compose -f docker-compose.yml -f compose.prod.yml up -d caddy`). Optionally
    redirect legacy URLs to the new routes.
 8. Watch logs, error rate and `/api/health` for 60 minutes.
 

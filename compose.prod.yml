@@ -1,0 +1,44 @@
+# Production override. Use it together with docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f compose.prod.yml --profile web up -d
+#
+# - Caddy terminates TLS (automatic Let's Encrypt) and is the only service
+#   with published ports (80/443).
+# - App ports are unpublished, so they are reachable only on the internal
+#   network. db never publishes a port.
+# - The legacy app trusts exactly one proxy hop (TRUST_PROXY=1). Caddy
+#   overwrites X-Forwarded-For with the real client IP (docker/caddy/Caddyfile).
+#
+# Required env (host .env, root-only): APP_DOMAIN, plus everything
+# docker-compose.yml needs. UPSTREAM=app:3000 (default) or web:3000.
+
+services:
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN must be set, e.g. hr.example.com}
+      UPSTREAM: ${UPSTREAM:-app:3000}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  app:
+    ports: !reset []
+    environment:
+      # Trust exactly one hop (Caddy) for req.ip / secure cookies.
+      TRUST_PROXY: "1"
+
+  web:
+    ports: !reset []
+    environment:
+      BETTER_AUTH_URL: https://${APP_DOMAIN:?APP_DOMAIN must be set}
+
+volumes:
+  caddy_data:
+  caddy_config:
