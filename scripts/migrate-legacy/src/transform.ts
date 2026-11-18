@@ -54,17 +54,28 @@ export function mapSeenByEmployee(status: LeaveStatus, read: number | null): boo
   return status === "PENDING" ? true : read === 1;
 }
 
-/** The contract's LEAVE_TYPES. These are the views/addLeave.ejs option values, stored verbatim. */
-export const LEAVE_TYPES = ["Sick Leave", "Annual Leave", "Casual Leave", "Maternity Leave", "Unpaid Leave"] as const;
+export type LeaveType = "SICK" | "ANNUAL" | "CASUAL" | "MATERNITY" | "UNPAID" | "OTHER";
 
-/** Snaps near-misses ("sick", "SICK LEAVE ") to the canonical label. Unknown values are kept verbatim (trimmed). */
-export function normaliseLeaveType(t: string | null): Mapped<string> {
-  const v = (t ?? "").trim().replace(/\s+/g, " ");
-  if (v === "") return { value: "Unspecified", warn: 'empty leave type; stored as "Unspecified"' };
-  const key = v.toLowerCase().replace(/ ?leave$/, "");
-  const hit = LEAVE_TYPES.find((l) => l.toLowerCase().replace(/ leave$/, "") === key);
-  if (hit) return hit === v ? { value: hit } : { value: hit, warn: `leave type "${t}" normalised to "${hit}"` };
-  return { value: v, warn: `leave type "${v}" is not one of LEAVE_TYPES; stored verbatim` };
+/** views/addLeave.ejs fixed <select> option values -> LeaveType enum (director ruling). */
+export const LEAVE_TYPE_LABELS: Record<Exclude<LeaveType, "OTHER">, string> = {
+  SICK: "Sick Leave",
+  ANNUAL: "Annual Leave",
+  CASUAL: "Casual Leave",
+  MATERNITY: "Maternity Leave",
+  UNPAID: "Unpaid Leave",
+};
+const LEAVE_KEY = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+const LEAVE_BY_KEY = new Map(Object.entries(LEAVE_TYPE_LABELS).map(([k, label]) => [LEAVE_KEY(label), k as LeaveType]));
+
+/**
+ * Matches one of the five labels, ignoring case and all whitespace ("SICK  leave" -> SICK).
+ * Anything else, including NULL, "" and "sick" without "Leave", becomes OTHER. `legacy` then
+ * holds the original text (or "" for NULL) for leave_requests.legacy_leave_type, plus a warning.
+ */
+export function mapLeaveType(t: string | null): Mapped<LeaveType> & { legacy: string | null } {
+  const hit = LEAVE_BY_KEY.get(LEAVE_KEY(t ?? ""));
+  if (hit) return { value: hit, legacy: null };
+  return { value: "OTHER", legacy: t ?? "", warn: `leave type ${t === null ? "NULL" : `"${t}"`} matches none of the five legacy options; set to OTHER` };
 }
 
 /** notice.type: views/addNotice.ejs 0 General, 1 Urgent, 2 Holiday. saveNotice stores parseInt(type) || 0. */
@@ -140,30 +151,62 @@ export function slugPart(s: string | null | undefined): string {
     .join(".");
 }
 
+export const USERNAME_RE = /^[a-z0-9._]{3,30}$/;
+
+export type UsernameReason =
+  | "kept-legacy" // lower(legacy login) is valid and unique, so the user's login is unchanged (apart from case)
+  | "legacy-invalid" // legacy login breaks the username rules (length, spaces, other characters)
+  | "legacy-duplicate" // several legacy logins are the same case-insensitively
+  | "legacy-empty";
+
+export interface UsernameAssignment {
+  username: string;
+  /** true when the user must be told a new login name (anything other than kept-legacy) */
+  changed: boolean;
+  reason: UsernameReason;
+}
+
 /**
- * Deterministic username generation (director decision: stable usernames, not first names).
- *   base = first.last (contract default) -> else slug(legacy login name) -> else "user<id>"
- *   collisions: base, base2, base3, ... in input order (callers sort by legacy person id ascending)
- * Every result matches ^[a-z0-9._]{3,30}$.
+ * Deterministic username assignment (director ruling 2):
+ *  1. KEEP lower(legacy login) when it matches ^[a-z0-9._]{3,30}$ and no other legacy login
+ *     has the same lower-case value. These are reserved first, so generated names never take them.
+ *  2. Otherwise generate first.last (ASCII-folded) -> else slug(login) -> else "user<id>",
+ *     padded to 3 chars, max 27 + suffix. Collisions get base2, base3, ... in input order
+ *     (callers sort by legacy person id ascending).
+ * Every result matches USERNAME_RE.
  */
 export function assignUsernames(
   people: { key: string; firstName?: string | null; lastName?: string | null; loginName?: string | null }[],
-): { byKey: Map<string, string>; suffixed: { key: string; base: string; username: string }[] } {
-  const byKey = new Map<string, string>();
+): Map<string, UsernameAssignment> {
+  const out = new Map<string, UsernameAssignment>();
   const taken = new Set<string>();
-  const suffixed: { key: string; base: string; username: string }[] = [];
+  const lowerCount = new Map<string, number>();
   for (const p of people) {
+    const l = (p.loginName ?? "").toLowerCase();
+    lowerCount.set(l, (lowerCount.get(l) ?? 0) + 1);
+  }
+  const pending: { p: (typeof people)[number]; reason: UsernameReason }[] = [];
+  for (const p of people) {
+    const l = (p.loginName ?? "").toLowerCase();
+    if (l.trim() === "") pending.push({ p, reason: "legacy-empty" });
+    else if (!USERNAME_RE.test(l)) pending.push({ p, reason: "legacy-invalid" });
+    else if ((lowerCount.get(l) ?? 0) > 1) pending.push({ p, reason: "legacy-duplicate" });
+    else {
+      out.set(p.key, { username: l, changed: false, reason: "kept-legacy" });
+      taken.add(l);
+    }
+  }
+  for (const { p, reason } of pending) {
     const full = [slugPart(p.firstName), slugPart(p.lastName)].filter(Boolean).join(".");
     let base = full || slugPart(p.loginName) || `user${slugPart(p.key)}`;
     base = base.slice(0, USERNAME_MAX - 3).replace(/\.+$/, "");
     if (base.length < USERNAME_MIN) base = `${base}${base ? "." : ""}user`.slice(0, USERNAME_MAX - 3);
     let u = base;
     for (let n = 2; taken.has(u); n++) u = `${base}${n}`;
-    if (u !== base) suffixed.push({ key: p.key, base, username: u });
     taken.add(u);
-    byKey.set(p.key, u);
+    out.set(p.key, { username: u, changed: true, reason });
   }
-  return { byKey, suffixed };
+  return out;
 }
 
 // ---------------------------------------------------------------------------

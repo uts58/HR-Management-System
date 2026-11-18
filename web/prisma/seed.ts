@@ -7,7 +7,7 @@
  *   john.doe    / Employee#123    EMPLOYEE
  *   jane.smith  / Employee#123    EMPLOYEE (mustChangePassword = true, like a newly created employee)
  *   raj.patel   / Employee#123    EMPLOYEE
- *   mary.jones  (TERMINATED, login disabled by the app)
+ *   mary.jones  (employee TERMINATED, users.disabledAt set, so login is blocked)
  *
  * Passwords are bcrypt (cost 12), the same format the legacy migration produces (director decision),
  * stored on the credential `account` row. Security's Better Auth verify accepts bcrypt and rehashes to argon2id on login.
@@ -54,11 +54,12 @@ async function main() {
   const adminHash = await bcrypt.hash("Admin#12345", 12);
   const empHash = await bcrypt.hash("Employee#123", 12);
   const users = [
-    { id: "seed-user-1", employeeId: 1, username: "admin", name: "Admin User", email: "admin@example.com", role: "HR_ADMIN" as const, hash: adminHash, mustChangePassword: false },
-    { id: "seed-user-2", employeeId: 2, username: "john.doe", name: "John Doe", email: "john.doe@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: false },
-    { id: "seed-user-3", employeeId: 3, username: "jane.smith", name: "Jane Smith", email: "jane.smith@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: true },
-    { id: "seed-user-4", employeeId: 4, username: "raj.patel", name: "Raj Patel", email: "raj.patel@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: false },
-    { id: "seed-user-5", employeeId: 5, username: "mary.jones", name: "Mary Jones", email: "mary.jones@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: false },
+    { id: "seed-user-1", employeeId: 1, username: "admin", name: "Admin User", email: "admin@example.com", role: "HR_ADMIN" as const, hash: adminHash, mustChangePassword: false, disabledAt: null },
+    { id: "seed-user-2", employeeId: 2, username: "john.doe", name: "John Doe", email: "john.doe@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: false, disabledAt: null },
+    { id: "seed-user-3", employeeId: 3, username: "jane.smith", name: "Jane Smith", email: "jane.smith@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: true, disabledAt: null },
+    { id: "seed-user-4", employeeId: 4, username: "raj.patel", name: "Raj Patel", email: "raj.patel@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: false, disabledAt: null },
+    // Terminated: terminateEmployee sets users.disabled_at, which blocks login (director ruling 5).
+    { id: "seed-user-5", employeeId: 5, username: "mary.jones", name: "Mary Jones", email: "mary.jones@example.com", role: "EMPLOYEE" as const, hash: empHash, mustChangePassword: false, disabledAt: new Date("2026-06-30T17:00:00Z") },
   ];
   for (const { hash, ...u } of users) {
     const data = { ...u, displayUsername: u.username, emailVerified: false };
@@ -72,10 +73,10 @@ async function main() {
 
   // ---- Leave requests (one in each state) ---------------------------------------
   const leave: Prisma.LeaveRequestUncheckedCreateInput[] = [
-    { id: 1, employeeId: 2, leaveType: "Sick Leave", startDate: d("2026-10-05"), endDate: d("2026-10-06"), reason: "Flu", status: "APPROVED", decidedById: "seed-user-1", decidedAt: new Date("2026-10-04T15:00:00Z"), seenByEmployee: true },
-    { id: 2, employeeId: 2, leaveType: "Annual Leave", startDate: d("2026-12-22"), endDate: d("2026-12-31"), reason: "Holidays", status: "PENDING", seenByEmployee: true },
-    { id: 3, employeeId: 3, leaveType: "Casual Leave", startDate: d("2026-11-20"), endDate: d("2026-11-20"), reason: null, status: "REJECTED", decidedById: "seed-user-1", decidedAt: new Date("2026-11-16T09:30:00Z"), seenByEmployee: false },
-    { id: 4, employeeId: 4, leaveType: "Unpaid Leave", startDate: d("2027-01-10"), endDate: d("2027-01-14"), reason: "Family matter", status: "PENDING", seenByEmployee: true },
+    { id: 1, employeeId: 2, leaveType: "SICK", startDate: d("2026-10-05"), endDate: d("2026-10-06"), reason: "Flu", status: "APPROVED", decidedById: "seed-user-1", decidedAt: new Date("2026-10-04T15:00:00Z"), seenByEmployee: true },
+    { id: 2, employeeId: 2, leaveType: "ANNUAL", startDate: d("2026-12-22"), endDate: d("2026-12-31"), reason: "Holidays", status: "PENDING", seenByEmployee: true },
+    { id: 3, employeeId: 3, leaveType: "CASUAL", startDate: d("2026-11-20"), endDate: d("2026-11-20"), reason: null, status: "REJECTED", decidedById: "seed-user-1", decidedAt: new Date("2026-11-16T09:30:00Z"), seenByEmployee: false },
+    { id: 4, employeeId: 4, leaveType: "UNPAID", startDate: d("2027-01-10"), endDate: d("2027-01-14"), reason: "Family matter", status: "PENDING", seenByEmployee: true },
   ];
   for (const l of leave) {
     const { id, ...rest } = l;

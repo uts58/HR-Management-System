@@ -14,6 +14,9 @@ CREATE TYPE "employment_status" AS ENUM ('ACTIVE', 'TERMINATED');
 CREATE TYPE "leave_status" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateEnum
+CREATE TYPE "leave_type" AS ENUM ('SICK', 'ANNUAL', 'CASUAL', 'MATERNITY', 'UNPAID', 'OTHER');
+
+-- CreateEnum
 CREATE TYPE "notice_type" AS ENUM ('GENERAL', 'URGENT', 'HOLIDAY');
 
 -- CreateTable
@@ -53,6 +56,7 @@ CREATE TABLE "employees" (
     "position_id" INTEGER,
     "employment_status" "employment_status" NOT NULL DEFAULT 'ACTIVE',
     "terminated_at" TIMESTAMPTZ(3),
+    "is_placeholder" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMPTZ(3) DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
@@ -63,7 +67,8 @@ CREATE TABLE "employees" (
 CREATE TABLE "leave_requests" (
     "id" SERIAL NOT NULL,
     "employee_id" INTEGER NOT NULL,
-    "leave_type" TEXT NOT NULL,
+    "leave_type" "leave_type" NOT NULL,
+    "legacy_leave_type" TEXT,
     "start_date" DATE,
     "end_date" DATE,
     "reason" TEXT,
@@ -108,6 +113,7 @@ CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "email_is_placeholder" BOOLEAN NOT NULL DEFAULT false,
     "email_verified" BOOLEAN NOT NULL DEFAULT false,
     "image" TEXT,
     "username" TEXT NOT NULL,
@@ -116,6 +122,7 @@ CREATE TABLE "users" (
     "must_change_password" BOOLEAN NOT NULL DEFAULT false,
     "employee_id" INTEGER,
     "legacy_person_id" TEXT,
+    "disabled_at" TIMESTAMPTZ(3),
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
@@ -174,7 +181,7 @@ CREATE INDEX "employees_department_id_idx" ON "employees"("department_id");
 CREATE INDEX "employees_position_id_idx" ON "employees"("position_id");
 
 -- CreateIndex
-CREATE INDEX "employees_employment_status_idx" ON "employees"("employment_status");
+CREATE INDEX "employees_employment_status_is_placeholder_idx" ON "employees"("employment_status", "is_placeholder");
 
 -- CreateIndex
 CREATE INDEX "employees_email_idx" ON "employees"("email");
@@ -261,6 +268,11 @@ CREATE UNIQUE INDEX "positions_name_lower_key" ON "positions" (lower("name"));
 -- so the plain unique index on "username" is case-insensitive in effect.
 ALTER TABLE "users" ADD CONSTRAINT "users_username_lower_chk" CHECK ("username" = lower("username"));
 
+-- Placeholder auth emails: "<username>@users.invalid" (RFC 2606 .invalid never routes).
+-- The flag and the domain must agree, so the app can trust either one.
+ALTER TABLE "users" ADD CONSTRAINT "users_email_placeholder_chk"
+  CHECK ("email_is_placeholder" = (lower("email") LIKE '%@users.invalid'));
+
 -- Date ranges and rating range.
 ALTER TABLE "leave_requests" ADD CONSTRAINT "leave_requests_dates_chk"
   CHECK ("start_date" IS NULL OR "end_date" IS NULL OR "end_date" >= "start_date");
@@ -269,7 +281,15 @@ ALTER TABLE "appraisals" ADD CONSTRAINT "appraisals_dates_chk"
 ALTER TABLE "appraisals" ADD CONSTRAINT "appraisals_rating_chk"
   CHECK ("rating" IS NULL OR "rating" BETWEEN 1 AND 5);
 
+-- legacy_leave_type holds the original text only for rows mapped to OTHER.
+ALTER TABLE "leave_requests" ADD CONSTRAINT "leave_requests_legacy_type_chk"
+  CHECK ("legacy_leave_type" IS NULL OR "leave_type" = 'OTHER');
+
 -- Soft delete: terminated_at is set if and only if employment_status = 'TERMINATED'.
--- Placeholder employees created for orphaned legacy history are TERMINATED with terminated_at = migration time.
 ALTER TABLE "employees" ADD CONSTRAINT "employees_terminated_chk"
   CHECK (("employment_status" = 'TERMINATED') = ("terminated_at" IS NOT NULL));
+
+-- Placeholder employees (orphaned legacy history) are always TERMINATED.
+-- Their terminated_at is the migration time, because the real deletion date is unknown.
+ALTER TABLE "employees" ADD CONSTRAINT "employees_placeholder_chk"
+  CHECK (NOT "is_placeholder" OR "employment_status" = 'TERMINATED');

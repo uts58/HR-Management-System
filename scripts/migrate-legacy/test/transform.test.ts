@@ -11,7 +11,7 @@ import {
   mapSeenByEmployee,
   mergeByName,
   normaliseBcrypt,
-  normaliseLeaveType,
+  mapLeaveType,
   parseIntId,
 } from "../src/transform.js";
 
@@ -36,13 +36,18 @@ test("seenByEmployee", () => {
   assert.equal(mapSeenByEmployee("REJECTED", 1), true);
 });
 
-test("leave types", () => {
-  assert.deepEqual(normaliseLeaveType("Sick Leave"), { value: "Sick Leave" });
-  assert.equal(normaliseLeaveType("sick").value, "Sick Leave");
-  assert.equal(normaliseLeaveType("ANNUAL LEAVE ").value, "Annual Leave");
-  assert.equal(normaliseLeaveType("Study leave").value, "Study leave");
-  assert.ok(normaliseLeaveType("Study leave").warn);
-  assert.equal(normaliseLeaveType(null).value, "Unspecified");
+test("leave types -> enum, case- and whitespace-insensitive, OTHER keeps the raw text", () => {
+  assert.deepEqual(mapLeaveType("Sick Leave"), { value: "SICK", legacy: null });
+  assert.equal(mapLeaveType("ANNUAL LEAVE ").value, "ANNUAL");
+  assert.equal(mapLeaveType(" casual  leave").value, "CASUAL");
+  assert.equal(mapLeaveType("MaternityLeave").value, "MATERNITY");
+  assert.equal(mapLeaveType("Unpaid Leave").value, "UNPAID");
+  const other = mapLeaveType("Study leave");
+  assert.equal(other.value, "OTHER");
+  assert.equal(other.legacy, "Study leave");
+  assert.ok(other.warn);
+  assert.equal(mapLeaveType("sick").value, "OTHER"); // not one of the five labels
+  assert.deepEqual([mapLeaveType(null).value, mapLeaveType(null).legacy], ["OTHER", ""]);
 });
 
 test("password classification", () => {
@@ -58,28 +63,34 @@ test("password classification", () => {
   assert.equal(classifyPassword(null), "empty");
 });
 
-test("usernames: first.last, Better Auth charset, deterministic collisions", () => {
-  const { byKey, suffixed } = assignUsernames([
-    { key: "1", firstName: "Admin", lastName: "User", loginName: "admin" },
-    { key: "2", firstName: "John", lastName: "Doe" },
-    { key: "3", firstName: "john", lastName: "DOE" },
-    { key: "4", firstName: "José", lastName: "Núñez-O'Brien" },
-    { key: "5", firstName: null, lastName: null, loginName: "Al" },
-    { key: "6", firstName: "", lastName: "", loginName: "" },
-    { key: "7", firstName: "Bartholomew-Maximilian", lastName: "Vanderbilt-Featherstonehaugh" },
-    { key: "8", firstName: "李", lastName: "王" },
-    { key: "9", firstName: "John", lastName: "Doe" },
+test("usernames: keep valid unique legacy login, else first.last with deterministic collisions", () => {
+  const m = assignUsernames([
+    { key: "1", firstName: "Admin", lastName: "User", loginName: "admin" }, // kept
+    { key: "2", firstName: "John", lastName: "Doe", loginName: "john" }, // duplicate of #3 case-insensitively
+    { key: "3", firstName: "john", lastName: "DOE", loginName: "John" },
+    { key: "4", firstName: "José", lastName: "Núñez-O'Brien", loginName: "José" }, // invalid chars
+    { key: "5", firstName: null, lastName: null, loginName: "Al" }, // too short
+    { key: "6", firstName: "", lastName: "", loginName: "" }, // empty
+    { key: "7", firstName: "Bartholomew-Maximilian", lastName: "Vanderbilt-Featherstonehaugh", loginName: "Bart Max" }, // space
+    { key: "8", firstName: "李", lastName: "王", loginName: "李" },
+    { key: "9", firstName: "Zed", lastName: "Q", loginName: "Mary_Jones.2" }, // kept, lower-cased
+    { key: "10", firstName: "Admin", lastName: "User", loginName: "boss man" }, // first.last free? "admin.user"
+    { key: "11", firstName: "Johnny", lastName: "Doe", loginName: "john.doe" }, // kept: reserved before generation
   ]);
-  assert.equal(byKey.get("1"), "admin.user");
-  assert.equal(byKey.get("2"), "john.doe");
-  assert.equal(byKey.get("3"), "john.doe2");
-  assert.equal(byKey.get("9"), "john.doe3");
-  assert.equal(byKey.get("4"), "jose.nunez.o.brien");
-  assert.equal(byKey.get("5"), "al.user");
-  assert.equal(byKey.get("6"), "user6");
-  assert.equal(byKey.get("8"), "user8");
-  for (const u of byKey.values()) assert.match(u, /^[a-z0-9._]{3,30}$/, u);
-  assert.equal(suffixed.length, 2);
+  const u = (k: string) => m.get(k)!;
+  assert.deepEqual(u("1"), { username: "admin", changed: false, reason: "kept-legacy" });
+  assert.deepEqual(u("9"), { username: "mary_jones.2", changed: false, reason: "kept-legacy" });
+  assert.deepEqual(u("11"), { username: "john.doe", changed: false, reason: "kept-legacy" });
+  // the generated names for #2/#3 must skip "john.doe", which #11 kept
+  assert.deepEqual(u("2"), { username: "john.doe2", changed: true, reason: "legacy-duplicate" });
+  assert.equal(u("3").username, "john.doe3");
+  assert.deepEqual([u("4").username, u("4").reason], ["jose.nunez.o.brien", "legacy-invalid"]);
+  assert.deepEqual([u("5").username, u("5").reason], ["al.user", "legacy-invalid"]);
+  assert.deepEqual([u("6").username, u("6").reason], ["user6", "legacy-empty"]);
+  assert.equal(u("8").username, "user8");
+  assert.equal(u("10").username, "admin.user");
+  for (const a of m.values()) assert.match(a.username, /^[a-z0-9._]{3,30}$/, a.username);
+  assert.equal(new Set([...m.values()].map((a) => a.username)).size, m.size);
 });
 
 test("department merge: case-insensitive, lowest id survives", () => {

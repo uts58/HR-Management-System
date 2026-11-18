@@ -30,7 +30,7 @@ import {
   mapSeenByEmployee,
   mergeByName,
   normaliseBcrypt,
-  normaliseLeaveType,
+  mapLeaveType,
   parseIntId,
   type Mapped,
   type PasswordKind,
@@ -45,7 +45,6 @@ const { values: flags } = parseArgs({
     "dry-run": { type: "boolean", default: false },
     reset: { type: "boolean", default: false },
     strict: { type: "boolean", default: false },
-    "must-change-plaintext": { type: "boolean", default: false },
     "slash-order": { type: "string", default: "MDY" },
     report: { type: "string" },
     help: { type: "boolean", short: "h", default: false },
@@ -53,7 +52,7 @@ const { values: flags } = parseArgs({
 });
 
 if (flags.help) {
-  console.log(`Usage: npm run migrate -- [--dry-run] [--reset] [--strict] [--must-change-plaintext]
+  console.log(`Usage: npm run migrate -- [--dry-run] [--reset] [--strict]
                        [--slash-order MDY|DMY] [--report path.json]
 See README.md for details.`);
   process.exit(0);
@@ -98,17 +97,23 @@ const report = {
   startedAt: new Date().toISOString(),
   finishedAt: "",
   mode: flags["dry-run"] ? "dry-run (rolled back)" : "commit",
-  options: { reset: flags.reset, slashOrder: SLASH_ORDER, bcryptCost: BCRYPT_COST, mustChangePlaintext: flags["must-change-plaintext"] },
+  options: { reset: flags.reset, slashOrder: SLASH_ORDER, bcryptCost: BCRYPT_COST },
   tables: {} as Record<TableName, TableStats>,
   dropped: { message: 0 },
   /** plaintext = newly hashed with bcrypt this run; kept-existing-hash = bcrypt hash reused from a previous run */
   passwords: { "better-auth-scrypt": 0, bcrypt: 0, "other-hash": 0, plaintext: 0, empty: 0, "kept-existing-hash": 0 } as Record<PasswordKind | "kept-existing-hash", number>,
   dates: { parsed: 0, empty: 0, invalid: 0, ambiguousDayMonth: 0, orderInferred: 0, timeDropped: 0 },
-  /** For HR: every migrated login, with its NEW username. Also written as CSV. */
+  /**
+   * For HR: every migrated login (also written as CSV). HR only needs to contact rows with
+   * usernameChanged = true (and canLogIn = false: no password, HR must issue one).
+   */
   usernames: [] as {
-    legacyPersonId: string; legacyLoginName: string | null; employeeId: number | null; employeeName: string | null;
-    username: string; email: string; emailIsSynthetic: boolean; role: string; canLogIn: boolean;
+    legacyPersonId: string; legacyLoginName: string | null; username: string; usernameChanged: boolean; usernameReason: string;
+    employeeId: number | null; employeeName: string | null; email: string; emailIsSynthetic: boolean; role: string;
+    canLogIn: boolean; mustChangePassword: boolean;
   }[],
+  /** Every leave row mapped to LeaveType OTHER (director ruling 3). */
+  leaveTypeOther: [] as { legacyId: number; legacyLeaveType: string | null }[],
   /** Every placeholder auth email generated (director decision): legacyPersonId -> email, and why. */
   placeholderEmails: [] as { legacyPersonId: string; username: string; email: string; reason: string }[],
   merges: [] as { table: string; survivorId: number; survivorName: string; mergedId: number; mergedName: string; employeesReassigned: number }[],
@@ -226,10 +231,10 @@ async function upsert(
 const TARGET_COLUMNS: Record<TableName, string[]> = {
   departments: ["id", "name", "updated_at"],
   positions: ["id", "name", "updated_at"],
-  employees: ["id", "first_name", "middle_name", "last_name", "email", "contact_no", "country", "home_town", "gender", "marital_status", "date_of_birth", "department_id", "position_id", "employment_status", "terminated_at", "created_at", "updated_at"],
-  users: ["id", "name", "email", "email_verified", "username", "display_username", "role", "must_change_password", "employee_id", "legacy_person_id", "updated_at"],
+  employees: ["id", "first_name", "middle_name", "last_name", "email", "contact_no", "country", "home_town", "gender", "marital_status", "date_of_birth", "department_id", "position_id", "employment_status", "terminated_at", "created_at", "is_placeholder", "updated_at"],
+  users: ["id", "name", "email", "email_is_placeholder", "email_verified", "username", "display_username", "role", "must_change_password", "employee_id", "legacy_person_id", "updated_at"],
   accounts: ["id", "account_id", "provider_id", "user_id", "password", "updated_at"],
-  leave_requests: ["id", "employee_id", "leave_type", "start_date", "end_date", "reason", "status", "seen_by_employee", "created_at", "updated_at"],
+  leave_requests: ["id", "employee_id", "leave_type", "legacy_leave_type", "start_date", "end_date", "reason", "status", "seen_by_employee", "created_at", "updated_at"],
   notices: ["id", "title", "body", "type", "created_at", "updated_at"],
   appraisals: ["id", "employee_id", "project_name", "project_start", "project_end", "rating", "created_at", "updated_at"],
 };
@@ -339,7 +344,7 @@ async function main() {
       return [
         e.id, first, cleanStr(e.middleName), last, email, cleanStr(e.contactNo), cleanStr(e.country), cleanStr(e.homeTown),
         take(mapGender(e.gender), T, e.id, "gender"), take(mapMaritalStatus(e.maritalStatus), T, e.id, "maritalStatus"),
-        date(e.dateofBirth, T, e.id, "dateofBirth") ?? null, departmentId, positionId, "ACTIVE", null, null,
+        date(e.dateofBirth, T, e.id, "dateofBirth") ?? null, departmentId, positionId, "ACTIVE", null, null, false,
       ];
     });
     for (const [label, m] of [["department", depMerge], ["position", posMerge]] as const) {
@@ -378,8 +383,10 @@ async function main() {
         end = null;
       }
       const status = take(mapLeaveStatus(l.status), T, l.id, "status");
+      const lt = mapLeaveType(l.leaveType);
+      if (lt.value === "OTHER") report.leaveTypeOther.push({ legacyId: l.id, legacyLeaveType: l.leaveType });
       leaveRows.push([
-        l.id, empId, take(normaliseLeaveType(l.leaveType), T, l.id, "leaveType"), start, end, cleanStr(l.description),
+        l.id, empId, take(lt, T, l.id, "leaveType"), lt.legacy, start, end, cleanStr(l.description),
         status, mapSeenByEmployee(status, l.read), null,
       ]);
     }
@@ -405,11 +412,12 @@ async function main() {
     }
 
     for (const [id, refs] of [...placeholders].sort((a, b) => a[0] - b[0])) {
-      // id, first, middle, last, email, contact, country, homeTown, gender, marital, dob, dept, pos, status, terminatedAt, createdAt
-      empRows.push([id, "Unknown", null, `employee #${id}`, null, null, null, null, null, null, null, null, null, "TERMINATED", runTs, null]);
+      // id, first, middle, last, email, contact, country, homeTown, gender, marital, dob, dept, pos, status, terminatedAt, createdAt, isPlaceholder
+      empRows.push([id, "Unknown", null, `employee #${id}`, null, null, null, null, null, null, null, null, null, "TERMINATED", runTs, null, true]);
       report.placeholderEmployees.push({ employeeId: id, referencedBy: refs });
     }
     report.tables.employees.synthesized = placeholders.size;
+    const placeholdersCreated = placeholders.size;
 
     const noticeRows = notices.map((n) => {
       const T = "notice";
@@ -443,7 +451,7 @@ async function main() {
       C("id", "int"), C("first_name"), C("middle_name"), C("last_name"), C("email"), C("contact_no"), C("country"),
       C("home_town"), C("gender", "gender"), C("marital_status", "marital_status"), C("date_of_birth", "date"),
       C("department_id", "int"), C("position_id", "int"), C("employment_status", "employment_status"),
-      C("terminated_at", "timestamptz"), C("created_at", "timestamptz"),
+      C("terminated_at", "timestamptz"), C("created_at", "timestamptz"), C("is_placeholder", "boolean"),
     ], empRows, ["id"]);
 
     // ---- Users (Better Auth `user`) + credential accounts (Better Auth `account`) ----
@@ -469,16 +477,19 @@ async function main() {
     const names = assignUsernames(
       persons.map((p) => ({ key: p.id, firstName: linkedEmp(p)?.firstName, lastName: linkedEmp(p)?.lastName, loginName: p.Name })),
     );
-    for (const s of names.suffixed) warn("person", s.key, "username", `"${s.base}" already taken; assigned "${s.username}"`);
+    for (const p of persons) {
+      const a = names.get(p.id)!;
+      if (a.changed) warn("person", p.id, "username", `legacy login "${p.Name ?? ""}" not kept (${a.reason}); new username "${a.username}"`);
+    }
 
     const userRows: unknown[][] = [];
     const passwordByPerson = new Map<string, string>();
-    const mustChangeByPerson = new Map<string, boolean>();
     for (const p of persons) {
       const T = "person";
       const emp = linkedEmp(p);
       if (!emp) orphan("person without employee", T, p.id, p.id, "user migrated with employee_id = NULL");
-      const username = names.byKey.get(p.id)!;
+      const assigned = names.get(p.id)!;
+      const username = assigned.username;
       const em = cleanStr(emp?.email)?.toLowerCase();
       let email = `${username}@${SYNTHETIC_EMAIL_DOMAIN}`;
       if (em && isPlausibleEmail(em) && (emailCount.get(em) ?? 0) === 1) {
@@ -522,20 +533,25 @@ async function main() {
           passwordByPerson.set(p.id, await bcrypt.hash(p.password!, BCRYPT_COST));
           report.passwords.plaintext++;
         }
-        mustChange = flags["must-change-plaintext"];
+        // Director ruling 6: these passwords sat unhashed in the DB, so a change is forced at next login.
+        // Users whose legacy row was already bcrypt are not forced.
+        mustChange = true;
       }
-      mustChangeByPerson.set(p.id, mustChange);
 
       const empName = emp ? [emp.firstName, emp.lastName].map((s) => (s ?? "").trim()).filter(Boolean).join(" ") : null;
       const role = take(mapRole(p.access), T, p.id, "access");
-      userRows.push([randomUUID(), empName || cleanStr(p.Name) || username, email, false, username, username, role, mustChange, emp ? emp.id : null, p.id]);
+      // display_username = the pre-normalisation form (as Better Auth's username plugin does): the legacy casing when kept.
+      const displayUsername = assigned.changed ? username : (p.Name as string);
+      const emailIsPlaceholder = email.endsWith(`@${SYNTHETIC_EMAIL_DOMAIN}`);
+      userRows.push([randomUUID(), empName || cleanStr(p.Name) || username, email, emailIsPlaceholder, false, username, displayUsername, role, mustChange, emp ? emp.id : null, p.id]);
       report.usernames.push({
-        legacyPersonId: p.id, legacyLoginName: p.Name, employeeId: emp ? emp.id : null, employeeName: empName,
-        username, email, emailIsSynthetic: email.endsWith(`@${SYNTHETIC_EMAIL_DOMAIN}`), role, canLogIn: passwordByPerson.has(p.id),
+        legacyPersonId: p.id, legacyLoginName: p.Name, username, usernameChanged: assigned.changed, usernameReason: assigned.reason,
+        employeeId: emp ? emp.id : null, employeeName: empName, email, emailIsSynthetic: emailIsPlaceholder,
+        role, canLogIn: passwordByPerson.has(p.id), mustChangePassword: mustChange,
       });
     }
     await put("users", [
-      C("id"), C("name"), C("email"), C("email_verified", "boolean"), C("username"), C("display_username"),
+      C("id"), C("name"), C("email"), C("email_is_placeholder", "boolean"), C("email_verified", "boolean"), C("username"), C("display_username"),
       C("role", "role"), C("must_change_password", "boolean"), C("employee_id", "int"), C("legacy_person_id"),
     ], userRows, ["legacy_person_id"]);
 
@@ -552,7 +568,7 @@ async function main() {
     await put("accounts", [C("id"), C("account_id"), C("provider_id"), C("user_id"), C("password")], accountRows, ["provider_id", "account_id"]);
 
     await put("leave_requests", [
-      C("id", "int"), C("employee_id", "int"), C("leave_type"), C("start_date", "date"), C("end_date", "date"),
+      C("id", "int"), C("employee_id", "int"), C("leave_type", "leave_type"), C("legacy_leave_type"), C("start_date", "date"), C("end_date", "date"),
       C("reason"), C("status", "leave_status"), C("seen_by_employee", "boolean"), C("created_at", "timestamptz"),
     ], leaveRows, ["id"]);
     await put("notices", [C("id", "int"), C("title"), C("body"), C("type", "notice_type"), C("created_at", "timestamptz")], noticeRows, ["id"]);
@@ -606,6 +622,10 @@ async function main() {
     const seqOk = await count(
       `SELECT count(*) AS n FROM "employees" WHERE id >= (SELECT CASE WHEN is_called THEN last_value + 1 ELSE last_value END FROM "employees_id_seq")`,
     );
+    const ph = await count(`SELECT count(*) AS n FROM "employees" WHERE is_placeholder`);
+    report.verification.push({ check: "placeholder employees flagged is_placeholder", ok: ph >= placeholdersCreated, detail: `${ph} flagged, ${placeholdersCreated} created this run` });
+    const otherRows = await count(`SELECT count(*) AS n FROM "leave_requests" WHERE leave_type = 'OTHER'`);
+    report.verification.push({ check: "leave rows mapped to OTHER are all reported", ok: otherRows >= report.leaveTypeOther.length, detail: `${otherRows} in target, ${report.leaveTypeOther.length} reported` });
     report.verification.push({ check: "employees id sequence is past MAX(id)", ok: seqOk === 0, detail: seqOk === 0 ? "ok" : `${seqOk} ids would collide` });
 
     const failed = report.verification.filter((v) => !v.ok);
@@ -669,7 +689,17 @@ function printReport() {
   console.log(`Dropped: message (${report.dropped.message} rows, table not migrated)`);
   console.log("Passwords:", report.passwords);
   console.log("Dates:", report.dates);
-  console.log(`Usernames: ${report.usernames.length} generated (${report.usernames.filter((u) => u.emailIsSynthetic).length} with synthetic auth email). Mapping: ${USERNAMES_CSV}`);
+  const changed = report.usernames.filter((u) => u.usernameChanged);
+  console.log(
+    `Usernames: ${report.usernames.length} users; ${report.usernames.length - changed.length} kept their legacy login, ` +
+      `${changed.length} got a NEW username (HR must tell them); ${report.usernames.filter((u) => u.emailIsSynthetic).length} with placeholder auth email. Mapping: ${USERNAMES_CSV}`,
+  );
+  for (const u of changed.slice(0, 20)) console.log(`  person#${u.legacyPersonId} "${u.legacyLoginName ?? ""}" -> ${u.username}  (${u.usernameReason})`);
+  if (changed.length > 20) console.log(`  ... ${changed.length - 20} more in the CSV`);
+  if (report.leaveTypeOther.length) {
+    console.log(`\nLeave rows mapped to LeaveType OTHER: ${report.leaveTypeOther.length}`);
+    for (const l of report.leaveTypeOther) console.log(`  empleave#${l.legacyId} ${JSON.stringify(l.legacyLeaveType)}`);
+  }
   if (report.placeholderEmails.length) {
     console.log(`\nPlaceholder auth emails (@${SYNTHETIC_EMAIL_DOMAIN}): ${report.placeholderEmails.length}`);
     for (const p of report.placeholderEmails.slice(0, 20)) console.log(`  person#${p.legacyPersonId} ${p.email}  (${p.reason})`);

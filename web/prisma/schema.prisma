@@ -70,6 +70,22 @@ enum LeaveStatus {
   @@map("leave_status")
 }
 
+/// legacy empleave.leaveType (fixed <select> in views/addLeave.ejs):
+/// "Sick Leave" -> SICK, "Annual Leave" -> ANNUAL, "Casual Leave" -> CASUAL,
+/// "Maternity Leave" -> MATERNITY, "Unpaid Leave" -> UNPAID. Matching ignores case and whitespace.
+/// OTHER is reserved for migrated values that match none of these (the original text is in
+/// legacyLeaveType). The UI never offers OTHER for new requests.
+enum LeaveType {
+  SICK
+  ANNUAL
+  CASUAL
+  MATERNITY
+  UNPAID
+  OTHER
+
+  @@map("leave_type")
+}
+
 /// legacy notice.type: 0 -> GENERAL, 1 -> URGENT, 2 -> HOLIDAY
 enum NoticeType {
   GENERAL
@@ -131,6 +147,12 @@ model Employee {
   employmentStatus EmploymentStatus @default(ACTIVE) @map("employment_status")
   terminatedAt     DateTime?        @map("terminated_at") @db.Timestamptz(3)
 
+  /// true only for rows the migration created to hold orphaned legacy history (leave or
+  /// appraisals whose employee legacy hard-deleted). They are always TERMINATED, have no
+  /// login, and are named "Unknown employee #<id>". Services must exclude them from
+  /// employee lists, pickers and counts (WHERE is_placeholder = false).
+  isPlaceholder Boolean @default(false) @map("is_placeholder")
+
   /// NULL for migrated rows (legacy kept no timestamps). Always set for new rows.
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -141,7 +163,7 @@ model Employee {
 
   @@index([departmentId])
   @@index([positionId])
-  @@index([employmentStatus])
+  @@index([employmentStatus, isPlaceholder])
   @@index([email])
   @@index([lastName, firstName])
   @@map("employees")
@@ -156,9 +178,10 @@ model LeaveRequest {
   employeeId Int      @map("employee_id")
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
 
-  /// Stored verbatim as in the contract (LEAVE_TYPES: "Sick Leave", "Annual Leave", ...).
-  /// Migrated rows can hold other legacy strings.
-  leaveType String    @map("leave_type")
+  leaveType       LeaveType @map("leave_type")
+  /// The original legacy text, kept only when the migration mapped it to OTHER (so nothing is lost).
+  /// NULL for every other row.
+  legacyLeaveType String?   @map("legacy_leave_type")
   /// NULL only for migrated rows whose legacy text could not be parsed (ADR-0007).
   startDate DateTime? @map("start_date") @db.Date
   endDate   DateTime? @map("end_date") @db.Date
@@ -246,6 +269,9 @@ model User {
   /// Better Auth requires this and keeps it unique. It is the employee's email only when that
   /// is unique. Otherwise it is a synthetic "<username>@users.invalid" (employee emails are not unique).
   email         String  @unique
+  /// true when `email` is the placeholder "<username>@users.invalid" (no usable legacy email).
+  /// The app shows "no email on file" and never sends mail to it. A CHECK keeps it consistent with the domain.
+  emailIsPlaceholder Boolean @default(false) @map("email_is_placeholder")
   emailVerified Boolean @default(false) @map("email_verified")
   image         String?
 
@@ -261,6 +287,10 @@ model User {
   employee           Employee? @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   /// legacy person.id. Used for idempotent re-runs of the migration. NULL for new users.
   legacyPersonId     String?   @unique @map("legacy_person_id")
+  /// Login is blocked while this is set (director ruling). terminateEmployee sets it.
+  /// It also works for users with no employee record. Our own `role` column is the
+  /// source of truth: Better Auth's admin-plugin role/banned fields are NOT used.
+  disabledAt         DateTime? @map("disabled_at") @db.Timestamptz(3)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)

@@ -10,11 +10,12 @@ Every rule it applies (each column, enum and date format, and how orphans are ha
 - **Idempotent:** rows are upserted on their preserved legacy ids (users on `legacy_person_id`, credential accounts on `(provider_id, account_id)`). Re-running updates rows in place and never creates duplicates. `--reset` truncates the v2 tables first, for an exact copy.
 - **Preserves ids** for employees, departments, positions, leave, notices and appraisals, then moves every sequence past `MAX(id)`.
 - **Parses string dates** in the known legacy formats (`01 Jan 1990`, `YYYY-MM-DD`, `M/D/YYYY` from `toLocaleDateString()`, and more). An unparseable value becomes `NULL` and is reported, so the script never crashes on bad data. Ambiguous `03/04/2020` values are read with `--slash-order` and reported.
-- **Passwords:** every migrated password ends up as a **bcrypt** hash on the Better Auth credential `account` row. Existing `$2a$`/`$2b$` hashes are copied unchanged. Remaining plaintext is hashed with bcrypt (cost `BCRYPT_COST`, default 12). On a re-run, a hash from the previous run is reused if it still matches the legacy plaintext. Empty passwords get no credential account (HR issues one).
-- **Usernames:** generates stable usernames (`first.last`, then `first.last2`, `first.last3`…) that fit the Better Auth username plugin's rules (3–30 chars, `[a-z0-9._]`). Writes the full legacy login → username mapping for HR.
+- **Passwords:** every migrated password ends up as a **bcrypt** hash on the Better Auth credential `account` row. Existing `$2a$`/`$2b$` hashes are copied unchanged. Remaining plaintext is hashed with bcrypt (cost `BCRYPT_COST`, default 12) **and those users get `must_change_password = true`**. Their passwords sat unhashed in the database. Users who were already bcrypt aren't forced. On a re-run, a hash from the previous run is reused if it still matches the legacy plaintext. Empty passwords get no credential account (HR issues one).
+- **Usernames:** **keeps the legacy login, lower-cased,** when it is valid under the Better Auth username plugin's rules (3–30 chars, `[a-z0-9._]`) and unique case-insensitively. Otherwise it generates `first.last` (`first.last2`, `first.last3`… on collision; kept legacy names are reserved first). The `.usernames.csv` has `usernameChanged` / `usernameReason` columns, so HR only contacts people whose login changed.
+- **Leave type:** maps the five legacy select labels to the `LeaveType` enum, ignoring case and whitespace. Anything else becomes `OTHER`, keeps its original text in `legacy_leave_type`, and is listed in `report.leaveTypeOther`.
 - **Auth emails:** uses the employee's email when it's present, valid and unique. Otherwise uses the placeholder `<username>@users.invalid`. Every placeholder is listed in the report.
 - **Org cleanup:** merges case-insensitive duplicate department/position names into the lowest id and reassigns their employees. Employees pointing at department/position `0` or at a deleted one get `NULL`.
-- **Orphaned history:** leave/appraisal rows whose employee was hard-deleted in legacy are **kept**. They point to a placeholder `TERMINATED` employee (`Unknown employee #<id>`). Rows with a non-numeric `empid` are rejected and reported.
+- **Orphaned history:** leave/appraisal rows whose employee was hard-deleted in legacy are **kept**. They point to a placeholder `TERMINATED` employee (`Unknown employee #<id>`, `is_placeholder = true`). Rows with a non-numeric `empid` are rejected and reported.
 - **Drops** the unused `message` table (the row count is reported).
 - Prints a **verification report**: per-table counts (legacy, written, synthesized, merged, rejected, target), orphaned references, rejected rows, warnings and PASS/FAIL checks. The full report goes to JSON, plus a `.usernames.csv`.
 
@@ -45,7 +46,6 @@ Flags (after `--`):
 | `--dry-run` | Do everything, print the report, then roll back. |
 | `--reset` | `TRUNCATE` all v2 data and auth tables (users, accounts, sessions, verifications included) before loading. Use it for the final cutover so rows deleted in legacy since an earlier run are gone too. |
 | `--slash-order MDY\|DMY` | How to read ambiguous `N/N/YYYY` dates. Default `MDY`: Node's default `toLocaleDateString()` is en-US, which is what wrote `notice.date`. Check a few legacy notice dates before cutover. |
-| `--must-change-plaintext` | Set `must_change_password = true` for users whose legacy password was plaintext. |
 | `--strict` | Exit with code 2 if any row was rejected. |
 | `--report <path.json>` | Report location. Default `./migration-report-<timestamp>.json`. The username CSV is written next to it. |
 
@@ -60,7 +60,7 @@ Exit codes: `0` ok, `1` fatal error or failed verification (everything rolled ba
 1. Put the legacy app in maintenance mode (no writes).
 2. `npm run migrate:dry`. Review rejected rows, warnings and ambiguous dates. Fix the data in legacy if needed and repeat.
 3. `npm run migrate -- --reset`. Every verification line must say PASS.
-4. Give HR the `.usernames.csv`: everyone has a new username.
+4. Give HR the `.usernames.csv`. They contact the rows with `usernameChanged = true` (new login) and `canLogIn = false` (no password: issue one). Users with `mustChangePassword = true` are prompted at their first login.
 
 ## Running it in Docker (self-hosted)
 
