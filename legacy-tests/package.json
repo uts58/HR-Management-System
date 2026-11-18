@@ -1,0 +1,18 @@
+{
+  "name": "hr-legacy-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Playwright end-to-end parity suite for the legacy HR Management System",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "db:reset": "node scripts/reset-db.mjs",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.10.0",
+    "pg": "^8.13.1"
+  }
+}
