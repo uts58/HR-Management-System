@@ -58,6 +58,12 @@ export interface LeaveRequest {
   employee: EmployeeRef;
   leaveType: LeaveType;
   /**
+   * Original legacy text, read-only. Set only on migrated rows mapped to
+   * OTHER, and only returned to HR_ADMIN (null in an employee's own list).
+   * The UI shows it next to "Other".
+   */
+  legacyLeaveType: string | null;
+  /**
    * null only on migrated rows whose legacy text could not be parsed
    * (ADR-0007). The UI shows "—"; new requests always have both dates.
    */

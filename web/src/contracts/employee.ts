@@ -98,6 +98,12 @@ export interface EmployeeDetail {
   homeTown: string | null;
   contactNo: string | null;
   email: string | null;
+  /**
+   * true when the login account only has the `<username>@users.invalid`
+   * placeholder (users.emailIsPlaceholder). The profile then shows
+   * "No email on file" instead of an address.
+   */
+  emailIsPlaceholder: boolean;
   gender: Gender | null;
   maritalStatus: MaritalStatus | null;
   dateOfBirth: IsoDate | null;
