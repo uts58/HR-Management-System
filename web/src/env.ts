@@ -8,14 +8,20 @@ import { z } from "zod";
  * when the server starts, so a misconfigured deployment fails at boot, not
  * on the first request.
  *
- * Set SKIP_ENV_VALIDATION=1 to skip validation when real secrets are not
- * available, as in `next build` inside Docker or CI lint and typecheck jobs.
+ * SKIP_ENV_VALIDATION=1 is honoured ONLY during `next build` (NEXT_PHASE is
+ * "phase-production-build"), where real secrets are not available, and in
+ * Vitest unit runs. At runtime the flag is ignored with a loud warning and
+ * validation runs anyway, so it can never switch validation off in a
+ * deployed server.
  *
- * New variables go in three places: the schema below, web/.env.example,
- * and the README table.
+ * New variables go in: the schema below, web/.env.example, the README table,
+ * and the `web` service in docker-compose.yml.
  */
 
-const isValidTimeZone = (tz: string): boolean => {
+// IANA zone name such as "Asia/Dhaka" or "UTC". Fixed offsets like "+06:00"
+// are rejected because they ignore DST rules.
+const isValidIanaTimeZone = (tz: string): boolean => {
+  if (/^[+-]/.test(tz)) return false;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
     return true;
@@ -42,11 +48,14 @@ const serverSchema = z.object({
   // Public base URL of the app, e.g. http://localhost:3000 or https://hr.example.com
   BETTER_AUTH_URL: z.url(),
 
-  // Organisation time zone (IANA name). Used for attendance/leave/payroll
-  // day boundaries. Example: Asia/Dhaka
-  APP_TIME_ZONE: z.string().default("Asia/Dhaka").refine(isValidTimeZone, {
-    message: "APP_TIME_ZONE must be a valid IANA time zone, e.g. Asia/Dhaka",
-  }),
+  // REQUIRED, no default: the organisation's IANA time zone. The database
+  // stores UTC; this zone only defines the business day (attendance, leave,
+  // "today"). It must be set explicitly for every deployment.
+  APP_TIME_ZONE: z
+    .string({ error: "APP_TIME_ZONE is required (IANA zone, e.g. Asia/Dhaka)" })
+    .refine(isValidIanaTimeZone, {
+      message: "APP_TIME_ZONE must be a valid IANA time zone, e.g. Asia/Dhaka",
+    }),
 
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
@@ -55,12 +64,30 @@ const serverSchema = z.object({
 
 export type ServerEnv = z.infer<typeof serverSchema>;
 
-const skipValidation =
-  process.env.SKIP_ENV_VALIDATION === "1" ||
-  process.env.SKIP_ENV_VALIDATION === "true";
+function shouldSkipValidation(): boolean {
+  const flag = process.env.SKIP_ENV_VALIDATION;
+  if (flag !== "1" && flag !== "true") return false;
+
+  const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+  const isVitest = process.env.VITEST === "true";
+  if (isBuild || isVitest) return true;
+
+  console.warn(
+    [
+      "",
+      "!!! ================================================================ !!!",
+      "!!! SKIP_ENV_VALIDATION is set at RUNTIME. It is only honoured during !!!",
+      "!!! `next build`. Ignoring it and validating the environment anyway.  !!!",
+      "!!! Remove SKIP_ENV_VALIDATION from this deployment's environment.    !!!",
+      "!!! ================================================================ !!!",
+      "",
+    ].join("\n"),
+  );
+  return false;
+}
 
 function parseEnv(): ServerEnv {
-  if (skipValidation) {
+  if (shouldSkipValidation()) {
     return process.env as unknown as ServerEnv;
   }
   const parsed = serverSchema.safeParse(process.env);

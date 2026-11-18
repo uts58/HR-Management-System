@@ -1,15 +1,9 @@
-// Runs once when the Next.js server starts.
-// Platform-owned. It validates the environment so a misconfigured
-// deployment fails at boot.
+// Runs once when the Next.js server starts. Platform-owned.
+// Node-only work lives in instrumentation-node.ts. The `NEXT_RUNTIME` check
+// is inlined at compile time, so that module never ends up in the Edge
+// bundle.
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  try {
-    await import("./env");
-  } catch (error) {
-    // Next.js logs errors thrown here and keeps serving, so exit explicitly.
-    // The container then restarts and shows as unhealthy instead of serving
-    // broken pages.
-    console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./instrumentation-node");
   }
 }

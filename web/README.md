@@ -16,7 +16,7 @@ deployment topology and the cutover runbook.
 | Data       | Prisma ORM 7.10 (`prisma-client` generator, `@prisma/adapter-pg`) |
 | Auth       | Better Auth 1.7 + `@better-auth/prisma-adapter`                   |
 | Validation | Zod 4                                                             |
-| Passwords  | `@node-rs/argon2`                                                 |
+| Passwords  | `@node-rs/argon2` (new hashes), `bcryptjs` (verify legacy hashes) |
 | Dates      | date-fns 4 (org time zone via `APP_TIME_ZONE`)                    |
 | Tests      | Vitest 5 (unit + integration projects), Playwright 1.65 (e2e)     |
 | Lint       | ESLint 9 flat config (`eslint-config-next`) + Prettier 3          |
@@ -45,20 +45,21 @@ npm run dev                                    # http://localhost:3000
 
 ## Scripts
 
-| Script                    | What it does                                                 |
-| ------------------------- | ------------------------------------------------------------ |
-| `dev` / `build` / `start` | Next.js dev server / production build / production server    |
-| `lint` / `lint:fix`       | ESLint (zero warnings allowed in CI)                         |
-| `format` / `format:check` | Prettier (with Tailwind class sorting)                       |
-| `typecheck`               | `next typegen && tsc --noEmit`                               |
-| `test`                    | Vitest **unit** project (no DB)                              |
-| `test:integration`        | Vitest **integration** project (needs `DATABASE_URL`)        |
-| `test:e2e`                | Playwright (`tests/e2e`; starts `npm run dev` automatically) |
-| `db:migrate`              | `prisma migrate dev` (create and apply migrations locally)   |
-| `db:migrate:deploy`       | `prisma migrate deploy` (CI / production)                    |
-| `db:seed`                 | `prisma db seed` → `tsx prisma/seed.ts`                      |
-| `db:studio`               | Prisma Studio                                                |
-| `db:generate`             | Regenerate the Prisma client into `src/generated/prisma`     |
+| Script                    | What it does                                                        |
+| ------------------------- | ------------------------------------------------------------------- |
+| `dev` / `build`           | Next.js dev server / production build                               |
+| `start`                   | Standalone server (`node .next/standalone/server.js`, as in Docker) |
+| `lint` / `lint:fix`       | ESLint (zero warnings, `--report-unused-disable-directives`)        |
+| `format` / `format:check` | Prettier (with Tailwind class sorting)                              |
+| `typecheck`               | `next typegen && tsc --noEmit`                                      |
+| `test`                    | Vitest **unit** project (no DB)                                     |
+| `test:integration`        | Vitest **integration** project (needs `DATABASE_URL`)               |
+| `test:e2e`                | Playwright (`tests/e2e`; dev server locally, standalone in CI)      |
+| `db:migrate`              | `prisma migrate dev` (create and apply migrations locally)          |
+| `db:migrate:deploy`       | `prisma migrate deploy` (CI / production)                           |
+| `db:seed`                 | `prisma db seed` → `tsx prisma/seed.ts`                             |
+| `db:studio`               | Prisma Studio                                                       |
+| `db:generate`             | Regenerate the Prisma client into `src/generated/prisma`            |
 
 ## Environment variables
 
@@ -66,14 +67,14 @@ Validated at server start by [`src/env.ts`](src/env.ts). If a variable is
 missing or invalid, the process exits. Import `env` from `@/env` and do not
 read `process.env` directly.
 
-| Variable              | Required | Example                                              |
-| --------------------- | -------- | ---------------------------------------------------- |
-| `DATABASE_URL`        | yes      | `postgresql://hruser:changeme@localhost:5432/hr_web` |
-| `BETTER_AUTH_SECRET`  | yes      | 32+ random chars (`openssl rand -base64 32`)         |
-| `BETTER_AUTH_URL`     | yes      | `http://localhost:3000`                              |
-| `APP_TIME_ZONE`       | no       | `Asia/Dhaka` (default)                               |
-| `LOG_LEVEL`           | no       | `info` (default)                                     |
-| `SKIP_ENV_VALIDATION` | no       | `1` skips validation, for builds without secrets     |
+| Variable              | Required | Example                                                                                                                |
+| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | yes      | `postgresql://hr_web_app:changeme_web@localhost:5432/hr_web`                                                           |
+| `BETTER_AUTH_SECRET`  | yes      | 32+ random chars (`openssl rand -base64 32`)                                                                           |
+| `BETTER_AUTH_URL`     | yes      | `http://localhost:3000`                                                                                                |
+| `APP_TIME_ZONE`       | **yes**  | IANA zone, e.g. `Asia/Dhaka`. No default: set it per deployment. The DB stores UTC; this zone defines the business day |
+| `LOG_LEVEL`           | no       | `info` (default)                                                                                                       |
+| `SKIP_ENV_VALIDATION` | no       | `1` skips validation **only during `next build`** (and in Vitest). Ignored with a warning at runtime                   |
 
 To add a variable, update `src/env.ts`, `.env.example`, this table,
 `docker-compose.yml` (`web` service) and the CI job env if tests need it.
@@ -83,17 +84,38 @@ To add a variable, update `src/env.ts`, `.env.example`, this table,
 | Path                                                          | Owner     | Notes                                             |
 | ------------------------------------------------------------- | --------- | ------------------------------------------------- |
 | `src/app/`, `src/components/`                                 | Frontend  | `components/ui/` is managed by `npx shadcn add …` |
-| `src/server/`                                                 | Backend   | **Only** place that may import the Prisma client  |
-| `src/lib/` (`validation/` etc.)                               | Backend   | `lib/utils.ts` is the shadcn `cn` helper          |
-| `src/auth/`, `src/proxy.ts`                                   | Security  | Next 16 renamed `middleware.ts` to `proxy.ts`     |
+| `src/server/`                                                 | Backend   | Services, `db.ts`, `defineAction`                 |
+| `src/lib/` (all of it, including `utils.ts`)                  | Backend   | `lib/utils.ts` is the shadcn `cn` helper          |
+| `src/auth/`, `src/proxy.ts`, `src/app/api/auth/`              | Security  | Next 16 renamed `middleware.ts` to `proxy.ts`     |
 | `src/contracts/`                                              | Architect | Shared types and contracts                        |
 | `prisma/`                                                     | Data      | Schema, migrations, `seed.ts`                     |
 | `tests/unit`, `tests/integration`, `tests/e2e`                | QA        | Unit tests may also be co-located as `*.test.ts`  |
 | `src/env.ts`, `src/instrumentation.ts`, configs, `Dockerfile` | Platform  |                                                   |
 
-ESLint enforces the data-access boundary. Importing `@prisma/client`,
-`@prisma/adapter-*` or `@/generated/prisma/*` outside `src/server/**` and
-`prisma/**` is an error.
+### Lint-enforced boundaries (ADR-0002)
+
+| Module                                                                                                  | Allowed only in                                                     |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `@prisma/client`, `@prisma/adapter-*`, `@/server/db`, `@/generated/prisma/*` (and their relative forms) | `src/server/**`, `src/auth/**`, `tests/integration/**`, `prisma/**` |
+| `better-auth`, `better-auth/*`, `@better-auth/*`                                                        | `src/auth/**`, `src/app/api/auth/**`                                |
+
+Dynamic `import()` and `require()` of these modules are blocked as well. An
+`eslint-disable` for these rules needs review from the path's owner. Unused
+disable directives fail lint.
+
+**Server actions:** the local rule `hr/server-actions`
+(`eslint/rules/server-actions.mjs`) requires every export of a
+`'use server'` file to have this form:
+
+```ts
+export const createEmployee = defineAction({ role, schema, handler });
+```
+
+`defineAction` must be imported from `@/lib/action` or `@/server/action`
+(Backend provides it). Type-only exports are allowed. These are errors:
+function exports, `let`, re-exports, default exports, wrapped calls, and
+inline `'use server'` functions. Tests for the rule and the boundaries live in
+`eslint/rules/eslint-rules.test.mjs` and run with `npm test`.
 
 The Prisma client is generated to `src/generated/prisma` (gitignored). Import
 it as `@/generated/prisma/client`, not from `@prisma/client`. Prisma 7
@@ -120,9 +142,9 @@ Platform reviews changes to `package.json` (see `.github/CODEOWNERS`).
 
 ## Next.js 16 notes
 
-- `cacheComponents` is on (create-next-app default). Request-time data such as
-  cookies, headers and the session must be read inside a `<Suspense>`
-  boundary, or the code must opt into caching with `"use cache"`.
+- `cacheComponents` is **off**, by director ruling: nearly every page is
+  per-user. create-next-app turns it on by default. With it off, pages that
+  read cookies, headers or the session render dynamically.
 - Read `node_modules/next/dist/docs/` before relying on older Next.js
   knowledge (see `AGENTS.md`).
 

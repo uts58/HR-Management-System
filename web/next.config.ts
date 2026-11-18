@@ -11,9 +11,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: projectRoot,
 
-  // Scaffold defaults from create-next-app 16.4
-  cacheComponents: true,
-  partialPrefetching: true,
+  // OFF by director ruling: nearly every page is per-user (session-scoped HR
+  // data), so caching by default would cost more than it gains. Opt in per
+  // route with care. create-next-app 16.4 enables this (and
+  // partialPrefetching, which depends on it) by default.
+  cacheComponents: false,
 
   // Native and driver packages are loaded from node_modules at runtime,
   // not bundled.
