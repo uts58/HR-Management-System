@@ -116,11 +116,26 @@ export interface CreateLoginAccountInput {
   username: string;
   displayName: string;
   /**
-   * Better Auth's user table requires a unique email: the employee's email
-   * when present and unused, otherwise `<username>@users.invalid`.
+   * Real email if known. Better Auth's user table requires a unique email:
+   * when this is missing or already used, the account gets
+   * `<username>@users.invalid` with emailIsPlaceholder=true (a DB CHECK
+   * rejects a placeholder address without the flag).
    */
-  email: string;
+  email?: string | null;
   role: Role;
+}
+
+/**
+ * Better Auth `user.additionalFields` (Data schema; Security config).
+ * `input: false` fields can never be set through Better Auth endpoints.
+ */
+export interface AuthUserAdditionalFields {
+  role: Role; // input: false; source of truth for authorization
+  mustChangePassword: boolean;
+  employeeId: EmployeeId | null; // unique, FK employee (Restrict)
+  legacyPersonId: string | null; // legacy person.id, migrated rows only
+  disabledAt: Date | null; // input: false; set => no sign-in, no session
+  emailIsPlaceholder: boolean; // input: false; true for @users.invalid
 }
 
 /**
@@ -140,7 +155,11 @@ export interface AccountAdminApi {
     input: CreateLoginAccountInput,
   ): Promise<{ userId: UserId; credentials: IssuedCredentials }>;
 
-  /** New temporary password, mustChangePassword=true, all sessions revoked. */
+  /**
+   * New temporary password, mustChangePassword=true, all sessions revoked.
+   * Creates the credential account if it is missing (migrated users whose
+   * legacy password was empty have none).
+   */
   issueTemporaryPassword<Tx>(
     tx: Tx,
     userId: UserId,
