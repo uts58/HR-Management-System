@@ -99,7 +99,14 @@ To add a variable, update `src/env.ts`, `.env.example`, this table,
 | `@prisma/client`, `@prisma/adapter-*`, `@/server/db`, `@/generated/prisma/*` (and their relative forms) | `src/server/**`, `src/auth/**`, `tests/integration/**`, `prisma/**` |
 | `better-auth`, `better-auth/*`, `@better-auth/*`                                                        | `src/auth/**`, `src/app/api/auth/**`                                |
 
-Dynamic `import()` and `require()` of these modules are blocked as well. An
+**Contracts:** the local rule `hr/contracts-imports` allows files in
+`src/contracts/**` to use only `import type { … }` from other contract files
+(relative paths or `@/contracts/*`). Re-exports must come from contracts/ as
+well. Side-effect imports, dynamic imports and `import("pkg")` type queries
+pointing elsewhere are errors.
+
+Dynamic `import()` and `require()` of the modules in the table above are
+blocked as well. An
 `eslint-disable` for these rules needs review from the path's owner. Unused
 disable directives fail lint.
 

@@ -4,6 +4,7 @@ import path from "node:path";
 import { ESLint, RuleTester } from "eslint";
 import tsParser from "@typescript-eslint/parser";
 import { describe, expect, it } from "vitest";
+import contractsRule from "./contracts-imports.mjs";
 import rule from "./server-actions.mjs";
 
 RuleTester.describe = describe;
@@ -100,6 +101,82 @@ ruleTester.run("hr/server-actions", rule, {
       errors: [{ messageId: "inlineUseServer" }],
     },
   ],
+});
+
+// ---------------------------------------------------------------------------
+// hr/contracts-imports
+// ---------------------------------------------------------------------------
+// RuleTester needs absolute filenames (they need not exist).
+const srcDir = path.resolve(import.meta.dirname, "..", "..", "src");
+const contractFile = path.join(srcDir, "contracts", "leave.ts");
+const nestedContractFile = path.join(srcDir, "contracts", "sub", "x.ts");
+const libFile = path.join(srcDir, "lib", "x.ts");
+const c = (code, filename = contractFile) => ({ code, filename });
+
+ruleTester.run("hr/contracts-imports", contractsRule, {
+  valid: [
+    c('import type { Actor, IsoDate } from "./common";'),
+    c('import type { Role } from "@/contracts/auth";'),
+    c('import type { A } from "../common";', nestedContractFile),
+    c('export * from "./common";\nexport { Role } from "./auth";'),
+    c('export const LEAVE_TYPES = ["SICK"] as const;'),
+    c('export type T = import("./common").Actor;'),
+    // Rule is inert outside src/contracts (config also scopes it).
+    c('import { z } from "zod";', libFile),
+  ],
+  invalid: [
+    c('import { Actor } from "./common";'),
+    c('import { type Actor } from "./common";'),
+    c('import type { z } from "zod";'),
+    c('import type { Db } from "@/server/db";'),
+    c('import type { X } from "../lib/x";'),
+    c('import type { X } from "../../contracts-evil/x";'),
+    c('import "./common";'),
+    c('export * from "../server/types";'),
+    c('export { x } from "zod";'),
+    c('export type T = import("zod").ZodType;'),
+    c('export const m = () => import("./common");'),
+    c('const x = require("./common");'),
+  ].map((t, i) => ({
+    ...t,
+    errors: [
+      {
+        messageId: [
+          "notTypeOnly",
+          "notTypeOnly",
+          "outsideContracts",
+          "outsideContracts",
+          "outsideContracts",
+          "outsideContracts",
+          "sideEffect",
+          "outsideContracts",
+          "outsideContracts",
+          "outsideContracts",
+          "dynamic",
+          "dynamic",
+        ][i],
+      },
+    ],
+  })),
+});
+
+describe("contracts rule is wired to src/contracts in eslint.config.mjs", () => {
+  it("flags a value import from outside contracts", async () => {
+    const [result] = await eslint.lintText(
+      'import { z } from "zod";\nexport const s = z;\n',
+      { filePath: path.join(webRoot, "src/contracts/new.ts") },
+    );
+    expect(result.messages.map((m) => m.ruleId)).toContain(
+      "hr/contracts-imports",
+    );
+  });
+  it("accepts the real contract files", async () => {
+    const results = await eslint.lintFiles(["src/contracts/**/*.ts"]);
+    const msgs = results.flatMap((r) =>
+      r.messages.filter((m) => m.ruleId === "hr/contracts-imports"),
+    );
+    expect(msgs).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------
