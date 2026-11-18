@@ -111,7 +111,7 @@ disable directives fail lint.
 export const createEmployee = defineAction({ role, schema, handler });
 ```
 
-`defineAction` must be imported from `@/lib/action` or `@/server/action`
+`defineAction` must be imported from `@/server/action`
 (Backend provides it). Type-only exports are allowed. These are errors:
 function exports, `let`, re-exports, default exports, wrapped calls, and
 inline `'use server'` functions. Tests for the rule and the boundaries live in

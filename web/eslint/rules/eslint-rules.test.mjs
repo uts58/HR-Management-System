@@ -18,7 +18,7 @@ const ruleTester = new RuleTester({
   },
 });
 
-const imp = 'import { defineAction } from "@/lib/action";\n';
+const imp = 'import { defineAction } from "@/server/action";\n';
 
 ruleTester.run("hr/server-actions", rule, {
   valid: [
@@ -83,7 +83,12 @@ ruleTester.run("hr/server-actions", rule, {
       errors: [{ messageId: "defineActionNotImported" }],
     },
     {
-      code: `"use server";\nimport { other as defineAction } from "@/lib/action";\nexport const x = defineAction({});`,
+      // Only @/server/action is allowed (ADR-0002), not lib/.
+      code: `"use server";\nimport { defineAction } from "@/lib/action";\nexport const x = defineAction({});`,
+      errors: [{ messageId: "defineActionNotImported" }],
+    },
+    {
+      code: `"use server";\nimport { other as defineAction } from "@/server/action";\nexport const x = defineAction({});`,
       errors: [{ messageId: "defineActionNotImported" }],
     },
     {

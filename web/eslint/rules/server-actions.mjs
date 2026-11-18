@@ -20,7 +20,7 @@
  * validated.
  */
 
-const DEFAULT_ALLOWED_SOURCES = ["@/lib/action", "@/server/action"];
+const DEFAULT_ALLOWED_SOURCES = ["@/server/action"];
 
 /** @param {import("estree").Node[]} body */
 function hasUseServerDirective(body) {
