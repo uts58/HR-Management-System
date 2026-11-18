@@ -188,18 +188,24 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          # Current Node LTS, the same version as web/ and the legacy
-          # Dockerfile (Security is moving that to node:26).
+          # Current Node LTS: same as web/ and the legacy Dockerfile (node:26).
           node-version-file: web/.nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
+      # Installs Security's hardening deps (helmet, csrf-sync, connect-pg-simple,
+      # @node-rs/bcrypt, ...). Native prebuilt binaries are fetched for linux-x64.
       - run: npm ci
-      - name: node --check on all legacy JS
+      - name: node --check on legacy server code
         shell: bash
+        # Server-side code only. legacy-tests/ (QA, TypeScript/Playwright) has
+        # its own package.json, and public/js is browser code.
         run: |
-          find . -name '*.js' \
-            -not -path './node_modules/*' \
-            -not -path './web/*' \
-            -not -path './.github/*' \
-            -print0 | xargs -0 -n1 node --check
+          find app.js lib routes prisma -name '*.js' -print0 | xargs -0 -n1 node --check
           node --check bin/www
+      - name: Generate Prisma client (as the legacy Dockerfile does)
+        run: npx prisma generate
+      - name: Load the app modules (catches missing deps)
+        # Requires every legacy module once without starting the server, so a
+        # dependency that is missing from package.json fails CI.
+        run: |
+          node -e "for (const m of ['./lib/auth','./lib/password','./lib/session','./lib/prisma']) require(m); console.log('modules ok')"

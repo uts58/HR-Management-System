@@ -6,15 +6,11 @@
 
     <link rel="shortcut icon" href="./../images/fabicon.jpg">
 
-    <link rel="stylesheet" href="../calender/date_input.css" type="text/css">
-    <script type="text/javascript" src="../calender/firebug/firebug.js"></script>
-    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.1/jquery.min.js"></script>
-    <script type="text/javascript" src="../calender/jquery.date_input.js"></script>
-    <script type="text/javascript">$($.date_input.initialize);</script>
-    <script type="text/javascript" src="../js/jquery-2.0.3.min.js"></script>
-    <script type="text/javascript" src="../js/scriptbreaker-multiple-accordion-1.js"></script>
-    <script type="text/javascript" src="../js/ajax.js"></script>
-    <script type="text/javascript" src="../js/functions.js"></script>
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <script type="text/javascript" src="/vendor/jquery/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/scriptbreaker-multiple-accordion-1.js"></script>
+    <script type="text/javascript" src="/js/ajax.js"></script>
+    <script type="text/javascript" src="/js/functions.js"></script>
     <title>HRM</title>
 </head>
 <body>
@@ -71,7 +67,7 @@
                         <!--<li><a href="/message">Message</a></li>-->
                         <li><a href="/hr/viewDetails?id=<%=userid%>">View Profile</a></li>
                         <li><a href="/changePassword">Change Password</a></li>
-                        <li><a href="/logout">Log out</a></li>
+                        <li><form method="post" action="/logout" class="inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="link-button nav-link-button">Log out</button></form></li>
                     </ul>
                 </li>
 
@@ -95,7 +91,7 @@
                         <!--<li><a href="/message">Message</a></li>-->
                         <li><a href="/hr/viewProfile">View Profile</a></li>
                         <li><a href="/changePassword">Change Password</a></li>
-                        <li><a href="/logout">Log out</a></li>
+                        <li><form method="post" action="/logout" class="inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><button type="submit" class="link-button nav-link-button">Log out</button></form></li>
                     </ul>
                 </li>
 
@@ -122,16 +118,20 @@
                                 {
                                 %>
                                     <span style="color:#0000FF;">Saved Succuessfully !</span>
+                                    <% if (typeof initialPassword !== "undefined" && initialPassword) { %>
+                                    <br/><span style="color:#0000FF;">Login for the new employee: username <strong><%= newUsername %></strong>, temporary password <strong><%= initialPassword %></strong>. This is shown only once; give it to the employee and ask them to change it.</span>
+                                    <% } %>
 
                                 <%}
                                 %>
 
-                                <form method="post" enctype="multipart/form-data" action="/hr/saveEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()" >
+                                <form method="post" action="/hr/saveEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()" >
+<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                                     <span style="color:red; font-size:10px; "> All fields are mandatory excpet Middle name</span>
                                     <div class="row">
                                         <label for="emp-id" >Employee Id:</label>
                                         <div class="text">
-                                            <input readonly="true" class="readonly" id="emp-id" name="txtEmpId" type="text" value=<%=idno%> />
+                                            <input readonly="true" class="readonly" id="emp-id" name="txtEmpId" type="text" value="<%= idno %>" />
                                         </div>
                                     </div>
                                     <div class="row">
@@ -244,7 +244,8 @@
                             <%}
                             else if (edit=='1'){%>
                             <h1>Edit Employee Details</h1>
-                            <form method="post" enctype="multipart/form-data" action="/hr/editEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()">
+                            <form method="post" action="/hr/editEmp" class="contact-form" name="addemp" onsubmit="return verify_addemp()">
+<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                                 <div class="row">
                                     <label for="first-name">First name:</label>
                                     <div class="text">
@@ -357,19 +358,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
-                                    <label for="photograph">Image:</label>
-                                    <div class="row">
-                                        <div class ="editimage">
-
-
-                                            <img src="../photo/<%=data['id']%>.jpg" height="95px" width="95px" />
-
-
-                                        </div>
-                                        <input id="photograph" name="inpFile" type="file" value="" />
-                                    </div>
-                                </div>
                                 <input class="btn-submit editsubmit" type="submit" value="Submit" />
                             </form>
                             <%}
@@ -378,6 +366,7 @@
                             {%>
                             <h1>Employee Details</h1>
                             <form method="post" action="/hr/editEmp" class="contact-form">
+<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                                 <div class="contact-form-left">
                                     <div class="row">
                                         <label for="first-name" class="displayLabel">First name:</label>

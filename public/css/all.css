@@ -559,3 +559,31 @@ table.altrowstable a:hover        { color: #1d4ed8; text-decoration: none; }
 form           { text-transform: none; }
 .admincolor    { color: #7dd3fc !important; text-transform: capitalize; }
 .nav li a      { color: #94a3b8; }
+/* ── POST-only actions rendered as links (delete, approve, logout) ── */
+.inline-form   { display: inline; margin: 0; padding: 0; }
+.link-button {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: #3b82f6;
+    font-weight: 500;
+    cursor: pointer;
+}
+.link-button:hover { color: #1d4ed8; }
+.nav ul > li > .inline-form { display: block; }
+.nav ul > li > .inline-form > .nav-link-button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 9px 16px;
+    color: #334155 !important;
+    font-size: 13px;
+    font-weight: 400;
+    transition: background 0.12s;
+}
+.nav ul > li > .inline-form > .nav-link-button:hover {
+    background: #f8fafc;
+    color: #3b82f6 !important;
+}

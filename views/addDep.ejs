@@ -20,6 +20,7 @@
                     <% if (error) { %><span style="color:red;"><%= error %></span><br/><% } %>
 
                     <form method="post" action="/hr/saveDep" class="contact-form" style="margin-bottom:20px;">
+<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                         <div class="row">
                             <label for="depName">Department Name:</label>
                             <div class="text">
@@ -39,7 +40,7 @@
                         <tr>
                             <td><%= departments[row]['id'] %></td>
                             <td><%= departments[row]['departmentName'] %></td>
-                            <td><a href="/hr/deleteDep?id=<%= departments[row]['id'] %>" onclick="return confirm('Delete this department?')">Delete</a></td>
+                            <td><form method="post" action="/hr/deleteDep" class="inline-form" onsubmit="return confirm('Delete this department?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><input type="hidden" name="id" value="<%= departments[row]['id'] %>" /><button type="submit" class="link-button">Delete</button></form></td>
                         </tr>
                         <% } %>
                         <% if (departments.length === 0) { %>

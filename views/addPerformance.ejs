@@ -19,6 +19,7 @@
                     <% if (saved == 1) { %><span style="color:#0000FF;">Appraisal saved successfully!</span><br/><% } %>
 
                     <form method="post" action="/savePerformance" class="contact-form" style="margin-bottom:20px;">
+<input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                         <div class="row">
                             <label for="empId">Employee:</label>
                             <div class="row">
