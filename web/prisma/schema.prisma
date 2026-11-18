@@ -1,0 +1,13 @@
+// PLACEHOLDER created by Platform in Phase 0 so `prisma generate`,
+// `next build` and the Docker image work. The Data lead owns this file:
+// replace or extend it as needed, but keep the generator `output` path.
+// The app imports the client from "@/generated/prisma/client".
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

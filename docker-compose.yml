@@ -1,4 +1,28 @@
+# Production-like stack.
+#
+#   Legacy app only (unchanged default):
+#     docker compose up -d
+#   Legacy app + new web app (profile "web"):
+#     docker compose --profile web up -d --build
+#
+# Both apps share one Postgres server but use SEPARATE databases AND roles:
+#   legacy -> db ${DB_NAME:-hrdb}       as ${DB_USER:-hruser} (unchanged legacy credentials)
+#   web    -> db ${WEB_DB_NAME:-hr_web} as ${WEB_DB_USER:-hr_web_app}, a
+#             NOSUPERUSER role that owns only hr_web. db-init creates it and
+#             revokes PUBLIC CONNECT on both databases.
+# The web profile needs WEB_DB_PASS and BETTER_AUTH_SECRET, and APP_TIME_ZONE
+# must be set for every deployment (see .env.example). Use URL-safe
+# passwords, e.g. `openssl rand -hex 24`, because they are embedded in
+# DATABASE_URL.
+#
+# Production: add compose.prod.yml (Caddy TLS proxy, no published app/db ports).
+#
+# Start order for the web profile:
+#   db (healthy) -> db-init (exits 0) -> web-migrate (exits 0) -> web
+# For local development with `npm run dev` use compose.dev.yml instead.
+
 services:
+  # ---------------------------------------------------------------- legacy
   app:
     build:
       context: .
@@ -21,6 +45,7 @@ services:
     tmpfs:
       - /tmp
 
+  # ---------------------------------------------------------------- shared
   db:
     image: postgres:16-alpine
     environment:
@@ -36,6 +61,74 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+
+  # ---------------------------------------------------------------- new app
+  # Creates or updates the web role and database. Idempotent, and safe on the
+  # existing legacy volume, where initdb scripts never run. This is the only
+  # web-profile service that uses the superuser credentials.
+  db-init:
+    image: postgres:16-alpine
+    profiles: ["web"]
+    environment:
+      PGHOST: db
+      PGUSER: ${DB_USER:-hruser}
+      PGPASSWORD: ${DB_PASS}
+      PGDATABASE: ${DB_NAME:-hrdb}
+      WEB_DB_USER: ${WEB_DB_USER:-hr_web_app}
+      WEB_DB_PASS: ${WEB_DB_PASS:-}
+      WEB_DB_NAMES: ${WEB_DB_NAME:-hr_web}
+      WEB_DB_CREATEDB: "0"
+      LEGACY_DB_NAME: ${DB_NAME:-hrdb}
+    volumes:
+      - ./docker/postgres/create-web-dbs.sh:/scripts/create-web-dbs.sh:ro
+    command: ["sh", "/scripts/create-web-dbs.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # Applies Prisma migrations (`prisma migrate deploy`) then exits.
+  web-migrate:
+    build:
+      context: ./web
+      target: migrator
+    image: hr-web-migrate:latest
+    profiles: ["web"]
+    environment:
+      DATABASE_URL: postgresql://${WEB_DB_USER:-hr_web_app}:${WEB_DB_PASS:-}@db:5432/${WEB_DB_NAME:-hr_web}
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  web:
+    build:
+      context: ./web
+      target: runner
+    image: hr-web:latest
+    profiles: ["web"]
+    ports:
+      - "${WEB_PORT:-3001}:3000"
+    environment:
+      DATABASE_URL: postgresql://${WEB_DB_USER:-hr_web_app}:${WEB_DB_PASS:-}@db:5432/${WEB_DB_NAME:-hr_web}
+      # These are not marked required (`:?`) here, so the legacy-only
+      # `docker compose up` keeps working without them. The app refuses to
+      # boot if they are missing or invalid (src/env.ts).
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
+      # No default on purpose: set per deployment (IANA zone, e.g. Asia/Dhaka).
+      # The DB stores UTC; this only defines the business day.
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      web-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Next.js writes ISR / image-optimisation cache here.
+      - /app/.next/cache:uid=1001,gid=1001
 
 volumes:
   db_data:

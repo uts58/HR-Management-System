@@ -70,8 +70,7 @@ export interface AppError {
  * Services throw; actions return this.
  */
 export type ActionResult<T = void> =
-  | { ok: true; data: T }
-  | { ok: false; error: AppError };
+  { ok: true; data: T } | { ok: false; error: AppError };
 
 /**
  * Shape of the error class services throw (Backend implements it in

@@ -3,12 +3,7 @@
  * Business rules: docs/architecture/contracts.md#leave
  */
 
-import type {
-  Actor,
-  IsoDate,
-  LeaveRequestId,
-  Timestamp,
-} from "./common";
+import type { Actor, IsoDate, LeaveRequestId, Timestamp } from "./common";
 import type { EmployeeRef } from "./employee";
 
 /**
@@ -94,10 +89,7 @@ export interface LeaveService {
    * Throws VALIDATION (incl. OTHER); FORBIDDEN if the account has no
    * employee record.
    */
-  applyForLeave(
-    actor: Actor,
-    input: ApplyForLeaveInput,
-  ): Promise<LeaveRequest>;
+  applyForLeave(actor: Actor, input: ApplyForLeaveInput): Promise<LeaveRequest>;
 
   /** EMPLOYEE. Own requests, newest first. Pure read (does not mark seen). */
   listMyLeaveRequests(actor: Actor): Promise<LeaveRequest[]>;

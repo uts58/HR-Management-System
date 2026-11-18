@@ -1,0 +1,83 @@
+# Directory ownership for the legacy -> Next.js migration (ADR-0002).
+#
+# NOTE: the @hr/* handles are PLACEHOLDERS. GitHub ignores CODEOWNERS entries
+# that are not real users or teams with write access, so code-owner review
+# does NOTHING until they are replaced with real org teams (e.g.
+# @<org>/platform) and branch protection has "Require review from Code
+# Owners" turned on. Until then, ownership is enforced by convention only.
+#
+# When several patterns match a file, the LAST matching pattern wins, so
+# specific paths come after general ones. A file listed with several owners
+# needs approval from any one of them.
+
+# Default: Platform reviews anything not claimed below.
+*                               @hr/platform
+
+# ---- Legacy app: frozen except security patches (Security) ---------------
+/app.js                         @hr/security
+/bin/                           @hr/security
+/lib/                           @hr/security
+/routes/                        @hr/security
+/views/                         @hr/security
+/public/js/                     @hr/security
+/package.json                   @hr/security
+/package-lock.json              @hr/security
+/prisma/                        @hr/data
+/legacy-tests/                  @hr/qa
+# Legacy container wiring: Security + Platform co-own
+/Dockerfile                     @hr/security @hr/platform
+/.dockerignore                  @hr/security @hr/platform
+
+# ---- Platform / DevOps ---------------------------------------------------
+/.github/                       @hr/platform
+/docker/                        @hr/platform
+/docker-compose.yml             @hr/platform @hr/security
+/compose.dev.yml                @hr/platform
+/compose.prod.yml               @hr/platform @hr/security
+/.env.example                   @hr/platform @hr/security
+/docs/platform/                 @hr/platform
+/web/Dockerfile                 @hr/platform
+/web/.dockerignore              @hr/platform
+/web/package.json               @hr/platform
+/web/package-lock.json          @hr/platform
+/web/.npmrc                     @hr/platform
+/web/next.config.ts             @hr/platform
+/web/tsconfig.json              @hr/platform
+/web/eslint.config.mjs          @hr/platform
+/web/eslint/                    @hr/platform
+/web/vitest.config.mts          @hr/platform
+/web/playwright.config.ts       @hr/platform
+/web/scripts/                   @hr/platform
+/web/prisma7.config.ts          @hr/platform @hr/data
+/web/src/env.ts                 @hr/platform
+/web/src/instrumentation.ts     @hr/platform
+/web/src/instrumentation-node.ts @hr/platform
+/web/.env.example               @hr/platform
+
+# ---- Architect / Tech Lead -----------------------------------------------
+/docs/architecture/             @hr/architect
+/web/src/contracts/             @hr/architect
+
+# ---- Data ----------------------------------------------------------------
+/web/prisma/                    @hr/data
+/scripts/migrate-legacy/        @hr/data
+
+# ---- Security ------------------------------------------------------------
+/web/src/auth/                  @hr/security
+/web/src/proxy.ts               @hr/security
+
+# ---- Backend -------------------------------------------------------------
+/web/src/server/                @hr/backend
+# All of lib/, including the shadcn `cn` helper in lib/utils.ts
+/web/src/lib/                   @hr/backend
+
+# ---- Frontend ------------------------------------------------------------
+/web/src/app/                   @hr/frontend
+/web/src/components/            @hr/frontend
+/web/components.json            @hr/frontend
+# Carve-outs inside app/ (must come after /web/src/app/)
+/web/src/app/api/auth/          @hr/security
+/web/src/app/api/health/        @hr/platform
+
+# ---- QA ------------------------------------------------------------------
+/web/tests/                     @hr/qa
