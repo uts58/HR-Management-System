@@ -183,9 +183,9 @@ model LeaveRequest {
   /// NULL for every other row.
   legacyLeaveType String?   @map("legacy_leave_type")
   /// NULL only for migrated rows whose legacy text could not be parsed (ADR-0007).
-  startDate DateTime? @map("start_date") @db.Date
-  endDate   DateTime? @map("end_date") @db.Date
-  reason    String?
+  startDate       DateTime? @map("start_date") @db.Date
+  endDate         DateTime? @map("end_date") @db.Date
+  reason          String?
 
   status         LeaveStatus @default(PENDING)
   /// Legacy `read`, inverted for clarity. false = HR has decided and the employee has not looked yet.
@@ -263,17 +263,17 @@ model Appraisal {
 // ===========================================================================
 
 model User {
-  id            String  @id
+  id                 String  @id
   /// Better Auth requires this. Display name ("First Last").
-  name          String
+  name               String
   /// Better Auth requires this and keeps it unique. It is the employee's email only when that
   /// is unique. Otherwise it is a synthetic "<username>@users.invalid" (employee emails are not unique).
-  email         String  @unique
+  email              String  @unique
   /// true when `email` is the placeholder "<username>@users.invalid" (no usable legacy email).
   /// The app shows "no email on file" and never sends mail to it. A CHECK keeps it consistent with the domain.
   emailIsPlaceholder Boolean @default(false) @map("email_is_placeholder")
-  emailVerified Boolean @default(false) @map("email_verified")
-  image         String?
+  emailVerified      Boolean @default(false) @map("email_verified")
+  image              String?
 
   /// username plugin: normalised lower-case login name (CHECK constraint in SQL).
   username        String  @unique
