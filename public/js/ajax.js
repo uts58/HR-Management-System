@@ -1,6 +1,9 @@
 $(document).ready(function(){
 
-
+    // Send the page's CSRF token with every jQuery AJAX request.
+    $.ajaxSetup({
+        headers: { 'X-CSRF-Token': $('meta[name="csrf-token"]').attr('content') }
+    });
 
     authentication = function(){
         //alert(1);
@@ -18,6 +21,15 @@ $(document).ready(function(){
                     alert("Invalid User!");
                     txtPassword.value='';
                     txtUsername.focus();
+                }
+            }).fail(function(xhr) {
+                if (xhr.status === 429) {
+                    alert("Too many login attempts. Please wait a few minutes and try again.");
+                } else if (xhr.status === 403) {
+                    alert("Your session expired. The page will reload; please try again.");
+                    window.location.reload();
+                } else {
+                    alert("Login failed. Please try again.");
                 }
             });
     };
