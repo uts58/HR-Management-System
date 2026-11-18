@@ -1,5 +1,6 @@
 import { test, expect, users } from '../support/fixtures';
 import { routes } from '../support/routes';
+import { knownDefect } from '../support/defects';
 
 test.describe('Authentication', () => {
   test('HR can log in and sees the HR dashboard and menu', async ({ app }) => {
@@ -52,6 +53,29 @@ test.describe('Authentication', () => {
     await app.login.expectOnLoginPage();
     await app.page.goto(routes.home);
     await app.login.expectOnLoginPage();
+  });
+
+  test('repeated failed logins are throttled; the lockout is per username and source', async ({ app, anon }) => {
+    knownDefect('SEC-07', 'no brute-force protection on login');
+    test.slow(); // every attempt costs a bcrypt comparison on the patched app
+    // Patched legacy allows 10 attempts per username+IP per 15 minutes (LOGIN_RATE_LIMIT_USER).
+    // Each test context has its own client IP (fixtures.ts), so this lockout is isolated to this test.
+    const maxAttempts = 30;
+    let throttled = false;
+    for (let i = 0; i < maxAttempts && !throttled; i++) {
+      await app.login.attempt(users.john.username, `wrong-${i}`);
+      await expect.poll(() => app.dialogs.messages.length).toBeGreaterThan(i);
+      throttled = /too many/i.test(app.dialogs.last() ?? '');
+    }
+    expect(throttled, `no "too many attempts" message after ${maxAttempts} failed logins`).toBe(true);
+
+    // While throttled, even the right password from this source is refused.
+    await app.login.attempt(users.john.username, users.john.password);
+    await app.login.expectRejected(/too many/i);
+
+    // The same user from another source is not locked out.
+    const elsewhere = await anon();
+    await elsewhere.login.loginAs(users.john);
   });
 
   test('anonymous visitors are sent to the login page', async ({ app }) => {
