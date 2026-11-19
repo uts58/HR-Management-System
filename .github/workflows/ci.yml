@@ -15,6 +15,8 @@ permissions:
 
 env:
   NEXT_TELEMETRY_DISABLED: "1"
+  # Same as the containers: server-side dates are always UTC.
+  TZ: UTC
 
 jobs:
   # -------------------------------------------------------------------------
@@ -79,7 +81,6 @@ jobs:
       DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
-      APP_TIME_ZONE: Asia/Dhaka
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -95,7 +96,10 @@ jobs:
   # -------------------------------------------------------------------------
   web-e2e:
     name: web / e2e (Playwright)
-    runs-on: ubuntu-latest
+    # Pinned to 24.04 because ubuntu-latest is now 26.04, which isn't
+    # confirmed for Playwright yet (see legacy-e2e). Unpin once both suites
+    # run on a Playwright version that supports it.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: web
@@ -114,7 +118,6 @@ jobs:
       DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
-      APP_TIME_ZONE: Asia/Dhaka
     steps:
       - uses: actions/checkout@v7
       - name: Detect e2e tests
@@ -217,7 +220,10 @@ jobs:
   # 3 fail as expected. A defect that starts passing fails the run on purpose.
   legacy-e2e:
     name: legacy / e2e (Playwright parity suite)
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest is now 26.04. legacy-tests pins Playwright 1.56.1,
+    # which fails with "Playwright does not support chromium on
+    # ubuntu26.04-x64" (first CI run, 007e5d8).
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine

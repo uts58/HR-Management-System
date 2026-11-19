@@ -134,7 +134,8 @@ export interface AuthUserAdditionalFields {
   mustChangePassword: boolean;
   employeeId: EmployeeId | null; // unique, FK employee (Restrict)
   legacyPersonId: string | null; // legacy person.id, migrated rows only
-  disabledAt: Date | null; // input: false; set => no sign-in, no session
+  /** DB column (timestamptz), not a read model. input: false. Set => no sign-in. */
+  disabledAt: Date | null;
   emailIsPlaceholder: boolean; // input: false; true for @users.invalid
 }
 

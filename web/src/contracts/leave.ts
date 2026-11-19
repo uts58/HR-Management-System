@@ -3,7 +3,7 @@
  * Business rules: docs/architecture/contracts.md#leave
  */
 
-import type { Actor, IsoDate, LeaveRequestId, Timestamp } from "./common";
+import type { Actor, IsoDate, LeaveRequestId, UtcTimestamp } from "./common";
 import type { EmployeeRef } from "./employee";
 
 /**
@@ -71,8 +71,8 @@ export interface LeaveRequest {
    * opened their leave history. Always true while PENDING.
    */
   seenByEmployee: boolean;
-  createdAt: Timestamp | null; // null for migrated rows
-  decidedAt: Timestamp | null;
+  createdAt: UtcTimestamp | null; // null for migrated rows
+  decidedAt: UtcTimestamp | null;
 }
 
 export interface ApplyForLeaveInput {

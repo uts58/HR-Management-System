@@ -22,7 +22,11 @@ ARG NODE_VERSION=26
 FROM node:${NODE_VERSION}-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+# TZ=UTC in every stage (build, migrate, run) for deterministic server-side
+# dates. There is no company zone: browsers render timestamps in the
+# viewer's own zone.
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    TZ=UTC
 
 # ---------------------------------------------------------------------------
 # All dependencies (incl. dev). The postinstall hook runs `prisma generate`,
@@ -61,6 +65,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
+    TZ=UTC \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 

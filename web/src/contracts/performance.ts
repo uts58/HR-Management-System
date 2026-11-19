@@ -9,7 +9,7 @@ import type {
   AppraisalId,
   EmployeeId,
   IsoDate,
-  Timestamp,
+  UtcTimestamp,
 } from "./common";
 import type { EmployeeRef } from "./employee";
 
@@ -33,7 +33,7 @@ export interface Appraisal {
   projectStart: IsoDate | null; // null when legacy text was unparseable
   projectEnd: IsoDate | null;
   rating: Rating | null;
-  createdAt: Timestamp | null; // null for migrated rows
+  createdAt: UtcTimestamp | null; // null for migrated rows
 }
 
 export interface CreateAppraisalInput {
