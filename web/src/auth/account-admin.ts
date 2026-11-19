@@ -193,8 +193,54 @@ async function disableLogin<Tx>(txArg: Tx, userId: UserId): Promise<void> {
   await tx.session.deleteMany({ where: { userId } });
 }
 
+export const DISPLAY_NAME_MAX_LENGTH = 200;
+
+/** Trimmed display name, or a VALIDATION error. Exported for unit tests. */
+export function normaliseDisplayName(name: unknown): string {
+  const trimmed =
+    typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
+  if (!trimmed) {
+    throw new AuthServiceError("VALIDATION", "Display name is required.", {
+      name: ["Display name is required."],
+    });
+  }
+  if (trimmed.length > DISPLAY_NAME_MAX_LENGTH) {
+    throw new AuthServiceError("VALIDATION", "Display name is too long.", {
+      name: [`Use at most ${DISPLAY_NAME_MAX_LENGTH} characters.`],
+    });
+  }
+  // Control characters (incl. newlines) never belong in a header name.
+  if (/[\u0000-\u001f\u007f]/.test(trimmed)) {
+    throw new AuthServiceError("VALIDATION", "Display name is invalid.", {
+      name: ["Display name contains invalid characters."],
+    });
+  }
+  return trimmed;
+}
+
+/**
+ * Sets Better Auth's `user.name` (header/menu name) when HR renames an
+ * employee. Never touches the username. NOT_FOUND for an unknown user.
+ */
+async function updateDisplayName<Tx>(
+  txArg: Tx,
+  userId: UserId,
+  name: string,
+): Promise<void> {
+  const tx = asTx(txArg);
+  const displayName = normaliseDisplayName(name);
+  const { count } = await tx.user.updateMany({
+    where: { id: userId },
+    data: { name: displayName },
+  });
+  if (count === 0) {
+    throw new AuthServiceError("NOT_FOUND", "Login account not found.");
+  }
+}
+
 export const accountAdmin: AccountAdminApi = {
   createLoginAccount,
   issueTemporaryPassword,
   disableLogin,
+  updateDisplayName,
 };

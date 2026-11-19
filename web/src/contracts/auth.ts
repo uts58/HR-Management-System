@@ -172,6 +172,13 @@ export interface AccountAdminApi {
    * deletes all the user's sessions. Used on termination.
    */
   disableLogin<Tx>(tx: Tx, userId: UserId): Promise<void>;
+
+  /**
+   * Sets the user's display name (Better Auth `user.name`). Called by
+   * updateEmployee in the same transaction when HR renames an employee, so
+   * the header/menu name follows. Does NOT change the username.
+   */
+  updateDisplayName<Tx>(tx: Tx, userId: UserId, name: string): Promise<void>;
 }
 
 // ─── Sign-in / sign-out / change password ───────────────────────────────────

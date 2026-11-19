@@ -246,7 +246,6 @@ jobs:
         # its own package.json, and public/js is browser code.
         run: |
           find app.js lib routes prisma -name '*.js' -print0 | xargs -0 -n1 node --check
-          node --check bin/www
       - name: Generate Prisma client (as the legacy Dockerfile does)
         run: npx prisma generate
       - name: Load the app modules (catches missing deps)

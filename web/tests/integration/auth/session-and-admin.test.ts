@@ -415,6 +415,47 @@ describe("AccountAdminApi", () => {
     expect((await signIn("migrated", c2.temporaryPassword)).status).toBe(200);
   });
 
+  it("updateDisplayName: renames the user (not the username), joins the caller's tx, NOT_FOUND/VALIDATION", async () => {
+    const userId = await createUser({
+      username: "jane",
+      password: "jane-pass-1",
+    });
+
+    await prisma.$transaction((tx) =>
+      accountAdmin.updateDisplayName(tx, userId, "  Jane   Smith "),
+    );
+    expect(
+      await prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { name: true, username: true },
+      }),
+    ).toEqual({ name: "Jane Smith", username: "jane" });
+    // Login is unaffected.
+    expect((await signIn("jane", "jane-pass-1")).status).toBe(200);
+
+    // Rolls back with the caller's transaction.
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await accountAdmin.updateDisplayName(tx, userId, "Rolled Back");
+        throw new Error("caller failed later");
+      }),
+    ).rejects.toThrow("caller failed later");
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: userId } })).name,
+    ).toBe("Jane Smith");
+
+    await expect(
+      prisma.$transaction((tx) =>
+        accountAdmin.updateDisplayName(tx, "no-such-user", "X"),
+      ),
+    ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
+    await expect(
+      prisma.$transaction((tx) =>
+        accountAdmin.updateDisplayName(tx, userId, "   "),
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION" });
+  });
+
   it("issueTemporaryPassword / disableLogin: NOT_FOUND for an unknown user", async () => {
     await expect(
       prisma.$transaction((tx) =>

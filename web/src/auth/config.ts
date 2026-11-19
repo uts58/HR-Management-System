@@ -1,9 +1,9 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getIP } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { username, USERNAME_ERROR_CODES } from "better-auth/plugins/username";
 import { env } from "@/env";
@@ -16,6 +16,15 @@ import {
   verifyPassword,
 } from "./password";
 import { rehashLegacyPassword } from "./rehash";
+import { LoginFailureLimiter, loginFailureLimiter } from "./login-limiter";
+
+function limiterKey(
+  ctx: { headers?: Headers; context: { options: BetterAuthOptions } },
+  attemptedUsername: string,
+): string {
+  const ip = ctx.headers ? getIP(ctx.headers, ctx.context.options) : null;
+  return LoginFailureLimiter.key(ip, attemptedUsername);
+}
 
 /**
  * The only Better Auth HTTP endpoints we serve. Everything else Better Auth
@@ -169,10 +178,10 @@ function createAuth() {
       window: 60,
       max: 100,
       customRules: {
-        // Per client IP. 10/min leaves room for an office behind one NAT
-        // address at 9am while still capping guessing at 600/hour/IP; each
-        // guess also costs an argon2id hash.
-        "/sign-in/username": { window: 60, max: 10 },
+        // Per client IP, all attempts: loose enough for a whole office
+        // behind one NAT address. The tighter limit is per username + IP
+        // (10 failures / 60 s, login-limiter.ts, enforced in the hooks).
+        "/sign-in/username": { window: 60, max: 50 },
       },
     },
 
@@ -198,6 +207,21 @@ function createAuth() {
           password?: unknown;
         };
         if (typeof body.username !== "string") return;
+
+        // Per username + IP failure limit (HTTP requests only, like Better
+        // Auth's own limiter; server-side auth.api calls have no client).
+        if (ctx.request) {
+          const key = limiterKey(ctx, body.username);
+          const retryAfter = loginFailureLimiter.retryAfterSeconds(key);
+          if (retryAfter > 0) {
+            throw new APIError(
+              "TOO_MANY_REQUESTS",
+              { message: "Too many requests. Please try again later." },
+              { "X-Retry-After": String(retryAfter) },
+            );
+          }
+        }
+
         const user = await prisma.user.findUnique({
           where: { username: body.username.trim().toLowerCase() },
           select: {
@@ -221,6 +245,21 @@ function createAuth() {
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/sign-in/username") {
           const newSession = ctx.context.newSession;
+          const attempted = (ctx.body as { username?: unknown } | undefined)
+            ?.username;
+          if (ctx.request && typeof attempted === "string") {
+            const key = limiterKey(ctx, attempted);
+            const returned = ctx.context.returned;
+            if (newSession) {
+              loginFailureLimiter.recordSuccess(key);
+            } else if (
+              returned instanceof APIError &&
+              returned.status === "UNAUTHORIZED"
+            ) {
+              // Wrong password, unknown user, disabled account: all count.
+              loginFailureLimiter.recordFailure(key);
+            }
+          }
           if (!newSession) return;
           const password = (ctx.body as { password?: unknown } | undefined)
             ?.password;

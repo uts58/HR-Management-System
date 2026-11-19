@@ -35,7 +35,7 @@ getSession(): Promise<Session | null>                          // never throws; 
 requireSession(opts?: { onFail?: 'throw' | 'redirect' }): Promise<Session>
 requireRole(role: Role | readonly Role[], opts?): Promise<Session>
 Role = { HR_ADMIN, EMPLOYEE }                                  // legacy access 1 / 0
-AccountAdminApi: createLoginAccount, issueTemporaryPassword, disableLogin   // server-only, called by Backend services
+AccountAdminApi: createLoginAccount, issueTemporaryPassword, disableLogin, updateDisplayName   // server-only, called by Backend services
 AuthClientApi.signInWithUsername                                // browser
 AuthActions: signOut, changePassword                            // server actions
 ```

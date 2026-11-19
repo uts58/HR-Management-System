@@ -125,6 +125,11 @@ await prisma.$transaction(async (tx) => {
   deleted. `NOT_FOUND` for an unknown user.
 - `disableLogin(tx, userId)`: sets `disabledAt` (keeps an earlier value) and
   deletes all sessions. `NOT_FOUND` for an unknown user.
+- `updateDisplayName(tx, userId, name)`: sets `user.name` (header/menu
+  name) when HR renames an employee; never changes the username. The name
+  is trimmed (inner whitespace collapsed), required, max 200 characters, no
+  control characters (`VALIDATION`, field `name`). `NOT_FOUND` for an
+  unknown user.
 
 All three write with the caller's `tx`, so they roll back with it. Never log
 `temporaryPassword`.
@@ -145,11 +150,21 @@ All three write with the caller's `tx`, so they roll back with it. Never log
   `disabledPaths`). No sign-up, email sign-in, update-user, password reset
   or account linking over HTTP. All `user.additionalFields` are
   `input: false`.
-- **Rate limit**: Better Auth built-in, enabled in every environment,
-  in-memory. `/sign-in/username`: 10 per 60 s per client IP; everything
-  else 100 per 60 s. Client IP = `X-Forwarded-For`, which Caddy overwrites
-  (docs/platform/deployment.md). Use `storage: "database"` if we ever run
-  more than one container.
+- **Rate limits on `/sign-in/username`** (HTTP only; client IP =
+  `X-Forwarded-For`, which Caddy overwrites, docs/platform/deployment.md):
+  - **per username + IP: 10 failures per 60 s** (legacy parity,
+    `login-limiter.ts`, enforced in the sign-in hooks). A success clears
+    it. One person mistyping locks only themselves, not colleagues behind
+    the same office NAT address, and failures from elsewhere don't lock
+    the account for everyone.
+  - **per IP: 50 attempts per 60 s** (Better Auth built-in, enabled in
+    every environment). Other endpoints: 100 per 60 s.
+  - Both answer 429 (`X-Retry-After`), which the client shows as "Too many
+    attempts, try again shortly".
+  - **Both are in-memory, per process. That is only correct for the single
+    v1 container.** With more than one instance, move both to shared
+    storage (Better Auth `storage: "database"` and a DB-backed failure
+    counter).
 - **Sessions**: database-backed, cookie cache off, 7-day expiry refreshed
   daily, cookies `Secure` when `BETTER_AUTH_URL` is https.
 - **Forced password change**: enforced server-side in

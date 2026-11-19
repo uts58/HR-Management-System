@@ -16,21 +16,19 @@ Legacy route handlers mix session checks, parsing, Prisma calls and rendering. N
    - **check the role again and enforce ownership themselves** (defence in depth), e.g. `getEmployee` gives an EMPLOYEE only their own record. The action's `requireRole` is the first gate, the service is the second.
 4. **Services throw, actions return.** Services throw `ServiceError` (ADR-0006). Actions catch it and return `ActionResult`.
 5. **Services validate their own input** with the same Zod schema the action used (`schema.parse`). It is cheap, and services stay safe when called from somewhere other than an action (scripts, tests).
-6. **Transactions** live inside a single service function (`prisma.$transaction`). A service may call another domain's service function, but must not open a second transaction around it. Auth-table changes (create account, disable login, reset password) go through `AccountAdminApi` from `web/src/auth`, passing the transaction client (ADR-0004 rule 10).
+6. **Transactions** live inside a single service function (`prisma.$transaction`). A service may call another domain's service function, but must not open a second transaction around it. Auth-table changes (create account, disable login, reset password, update display name) go through `AccountAdminApi` from `web/src/auth`, passing the transaction client (ADR-0004 rule 10).
 7. **Pages read through services as well.** Server Components call `requireRole(..., { onFail: 'redirect' })` and then the service. They do not query the database directly.
 
-Typical action:
+Typical action (in `web/src/server/actions/leave.ts`, ADR-0002):
 
 ```ts
-'use server';
-export async function decideLeave(id: number, decision: LeaveDecision): Promise<ActionResult> {
-  return runAction(async () => {                                  // server/errors.ts helper
-    const session = await requireRole(Role.HR_ADMIN);             // auth
-    const input = decideLeaveSchema.parse({ id, decision });      // validation
-    await leaveService.decideLeaveRequest(toActor(session), input.id, input.decision);
-    revalidatePath('/leave/requests');
-  });
-}
+"use server";
+export const decideLeaveRequest = defineAction({
+  role: Role.HR_ADMIN,                          // requireRole via server/auth-seam.ts
+  schema: decideLeaveRequestActionSchema,       // { id, decision }
+  handler: async (actor, { id, decision }) =>
+    leaveService.decideLeaveRequest(actor, id, decision),
+});                                             // runAction wraps it; the (app) layout is revalidated
 ```
 
 ## Consequences
