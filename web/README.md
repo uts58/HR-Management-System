@@ -124,6 +124,20 @@ function exports, `let`, re-exports, default exports, wrapped calls, and
 inline `'use server'` functions. Tests for the rule and the boundaries live in
 `eslint/rules/eslint-rules.test.mjs` and run with `npm test`.
 
+The same rule checks every `defineAction(...)` call, in any file:
+
+- It takes one inline object literal (no variables, no spreads).
+- The config declares `role`.
+- `role` is a string literal, a member expression like `Role.HR_ADMIN`, or
+  an array of those, so lint can read it.
+- `role: "PUBLIC"` (no session required) is allowed **only in
+  `src/auth/**`**.
+
+**`server-only`:** `src/server/**` and `src/auth/**` files start with
+`import "server-only"`, so importing them into a client component fails the
+build. Under Vitest the import resolves to an empty stub
+(`vitest/server-only-stub.ts`), so unit tests can import server files.
+
 The Prisma client is generated to `src/generated/prisma` (gitignored). Import
 it as `@/generated/prisma/client`, not from `@prisma/client`. Prisma 7
 requires a driver adapter:

@@ -48,6 +48,7 @@
 /web/vitest.config.mts          @hr/platform
 /web/playwright.config.ts       @hr/platform
 /web/scripts/                   @hr/platform
+/web/vitest/                    @hr/platform
 /web/prisma7.config.ts          @hr/platform @hr/data
 /web/src/env.ts                 @hr/platform
 /web/src/instrumentation.ts     @hr/platform

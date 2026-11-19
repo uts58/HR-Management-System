@@ -15,12 +15,20 @@
  *  2. Inline 'use server' directives inside function bodies are rejected in
  *     every file. Server actions must live in a 'use server' module.
  *
+ *  3. Every defineAction(...) call, in any file, takes exactly one inline
+ *     object literal with a statically readable `role`: a string literal,
+ *     a member expression such as Role.HR_ADMIN, or an array of those.
+ *     Spreads and variables are rejected. `role: "PUBLIC"` (no session
+ *     required) is allowed only in files under src/auth/.
+ *
  * defineAction runs requireRole, then schema validation, then the handler,
  * so this rule guarantees that every server action is authorised and
  * validated.
  */
 
 const DEFAULT_ALLOWED_SOURCES = ["@/server/action"];
+const PUBLIC_ROLE = "PUBLIC";
+const PUBLIC_ALLOWED_SEGMENT = "/src/auth/";
 
 /** @param {import("estree").Node[]} body */
 function hasUseServerDirective(body) {
@@ -60,6 +68,13 @@ const rule = {
         "This export form is not allowed in a 'use server' file. Use `export const x = defineAction({ role, schema, handler })` (ADR-0002).",
       defineActionNotImported:
         "`defineAction` must be imported from one of: {{sources}}.",
+      configNotInline:
+        "defineAction must be called with a single inline object literal (no variables or spreads) so its role can be checked (ADR-0002).",
+      missingRole: "defineAction config must declare `role` (ADR-0002).",
+      roleNotStatic:
+        "`role` must be a string literal, a member expression like Role.HR_ADMIN, or an array of those, so lint can verify it (ADR-0002).",
+      publicOutsideAuth:
+        '`role: "PUBLIC"` (no session required) is only allowed in src/auth/** (ADR-0002/0004).',
       inlineUseServer:
         "Inline 'use server' functions are not allowed. Put the action in a 'use server' actions.ts file and wrap it in defineAction (ADR-0002).",
     },
@@ -97,7 +112,82 @@ const rule = {
       }
     }
 
+    const filename = context.filename.replaceAll("\\", "/");
+    const publicAllowed = filename.includes(PUBLIC_ALLOWED_SEGMENT);
+
+    /** Role names in `node`, or null if they can't be read statically. */
+    function readRoles(node) {
+      if (node.type === "Literal" && typeof node.value === "string") {
+        return [node.value];
+      }
+      if (node.type === "TemplateLiteral" && node.expressions.length === 0) {
+        return [node.quasis[0].value.cooked];
+      }
+      if (
+        node.type === "MemberExpression" &&
+        !node.computed &&
+        node.property.type === "Identifier"
+      ) {
+        return [node.property.name];
+      }
+      if (
+        node.type === "TSAsExpression" ||
+        node.type === "TSSatisfiesExpression"
+      ) {
+        return readRoles(node.expression);
+      }
+      if (node.type === "ArrayExpression") {
+        const out = [];
+        for (const el of node.elements) {
+          if (!el || el.type === "SpreadElement") return null;
+          const r = readRoles(el);
+          if (!r) return null;
+          out.push(...r);
+        }
+        return out;
+      }
+      return null;
+    }
+
+    function checkDefineActionCall(call) {
+      const arg = call.arguments[0];
+      if (
+        call.arguments.length !== 1 ||
+        arg.type !== "ObjectExpression" ||
+        arg.properties.some((p) => p.type !== "Property")
+      ) {
+        context.report({ node: call, messageId: "configNotInline" });
+        return;
+      }
+      const roleProp = arg.properties.find(
+        (p) =>
+          !p.computed &&
+          ((p.key.type === "Identifier" && p.key.name === "role") ||
+            (p.key.type === "Literal" && p.key.value === "role")),
+      );
+      if (!roleProp) {
+        context.report({ node: arg, messageId: "missingRole" });
+        return;
+      }
+      const roles = roleProp.shorthand ? null : readRoles(roleProp.value);
+      if (!roles) {
+        context.report({ node: roleProp, messageId: "roleNotStatic" });
+        return;
+      }
+      if (roles.includes(PUBLIC_ROLE) && !publicAllowed) {
+        context.report({ node: roleProp, messageId: "publicOutsideAuth" });
+      }
+    }
+
     const visitors = {
+      CallExpression(node) {
+        if (
+          node.callee.type === "Identifier" &&
+          node.callee.name === "defineAction"
+        ) {
+          checkDefineActionCall(node);
+        }
+      },
       FunctionDeclaration: checkFunctionBody,
       FunctionExpression: checkFunctionBody,
       ArrowFunctionExpression: checkFunctionBody,
