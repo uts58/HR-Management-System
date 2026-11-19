@@ -11,6 +11,8 @@
  * nor `@/auth`, and duplicate module copies cannot defeat the checks.
  */
 
+import "server-only";
+
 import { unstable_rethrow } from "next/navigation";
 import { ZodError, z } from "zod";
 import type { AuthErrorShape, AuthFailure } from "@/contracts/auth";

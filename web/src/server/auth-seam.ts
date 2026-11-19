@@ -23,6 +23,8 @@
  *   `allowPendingPasswordChange` is true.
  */
 
+import "server-only";
+
 import type { AuthApi, AuthErrorShape } from "@/contracts/auth";
 
 export type AuthGate = Pick<AuthApi, "requireRole" | "requireSession">;

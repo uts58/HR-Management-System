@@ -16,7 +16,7 @@
  *   and only where contracts.md requires one (date of birth before today).
  */
 
-import type { IsoDate } from "@/contracts/common";
+import type { IsoDate, UtcTimestamp } from "@/contracts/common";
 
 /** Shown wherever a calendar date is missing (unparseable migrated rows). */
 export const EMPTY_DATE = "—";
@@ -133,9 +133,6 @@ export function compareIsoDatesNullsLast(
 }
 
 // ─── Instants ───────────────────────────────────────────────────────────────
-
-/** ISO-8601 UTC timestamp string, e.g. `2026-11-18T09:30:00.000Z`. */
-export type UtcTimestamp = string & { readonly __brand: "UtcTimestamp" };
 
 const UTC_TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 

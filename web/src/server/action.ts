@@ -28,6 +28,8 @@
  * through `useActionState` (`(prevState, formData)`).
  */
 
+import "server-only";
+
 import { z } from "zod";
 import { Role, type RequireOptions, type Session } from "@/contracts/auth";
 import type { ActionResult, Actor } from "@/contracts/common";
