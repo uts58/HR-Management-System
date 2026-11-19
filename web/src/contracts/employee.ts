@@ -215,7 +215,10 @@ export interface EmployeeService {
 
   /**
    * HR_ADMIN. Updates profile fields. Does NOT change the username
-   * (legacy renamed the login to the new first name).
+   * (legacy renamed the login to the new first name). If the name changes
+   * and the employee has an account, calls
+   * AccountAdminApi.updateDisplayName in the same transaction so the
+   * user's display name follows.
    * Throws NOT_FOUND (incl. placeholder), VALIDATION; CONFLICT if TERMINATED.
    */
   updateEmployee(
