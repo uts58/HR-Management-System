@@ -145,6 +145,15 @@ export function isPrismaKnownError(
   return typeof actual === "string" && (code === undefined || actual === code);
 }
 
+/**
+ * True for a Prisma P2003 foreign-key violation. Deliberately NOT mapped
+ * globally (it stays INTERNAL, ADR-0006): only delete services that can hit
+ * a Restrict FK catch it and convert it to CONFLICT with their own message.
+ */
+export function isForeignKeyViolation(e: unknown): boolean {
+  return isPrismaKnownError(e, "P2003");
+}
+
 /** What a unique violation tells us about the constraint it hit. */
 export interface UniqueViolation {
   /** Index/constraint name, e.g. "departments_name_lower_key". */

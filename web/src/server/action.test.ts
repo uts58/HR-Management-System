@@ -338,3 +338,54 @@ describe("production defineAction before @/auth exists", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 });
+
+describe('role "PUBLIC"', () => {
+  it("runs without any session check, with no actor or session", async () => {
+    const auth = fakeAuth(null);
+    const action = createDefineAction({ auth })({
+      role: "PUBLIC",
+      schema: noInputSchema,
+      handler: async (actor, _input, ctx) => ({ actor, session: ctx.session }),
+    });
+    expect(await action()).toEqual({
+      ok: true,
+      data: { actor: null, session: null },
+    });
+    expect(auth.requireRole).not.toHaveBeenCalled();
+    expect(auth.requireSession).not.toHaveBeenCalled();
+  });
+
+  it("still validates input and maps errors", async () => {
+    const define = createDefineAction({ auth: fakeAuth(null), log: silentLog });
+    const action = define({
+      role: "PUBLIC",
+      schema: createDepartmentSchema,
+      handler: async () => {
+        throw new Error("internal detail");
+      },
+    });
+    expect(await action({ name: "" })).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDATION",
+        fieldErrors: { name: ["Name is required"] },
+      },
+    });
+    expect(await action({ name: "x" })).toEqual({
+      ok: false,
+      error: {
+        code: "INTERNAL",
+        message: "Something went wrong. Please try again.",
+      },
+    });
+  });
+
+  it("works with the production defineAction before @/auth exists", async () => {
+    const action = productionDefineAction({
+      role: "PUBLIC",
+      schema: noInputSchema,
+      handler: async () => "signed out",
+    });
+    expect(await action()).toEqual({ ok: true, data: "signed out" });
+  });
+});

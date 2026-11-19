@@ -140,16 +140,16 @@ export type UtcTimestamp = string & { readonly __brand: "UtcTimestamp" };
 const UTC_TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
 /** Serialise an instant for the client: ISO-8601 in UTC with `Z`. */
-export function toUtcTimestamp(instant: Date): UtcTimestamp {
+export function toIsoInstant(instant: Date): UtcTimestamp {
   if (Number.isNaN(instant.getTime())) throw new RangeError("Invalid Date");
   return instant.toISOString() as UtcTimestamp;
 }
 
 /** Nullable variant (migrated rows have no createdAt). */
-export function toUtcTimestampOrNull(
+export function toIsoInstantOrNull(
   instant: Date | null | undefined,
 ): UtcTimestamp | null {
-  return instant == null ? null : toUtcTimestamp(instant);
+  return instant == null ? null : toIsoInstant(instant);
 }
 
 /** True for an ISO-8601 UTC string with an explicit `Z` that parses. */

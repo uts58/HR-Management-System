@@ -13,8 +13,8 @@ import {
   parseUtcTimestamp,
   toIsoDate,
   toIsoDateOrNull,
-  toUtcTimestamp,
-  toUtcTimestampOrNull,
+  toIsoInstant,
+  toIsoInstantOrNull,
   utcTodayIso,
 } from "./dates";
 
@@ -171,18 +171,18 @@ describe("compareIsoDatesNullsLast", () => {
 describe("UTC timestamps", () => {
   it("serialises an instant as ISO-8601 with Z", () => {
     const d = new Date(Date.UTC(2026, 10, 18, 9, 30, 5, 123));
-    expect(toUtcTimestamp(d)).toBe("2026-11-18T09:30:05.123Z");
+    expect(toIsoInstant(d)).toBe("2026-11-18T09:30:05.123Z");
   });
 
   it("nullable variant and invalid Date", () => {
-    expect(toUtcTimestampOrNull(null)).toBeNull();
-    expect(toUtcTimestampOrNull(undefined)).toBeNull();
-    expect(() => toUtcTimestamp(new Date("x"))).toThrow(RangeError);
+    expect(toIsoInstantOrNull(null)).toBeNull();
+    expect(toIsoInstantOrNull(undefined)).toBeNull();
+    expect(() => toIsoInstant(new Date("x"))).toThrow(RangeError);
   });
 
   it("round-trips through parseUtcTimestamp", () => {
     const d = new Date("2026-01-02T03:04:05.006Z");
-    expect(parseUtcTimestamp(toUtcTimestamp(d)).getTime()).toBe(d.getTime());
+    expect(parseUtcTimestamp(toIsoInstant(d)).getTime()).toBe(d.getTime());
     expect(parseUtcTimestamp("2026-01-02T03:04:05Z").toISOString()).toBe(
       "2026-01-02T03:04:05.000Z",
     );

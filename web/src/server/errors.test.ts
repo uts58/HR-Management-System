@@ -10,6 +10,7 @@ import {
   forbiddenError,
   getUniqueViolation,
   isAuthError,
+  isForeignKeyViolation,
   isServiceError,
   notFoundError,
   runAction,
@@ -297,6 +298,12 @@ describe("toAppError (ADR-0006 mapping)", () => {
       name: "Error",
       message: secret.message,
     });
+  });
+
+  it("P2003 is detectable but stays INTERNAL globally (ADR-0006)", () => {
+    expect(isForeignKeyViolation(prismaError("P2003"))).toBe(true);
+    expect(isForeignKeyViolation(prismaError("P2002"))).toBe(false);
+    expect(isForeignKeyViolation(new Error("x"))).toBe(false);
   });
 
   it("other Prisma errors and non-Error throws -> INTERNAL", () => {
