@@ -14,6 +14,11 @@ export default defineConfig({
   resolve: {
     // Resolves the "@/*" alias from tsconfig.json.
     tsconfigPaths: true,
+    // `import "server-only"` (ADR-0002) is resolved by Next.js at build
+    // time. Vitest runs outside Next, so map it to Next's own no-op copy.
+    alias: {
+      "server-only": "next/dist/compiled/server-only/empty.js",
+    },
   },
   test: {
     passWithNoTests: true,
