@@ -19,6 +19,8 @@ export default defineConfig({
     passWithNoTests: true,
     env: {
       SKIP_ENV_VALIDATION: "1",
+      // Deterministic dates, same as Docker and CI.
+      TZ: "UTC",
     },
     projects: [
       {
