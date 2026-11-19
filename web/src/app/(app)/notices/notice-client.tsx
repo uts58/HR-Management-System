@@ -16,7 +16,7 @@ import { createNoticeSchema } from "@/lib/validation";
 
 import { stubCommand, stubFormAction } from "../../_stubs/actions";
 
-// TODO(Frontend+Backend): createNotice from ./actions.ts.
+// TODO(wire): import createNotice from @/server/actions.
 const createNoticeAction = stubFormAction<Notice>("createNotice");
 
 /** Post a notice (feature map row 22). Fields = CreateNoticeInput. */
@@ -80,9 +80,10 @@ export function DeleteNoticeButton({
       confirmLabel="Delete notice"
       pendingLabel="Deleting…"
       destructive
+      successMessage="Notice deleted."
       onConfirm={() => {
         void id;
-        // TODO(Frontend+Backend): deleteNotice from ./actions.ts.
+        // TODO(wire): import deleteNotice from @/server/actions.
         return stubCommand("deleteNotice");
       }}
       onSuccess={() => router.refresh()}

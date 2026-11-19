@@ -2,6 +2,7 @@
 
 import { CircleAlertIcon } from "lucide-react";
 import { useState, useTransition, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import type { ActionResult } from "@/contracts";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -38,6 +39,7 @@ export function ConfirmActionDialog<T>({
   destructive = false,
   onConfirm,
   onSuccess,
+  successMessage,
 }: {
   triggerLabel: string;
   triggerIcon?: ReactNode;
@@ -52,6 +54,8 @@ export function ConfirmActionDialog<T>({
   destructive?: boolean;
   onConfirm: () => Promise<ActionResult<T>>;
   onSuccess?: (data: T) => void;
+  /** Success toast (ADR-0006 rule 4), e.g. "Department deleted." */
+  successMessage?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +107,7 @@ export function ConfirmActionDialog<T>({
                   setOpen(false);
                   setError(null);
                   onSuccess?.(result.data);
+                  if (successMessage) toast.success(successMessage);
                 } else {
                   setError(result.error.message);
                 }

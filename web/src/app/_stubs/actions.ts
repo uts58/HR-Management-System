@@ -3,8 +3,9 @@
  * run in the browser and touch no data. Each one marks a submit seam that
  * gets replaced by a real action:
  *
- * - Frontend + Backend: `app/(app)/<route>/actions.ts` exporting
- *   `defineAction({ role, schema, handler })` (ADR-0002/0003).
+ * - Backend: `web/src/server/actions/*.ts` ('use server', `defineAction`),
+ *   imported from "@/server/actions" (director ruling). Stub names match the
+ *   contracts.md action names.
  * - Security: `signOut` / `changePassword` from "@/auth/actions" and
  *   `signInWithUsername` from "@/auth/client".
  *
@@ -56,7 +57,7 @@ const fakePassword = () =>
     "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789".charAt(b % 55),
   ).join("");
 
-/** → createEmployee (app/(app)/employees/actions.ts) */
+/** → createEmployee from @/server/actions */
 export const createEmployeeStub: FormAction<CreateEmployeeResult> = async (
   _prev,
   formData,
@@ -79,7 +80,7 @@ export const createEmployeeStub: FormAction<CreateEmployeeResult> = async (
   };
 };
 
-/** → resetEmployeePassword (app/(app)/employees/actions.ts) */
+/** → resetEmployeePassword from @/server/actions */
 export async function resetEmployeePasswordStub(
   employeeId: number,
 ): Promise<ActionResult<IssuedCredentials>> {

@@ -21,6 +21,11 @@ and other components. They never import `@/server/*`, `@/auth/*` (except
 `auth/client.ts` for the sign-in form) or anything from `src/app`. Anything that
 calls an action lives in `src/app/**`, which passes data down as props.
 
+Server actions belong to Backend: they live in `web/src/server/actions/*.ts`
+(`'use server'`, `defineAction`). Pages and route-level client components
+import them from `@/server/actions`. Don't create `actions.ts` files in
+`src/app` (director ruling).
+
 ## Tokens and theming
 
 - Use semantic Tailwind tokens (`bg-background`, `text-muted-foreground`,
@@ -41,9 +46,16 @@ calls an action lives in `src/app/**`, which passes data down as props.
   shows a stable `d MMM yyyy, HH:mm UTC` fallback on the server and the first
   client render, then the viewer's local time, with the full timestamp and
   zone in `title`.
-- Calendar dates (`YYYY-MM-DD`) use `<CalendarDate>` / `<CalendarDateRange>`,
-  which never create a `Date` and never convert zones. Null renders "—" plus
-  screen-reader text "Not recorded".
+- Calendar dates (`YYYY-MM-DD`) use `<CalendarDate>` / `<CalendarDateRange>`.
+  These are the UI standard: they show "22 Dec 2026", built from the string,
+  never create a `Date` and never convert zones. ISO stays for exports and
+  logs. Null renders "—" plus screen-reader text "Not recorded".
+
+## Email display
+
+Show the contact email (`employee.email`) whenever there is one, even if the
+login account has `emailIsPlaceholder`. Show "No email on file" only when
+there is no contact email. Never display a `@users.invalid` address.
 
 ## Forms
 
@@ -59,8 +71,10 @@ calls an action lives in `src/app/**`, which passes data down as props.
   label, hint and error (`htmlFor`, `aria-describedby`, `aria-invalid`).
   Optional fields say "(optional)".
 - After a failed submit, focus goes to the first invalid field, or to the
-  form-level alert if no field is invalid. After success, it goes to the
-  success message.
+  form-level alert if no field is invalid. Errors stay inline.
+- Success is a toast (sonner, ADR-0006 rule 4): pass `successMessage` to
+  `ActionForm` or `ConfirmActionDialog`. The `<Toaster>` is mounted once in
+  the root layout. Its live region announces the toast, and focus stays put.
 - Destructive or irreversible actions go through `ConfirmActionDialog`. Errors
   show inside the dialog.
 - One-time passwords go only in `CredentialsPanel`, from client state. Never put
@@ -74,10 +88,21 @@ calls an action lives in `src/app/**`, which passes data down as props.
   headers. Hide secondary columns below `md`/`lg` rather than scrolling the page.
   Use `EmptyState` when there are no rows.
 - The `(app)` route group provides `loading.tsx`, `error.tsx` (generic message
-  plus digest) and `not-found.tsx`. Call `notFound()` for unknown ids.
+  plus digest) and `not-found.tsx`. For unknown ids, use Backend's
+  `orNotFound()` helper from `web/src/server`, which calls `notFound()`.
+  - **Known behaviour (accepted):** because `loading.tsx` starts streaming
+    first, a `notFound()` inside the shell returns HTTP **200** with the
+    not-found UI, not 404 (e.g. `/employees/999`). Unmatched URLs still
+    return 404.
+- 403: `ForbiddenState` (`common/forbidden-state.tsx`) and the `/forbidden`
+  page. We don't use the experimental `authInterrupts`/`forbidden()`. Security
+  decides whether `requireRole` failures redirect to `/forbidden` or render
+  `ForbiddenState` in place.
 - Each page calls `requireRole`/`requireSession` itself (layouts are not an
   auth boundary). Until auth and services land, pages read from
-  `app/_stubs` (see the TODO markers).
+  `app/_stubs` (see the `TODO(Backend)` / `TODO(Security)` / `TODO(wire)`
+  markers). **Release blocker:** delete `app/_stubs`, including the persona
+  switcher, when the real services are wired.
 
 ## Accessibility checklist
 

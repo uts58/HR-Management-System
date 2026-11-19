@@ -10,13 +10,13 @@ import { LocalTime } from "@/components/local-time";
 const PLACEHOLDER_DOMAIN = "@users.invalid";
 
 /**
- * Email cell. When the login account only has the placeholder address
- * (`emailIsPlaceholder`), show "No email on file" (contracts.md Employee
- * rule 6d). As a guard, a `@users.invalid` address is never displayed.
+ * Email cell (director ruling): show the contact email (`employee.email`)
+ * whenever there is one, even if the login account only has the placeholder
+ * address (`emailIsPlaceholder`). "No email on file" only when there is no
+ * contact email. A `@users.invalid` address is never displayed.
  */
 function EmailValue({ employee }: { employee: EmployeeDetail }) {
   if (
-    employee.emailIsPlaceholder ||
     !employee.email ||
     employee.email.toLowerCase().endsWith(PLACEHOLDER_DOMAIN)
   ) {

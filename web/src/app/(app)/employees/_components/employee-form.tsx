@@ -30,7 +30,7 @@ import { Separator } from "@/components/ui/separator";
 
 import { createEmployeeStub, stubFormAction } from "../../../_stubs/actions";
 
-// TODO(Frontend+Backend): replace with the real actions from ../actions.ts
+// TODO(wire): import the real actions from @/server/actions
 // (createEmployee / updateEmployee via defineAction).
 const updateEmployeeStub = stubFormAction<EmployeeDetail>("updateEmployee");
 

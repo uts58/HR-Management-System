@@ -16,7 +16,7 @@ import {
 
 /**
  * Terminate (soft delete) with confirmation (feature map row 13).
- * TODO(Frontend+Backend): call terminateEmployee from ../actions.ts.
+ * TODO(wire): import terminateEmployee from @/server/actions.
  */
 export function TerminateEmployeeButton({
   employeeId,
@@ -50,6 +50,7 @@ export function TerminateEmployeeButton({
       confirmLabel="Terminate employee"
       pendingLabel="Terminating…"
       destructive
+      successMessage={`${name} was terminated.`}
       onConfirm={() => {
         void employeeId;
         return stubCommand("terminateEmployee");
@@ -62,7 +63,7 @@ export function TerminateEmployeeButton({
 /**
  * Reset password (feature map, [NEW] approved). Shows the one-time
  * temporary password after confirmation.
- * TODO(Frontend+Backend): call resetEmployeePassword from ../actions.ts.
+ * TODO(wire): import resetEmployeePassword from @/server/actions.
  */
 export function ResetPasswordButton({
   employeeId,
