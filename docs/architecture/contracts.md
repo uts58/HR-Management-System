@@ -8,7 +8,7 @@ TypeScript source of truth: [`web/src/contracts/`](../../web/src/contracts/). If
 - Every service function is `fn(actor: Actor, ...args)`. No service is callable anonymously. `Actor = { userId, employeeId | null, role }` comes from the session (ADR-0003).
 - "Role" below is the role the **service** enforces. The calling action enforces it too, with `requireRole` (ADR-0004).
 - Services throw `ServiceError` with the listed codes. Actions return `ActionResult<T>` (ADR-0006). `UNAUTHENTICATED`/`INTERNAL` can come from any action and aren't repeated below.
-- Calendar dates are `IsoDate` (`YYYY-MM-DD`), instants are `Date` (ADR-0007).
+- Calendar dates are `IsoDate` (`YYYY-MM-DD`, never converted). Instants are `Date` in services, stored as UTC, sent to the client as ISO-8601 with `Z`, and rendered in the viewer's browser time zone. There is no company time zone and no `APP_TIME_ZONE` (ADR-0007; this user decision of 2026-11-18 reverses the earlier director ruling).
 - String inputs are trimmed. Empty optional strings become `null`.
 - Read models allow `null` wherever migrated legacy data can be empty, even when create/update now require the field.
 - Legend: **[CHANGE]** = intentional change from legacy, **[NEW]** = no legacy equivalent (director-approved where listed).
@@ -109,7 +109,7 @@ The legacy form said "All fields are mandatory except Middle name". We now enfor
 | email | required, valid, ≤254, stored lower-case. **Not** unique. | client regex |
 | gender | `MALE` \| `FEMALE` | `1` / `0`, default male |
 | maritalStatus | `SINGLE` \| `MARRIED` \| `DIVORCED` | lower-case strings, `"0"` if not chosen |
-| dateOfBirth | `IsoDate`, before today | free text "01 Jan 2019" |
+| dateOfBirth | `IsoDate`, in the past. The server accepts dates up to the UTC date + 1 day, because the viewer's time zone is unknown (ADR-0007 rule 4); the client form checks against the browser's local date. | free text "01 Jan 2019" |
 | username (create only) | optional, `USERNAME_PATTERN` (3–30 chars of `[a-z0-9._]`), unique (case-insensitive). Default `first.last`, with `2`, `3`… added if taken. | `person.Name = firstName` |
 
 ### Business rules
