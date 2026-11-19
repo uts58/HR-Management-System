@@ -127,16 +127,17 @@ export interface CreateLoginAccountInput {
 
 /**
  * Better Auth `user.additionalFields` (Data schema; Security config).
- * `input: false` fields can never be set through Better Auth endpoints.
+ * ALL six are `input: false`: no Better Auth endpoint can set them from a
+ * request. Only AccountAdminApi and the migration write them.
  */
 export interface AuthUserAdditionalFields {
-  role: Role; // input: false; source of truth for authorization
+  role: Role; // source of truth for authorization
   mustChangePassword: boolean;
   employeeId: EmployeeId | null; // unique, FK employee (Restrict)
   legacyPersonId: string | null; // legacy person.id, migrated rows only
-  /** DB column (timestamptz), not a read model. input: false. Set => no sign-in. */
+  /** DB column (timestamptz), not a read model. Set => no sign-in. */
   disabledAt: Date | null;
-  emailIsPlaceholder: boolean; // input: false; true for @users.invalid
+  emailIsPlaceholder: boolean; // true for @users.invalid
 }
 
 /**
