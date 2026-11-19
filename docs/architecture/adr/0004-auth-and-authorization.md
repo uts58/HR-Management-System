@@ -43,6 +43,10 @@ AuthActions: signOut, changePassword                            // server action
 
 1. **Every** server action, route handler and protected page calls `requireRole()` or `requireSession()` **as its first statement**. `getSession()` is only for pages that render for both anonymous and signed-in users (the login page, which redirects signed-in users).
 2. Actions and route handlers use `onFail: 'throw'` (default). The action wrapper turns the error into `{ ok:false, error:{ code:'UNAUTHENTICATED'|'FORBIDDEN' } }`. Pages use `onFail: 'redirect'`.
+   - Server actions are written with `defineAction({ role, ... })` (ADR-0002). Its `role` is a `Role`, a list of roles, `"ANY"` or `"PUBLIC"`.
+   - **`"PUBLIC"` skips the session check. It is allowed only in files under `web/src/auth/`** (enforced by Platform's lint rule), and its only use is the idempotent `signOut`, which must work even with an expired session.
+   - Sign-in is still never a server action: it goes through Better Auth's HTTP endpoint so the rate limiter applies.
+   - **Seam:** Backend imports auth only through `web/src/server/auth-seam.ts`, which re-exports `requireRole` and `requireSession` from `@/auth`. This keeps services and `defineAction` testable with a mocked seam.
 3. **Proxy (`web/src/proxy.ts`) is optimistic only.** It uses `getSessionCookie()` (cookie present or not) to send anonymous users to `/login`. It is never the authorization boundary, as both the Next.js and Better Auth docs warn. The `mustChangePassword` redirect happens in `requireSession`/`requireRole`, because the proxy deliberately doesn't hit the DB.
 4. Layouts are not an auth boundary. Check in each page or its data loader.
 5. Services check the role again and enforce ownership (ADR-0003). Ownership comes from `actor.employeeId`, **never from a request parameter**.

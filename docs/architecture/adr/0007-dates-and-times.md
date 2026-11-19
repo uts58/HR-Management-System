@@ -16,12 +16,12 @@ Two kinds of temporal value, never mixed:
 | Kind | Examples | Postgres | Domain type | Wire | UI |
 |---|---|---|---|---|---|
 | **Calendar date** (no time, no zone) | date of birth, leave start/end, project start/end | `date` (`@db.Date`) | `IsoDate` (branded `YYYY-MM-DD` string) | `YYYY-MM-DD`, never converted | `<input type="date">` or the shadcn date picker, shown as written |
-| **Instant** | notice createdAt, leave createdAt/decidedAt, employee createdAt/terminatedAt | `timestamptz`, stored in UTC | `Date` (server) | ISO-8601 UTC with `Z`, e.g. `2026-11-18T09:30:00.000Z` | The viewer's browser time zone, via a client component (rule 3) |
+| **Instant** | notice createdAt, leave createdAt/decidedAt, employee createdAt/terminatedAt | `timestamptz`, stored in UTC | `UtcTimestamp`: an ISO-8601 UTC string ending in `Z`. Services convert Prisma's `Date` at the boundary; read models never carry `Date`. | Same string, e.g. `2026-11-18T09:30:00.000Z` | The viewer's browser time zone, via a client component (rule 3) |
 
 Rules:
 
 1. **Calendar dates are never converted.** `IsoDate` values never pass through a JS `Date` for display, comparison or arithmetic. Compare them as strings (lexical order = chronological order for `YYYY-MM-DD`). The only conversion is at the Prisma boundary, inside services: Prisma returns `@db.Date` as a UTC-midnight `Date`, which is read with the UTC getters. A leave from `2026-12-01` to `2026-12-03` reads the same for every viewer in every time zone.
-2. **Instants are stored as UTC** (`timestamptz`; the DB session and the Node process also run in UTC). They are serialised to the client as ISO-8601 strings ending in `Z`.
+2. **Instants are stored as UTC** (`timestamptz`; the DB session and the Node process also run in UTC). In every contract read model they are `UtcTimestamp` strings ending in `Z` (Backend ruling, 2026-11-18), produced by `toIsoInstant(date)` inside services. Using strings keeps read models JSON-safe across the server/client boundary.
 3. **Instants are rendered in the viewer's browser time zone** by one client component (Frontend owns it, e.g. `components/local-time.tsx`):
    - It renders `<time dateTime="<ISO Z>">` and formats the value with `Intl.DateTimeFormat` using the browser's zone.
    - To avoid hydration mismatches, the server render and the first client render output the same **stable fallback**: the UTC value with an explicit "UTC" label (e.g. `18 Nov 2026, 09:30 UTC`). The component switches to local time after mount (`useEffect`), so the brief change is expected and there's no mismatch warning.

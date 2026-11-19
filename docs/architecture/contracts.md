@@ -8,7 +8,7 @@ TypeScript source of truth: [`web/src/contracts/`](../../web/src/contracts/). If
 - Every service function is `fn(actor: Actor, ...args)`. No service is callable anonymously. `Actor = { userId, employeeId | null, role }` comes from the session (ADR-0003).
 - "Role" below is the role the **service** enforces. The calling action enforces it too, with `requireRole` (ADR-0004).
 - Services throw `ServiceError` with the listed codes. Actions return `ActionResult<T>` (ADR-0006). `UNAUTHENTICATED`/`INTERNAL` can come from any action and aren't repeated below.
-- Calendar dates are `IsoDate` (`YYYY-MM-DD`, never converted). Instants are `Date` in services, stored as UTC, sent to the client as ISO-8601 with `Z`, and rendered in the viewer's browser time zone. There is no company time zone and no `APP_TIME_ZONE` (ADR-0007; this user decision of 2026-11-18 reverses the earlier director ruling).
+- Calendar dates are `IsoDate` (`YYYY-MM-DD`, never converted). Instants are `UtcTimestamp` in every read model (ISO-8601 UTC strings ending in `Z`, never `Date`; services convert at the Prisma boundary), stored as UTC, and rendered in the viewer's browser time zone. There is no company time zone and no `APP_TIME_ZONE` (ADR-0007; this user decision of 2026-11-18 reverses the earlier director ruling).
 - String inputs are trimmed. Empty optional strings become `null`.
 - Read models allow `null` wherever migrated legacy data can be empty, even when create/update now require the field.
 - Legend: **[CHANGE]** = intentional change from legacy, **[NEW]** = no legacy equivalent (director-approved where listed).
@@ -29,6 +29,14 @@ Implemented by Security in `web/src/auth/` on **Better Auth** (Prisma adapter, d
 | `Role` | `'HR_ADMIN' \| 'EMPLOYEE'` | Legacy `person.access` 1 / 0. |
 
 `SessionUser = { userId, employeeId | null, username, displayName, role, mustChangePassword }`.
+
+**Auth seam (Backend ↔ Security, director ruling):**
+- Backend never imports `@/auth` directly. `web/src/server/auth-seam.ts` re-exports `requireRole` and `requireSession` from `@/auth`, and `defineAction` and services use only the seam, so tests can mock it.
+- **Failure contract:** in throw mode, auth failures throw an `Error` with `name === "AuthError"` and `code` either `"UNAUTHENTICATED"` (no valid session, or the user is disabled or terminated) or `"FORBIDDEN"` (wrong role). `runAction` maps both to `ActionResult` (ADR-0006).
+- **Pending password change:** a user with `mustChangePassword = true` gets `FORBIDDEN` from every action unless that action sets `allowPendingPasswordChange` (only `changePassword` does; `signOut` is `"PUBLIC"`).
+- `defineAction` roles: a `Role`, a list of roles, `"ANY"` (signed in), or `"PUBLIC"` (only allowed under `web/src/auth/`, lint-enforced; used for `signOut`).
+
+**Action input convention:** an action that targets one record with fields takes `{ id, ...fields }`, validated by `<action>ActionSchema` (e.g. `updateEmployeeActionSchema`). It calls the service as `fn(actor, id, fields)`. Id-only actions take `{ id }` (ADR-0002).
 
 ### Account administration (`AccountAdminApi`, server-only, called by Backend's employee service)
 
@@ -146,7 +154,7 @@ Departments and positions. Implemented by Backend in `web/src/server/org/`. Type
 
 1. Name is trimmed, 1–100 characters, required (parity: legacy rejected blank names with "Name required").
 2. **[CHANGE]** Names are unique case-insensitive within their table → `CONFLICT` "A department with this name already exists" on field `name`. Legacy allowed duplicates. Data enforces this with a hand-written unique index on `lower(name)`. Prisma's error for that index may not name the field, so the service checks first, and also catches the unique violation from the insert (a race) and maps it to the same `CONFLICT`.
-3. **Deleting a department or position that employees use [CHANGE]:** rejected with `CONFLICT` "N employees are assigned to this department. Reassign them first." Terminated employees count, because their records keep the reference. The UI disables the delete button when `totalEmployeeCount > 0`. Legacy deleted the row (no foreign key), and those employees then showed an empty position/department everywhere.
+3. **Deleting a department or position that employees use [CHANGE]:** rejected with `CONFLICT` "N employees are assigned to this department. Reassign them first." Terminated employees count, because their records keep the reference. The UI disables the delete button when `totalEmployeeCount > 0`. The service checks first, and also catches a foreign-key violation (P2003) from the delete and converts it to the same `CONFLICT`. Globally, P2003 stays `INTERNAL` (ADR-0006). Legacy deleted the row (no foreign key), and those employees then showed an empty position/department everywhere.
 4. Rename is not supported (parity).
 
 ---
