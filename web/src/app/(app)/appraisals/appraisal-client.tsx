@@ -19,7 +19,7 @@ import { createAppraisalSchema } from "@/lib/validation";
 
 import { stubCommand, stubFormAction } from "../../_stubs/actions";
 
-// TODO(Frontend+Backend): createAppraisal from ./new/actions.ts.
+// TODO(wire): import createAppraisal from @/server/actions.
 const createAppraisalAction = stubFormAction<Appraisal>("createAppraisal");
 
 /** Add appraisal (feature map rows 30–31). Fields = CreateAppraisalInput. */
@@ -109,9 +109,10 @@ export function DeleteAppraisalButton({
       confirmLabel="Delete appraisal"
       pendingLabel="Deleting…"
       destructive
+      successMessage="Appraisal deleted."
       onConfirm={() => {
         void id;
-        // TODO(Frontend+Backend): deleteAppraisal({ id }) from ./actions.ts.
+        // TODO(wire): import deleteAppraisal({ id }) from @/server/actions.
         return stubCommand("deleteAppraisal");
       }}
       onSuccess={() => router.refresh()}

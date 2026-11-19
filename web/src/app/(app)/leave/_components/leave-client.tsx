@@ -23,7 +23,7 @@ import { applyForLeaveSchema } from "@/lib/validation";
 
 import { stubCommand, stubFormAction } from "../../../_stubs/actions";
 
-// TODO(Frontend+Backend): applyForLeave from ../apply/actions.ts.
+// TODO(wire): import applyForLeave from @/server/actions.
 const applyForLeaveAction = stubFormAction<LeaveRequest>("applyForLeave");
 
 /**
@@ -95,7 +95,7 @@ export function DecideLeaveButtons({
   const decide = (decision: LeaveDecision) => {
     void id;
     void decision;
-    // TODO(Frontend+Backend): decideLeave(id, decision) from ../requests/actions.ts.
+    // TODO(wire): import decideLeave(id, decision) from @/server/actions.
     return stubCommand("decideLeave");
   };
   return (
@@ -108,6 +108,7 @@ export function DecideLeaveButtons({
         description={`${employeeName} will see the decision on their dashboard. A decision can't be changed afterwards.`}
         confirmLabel="Approve"
         pendingLabel="Approving…"
+        successMessage="Leave approved."
         onConfirm={() => decide("APPROVED")}
         onSuccess={() => router.refresh()}
       />
@@ -121,6 +122,7 @@ export function DecideLeaveButtons({
         confirmLabel="Reject"
         pendingLabel="Rejecting…"
         destructive
+        successMessage="Leave rejected."
         onConfirm={() => decide("REJECTED")}
         onSuccess={() => router.refresh()}
       />
@@ -138,8 +140,8 @@ export function MarkLeaveDecisionsSeen({ unseen }: { unseen: number }) {
   useEffect(() => {
     if (done.current || unseen === 0) return;
     done.current = true;
-    // TODO(Frontend+Backend): call markLeaveDecisionsSeen() from
-    // ../history/actions.ts (leaveService.markMyLeaveDecisionsSeen).
+    // TODO(wire): import markLeaveDecisionsSeen from @/server/actions
+    // (leaveService.markMyLeaveDecisionsSeen).
     void stubCommand("markLeaveDecisionsSeen");
   }, [unseen]);
   return null;

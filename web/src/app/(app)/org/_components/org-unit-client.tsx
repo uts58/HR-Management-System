@@ -12,8 +12,8 @@ import { stubCommand, stubFormAction } from "../../../_stubs/actions";
 import type { OrgUnitKind } from "./org-unit-copy";
 import { ORG_UNIT_COPY } from "./org-unit-copy";
 
-// TODO(Frontend+Backend): replace with createDepartment / createPosition
-// from ../departments/actions.ts and ../positions/actions.ts.
+// TODO(wire): import createDepartment / createPosition
+// from @/server/actions.
 const createActions = {
   department: stubFormAction("createDepartment"),
   position: stubFormAction("createPosition"),
@@ -80,6 +80,7 @@ export function DeleteOrgUnitButton({
       confirmLabel="Delete"
       pendingLabel="Deleting…"
       destructive
+      successMessage={`${copy.singular} deleted.`}
       onConfirm={() => {
         void id;
         return stubCommand(

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2Icon, CircleAlertIcon } from "lucide-react";
+import { CircleAlertIcon } from "lucide-react";
 import {
   createContext,
   useActionState,
@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "cn";
+import { toast } from "sonner";
 import { z } from "zod";
 
 import type { ActionResult, FieldErrors } from "@/contracts";
@@ -61,7 +62,7 @@ interface ActionFormProps<T> {
   children: ReactNode;
   /** Accessible name for the form (e.g. "Add department"). */
   "aria-label"?: string;
-  /** Message shown after a successful submit. Omit when onSuccess takes over. */
+  /** Success toast (ADR-0006 rule 4). Omit when onSuccess takes over. */
   successMessage?: string;
   /** Runs after a successful submit (e.g. show credentials, close a dialog). */
   onSuccess?: (data: T) => void;
@@ -79,9 +80,9 @@ interface ActionFormProps<T> {
  *   so values survive a failed submit;
  * - exposes `fieldErrors` to <FormField> via context, so errors render next
  *   to their inputs with aria-invalid / aria-describedby;
- * - shows `error.message` in a form-level alert;
- * - moves focus to the first invalid field, else to the alert, and to the
- *   success message after success (WCAG 3.3.1, 4.1.3).
+ * - shows `error.message` in a form-level alert and success as a toast
+ *   (sonner's live region announces it; focus stays where it was);
+ * - moves focus to the first invalid field, else to the alert (WCAG 3.3.1).
  */
 export function ActionForm<T>({
   action,
@@ -100,13 +101,14 @@ export function ActionForm<T>({
   >(action, null);
   const formRef = useRef<HTMLFormElement>(null);
   const alertRef = useRef<HTMLDivElement>(null);
-  const statusRef = useRef<HTMLDivElement>(null);
   const onSuccessRef = useRef(onSuccess);
   const [clientErrors, setClientErrors] = useState<FieldErrors | null>(null);
   const [clientErrorTick, setClientErrorTick] = useState(0);
 
+  const successMessageRef = useRef(successMessage);
   useEffect(() => {
     onSuccessRef.current = onSuccess;
+    successMessageRef.current = successMessage;
   });
 
   useEffect(() => {
@@ -114,7 +116,7 @@ export function ActionForm<T>({
     if (state.ok) {
       if (resetOnSuccess) formRef.current?.reset();
       onSuccessRef.current?.(state.data);
-      statusRef.current?.focus();
+      if (successMessageRef.current) toast.success(successMessageRef.current);
       return;
     }
     const firstInvalid = formRef.current?.querySelector<HTMLElement>(
@@ -164,17 +166,6 @@ export function ActionForm<T>({
             <AlertTitle>{errorTitle}</AlertTitle>
             <AlertDescription>{serverError.message}</AlertDescription>
           </Alert>
-        )}
-        {state?.ok && !clientErrors && successMessage && (
-          <div
-            ref={statusRef}
-            tabIndex={-1}
-            role="status"
-            className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm font-medium text-success outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <CheckCircle2Icon className="size-4 shrink-0" aria-hidden="true" />
-            {successMessage}
-          </div>
         )}
         {children}
       </form>
