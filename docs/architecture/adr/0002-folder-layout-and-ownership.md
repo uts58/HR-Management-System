@@ -53,7 +53,7 @@ If an action needs more than that, the extra logic goes into the service (Backen
 | Module | May import from |
 |---|---|
 | `contracts/` | nothing (only other contract files) |
-| `lib/validation/` | `zod`, `contracts/` |
+| `lib/validation/` | `zod`, `contracts/`, `@/lib/dates` (pure and client-safe, director ruling) |
 | `server/` | `contracts/`, `lib/`, `@/generated/prisma/*`, `@prisma/adapter-pg`, `auth/` (types, plus `AccountAdminApi` per ADR-0004 rule 10) |
 | `auth/` | `better-auth` (**only here**), `contracts/`, `lib/`, `server/db.ts` (Prisma client for the adapter and user lookups) |
 | `app/` | `auth/`, `server/<domain>/*` services (only from server components/actions; **never** `server/db`), `lib/`, `contracts/`, `components/` |
@@ -72,7 +72,8 @@ The lint rules must cover paths as well as package names:
 - Every export of a `'use server'` file must be `export const x = defineAction({ role, schema, handler })`. Backend provides `defineAction` in `server/action.ts`; it runs `requireRole` → `schema.parse` → `handler(actor, input)` inside `runAction`.
 - A local ESLint rule (Platform) rejects any other export form in `'use server'` files, and inline `'use server'` functions outside them.
 - QA's authorization-matrix test is the runtime backstop (ADR-0004).
-- Exceptions (`signOut`, `changePassword` in `auth/actions.ts`) use `defineAction({ role: 'ANY', allowPendingPasswordChange })`.
+- `role` is a `Role`, a list of roles, `"ANY"` (any signed-in user), or `"PUBLIC"` (no session needed). **`"PUBLIC"` is allowed only in files under `web/src/auth/`** (lint-enforced) and is used only for the idempotent `signOut`. `changePassword` uses `"ANY"` with `allowPendingPasswordChange: true`. Sign-in is not a server action (ADR-0004).
+- **Action input shape:** an action that targets one record and takes fields receives a single object `{ id, ...fields }`, validated by one schema named `<action>ActionSchema` (e.g. `updateEmployeeActionSchema = updateEmployeeSchema.extend({ id })`). The action then calls `service(actor, id, fields)`. Actions that only need an id take `{ id }`.
 
 ## Consequences
 
