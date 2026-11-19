@@ -112,12 +112,13 @@ describe("calendar arithmetic and today", () => {
       expect(isBeforeTodayLenient(iso("2026-11-17"), now)).toBe(true);
     });
 
-    it("accepts today's UTC date (already yesterday for users ahead of UTC)", () => {
+    it("accepts up to the UTC date + 1 day (ADR-0007 rule 4)", () => {
       expect(isBeforeTodayLenient(iso("2026-11-18"), now)).toBe(true);
+      expect(isBeforeTodayLenient(iso("2026-11-19"), now)).toBe(true);
     });
 
-    it("rejects tomorrow and later", () => {
-      expect(isBeforeTodayLenient(iso("2026-11-19"), now)).toBe(false);
+    it("rejects later dates", () => {
+      expect(isBeforeTodayLenient(iso("2026-11-20"), now)).toBe(false);
       expect(isBeforeTodayLenient(iso("2030-01-01"), now)).toBe(false);
     });
   });

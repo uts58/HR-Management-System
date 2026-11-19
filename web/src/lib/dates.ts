@@ -98,16 +98,16 @@ export function utcTodayIso(now: Date = new Date()): IsoDate {
 }
 
 /**
- * "Strictly before today" with a one-day tolerance: accepts every date up to
- * and including today's UTC date. Users ahead of UTC (whose yesterday is
- * already today in UTC) are never wrongly rejected; users behind UTC may
- * enter their own today, which is the accepted cost of having no zone.
+ * Server rule for "before today" (ADR-0007 rule 4): the viewer's zone is
+ * unknown, so it accepts `iso <= todayUtc + 1 day`. No valid input is
+ * rejected in any zone; an edge-day input the tolerance lets through is
+ * harmless. Client forms may add a stricter check with the browser's date.
  */
 export function isBeforeTodayLenient(
   iso: IsoDate,
   now: Date = new Date(),
 ): boolean {
-  return iso < addDaysIso(utcTodayIso(now), 1);
+  return iso <= addDaysIso(utcTodayIso(now), 1);
 }
 
 /** Display a calendar date as-is, or "—" when missing. */
