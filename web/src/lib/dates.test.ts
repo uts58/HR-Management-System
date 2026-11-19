@@ -2,17 +2,20 @@ import { describe, expect, it } from "vitest";
 import type { IsoDate } from "@/contracts/common";
 import {
   EMPTY_DATE,
+  addDaysIso,
   compareIsoDatesNullsLast,
-  formatInstant,
-  formatIsoDate,
-  instantToIsoDate,
+  displayIsoDate,
+  isBeforeTodayLenient,
   isIsoDate,
+  isUtcTimestamp,
   isoDateToUtcDate,
-  latestTodayIso,
   parseIsoDate,
+  parseUtcTimestamp,
   toIsoDate,
   toIsoDateOrNull,
-  todayIso,
+  toUtcTimestamp,
+  toUtcTimestampOrNull,
+  utcTodayIso,
 } from "./dates";
 
 const iso = (s: string) => s as IsoDate;
@@ -57,7 +60,6 @@ describe("Prisma @db.Date boundary", () => {
   });
 
   it("toIsoDate ignores the time of day and the process zone", () => {
-    // 23:30 UTC is already the next day east of UTC, but @db.Date is UTC.
     expect(toIsoDate(new Date("2026-06-30T23:30:00.000Z"))).toBe("2026-06-30");
   });
 
@@ -88,76 +90,47 @@ describe("Prisma @db.Date boundary", () => {
   });
 });
 
-describe("business day", () => {
-  // 2026-11-17 20:30 UTC: already 18 Nov in Dhaka (UTC+6), still 17 Nov in
-  // New York (UTC-5).
-  const instant = new Date("2026-11-17T20:30:00.000Z");
-
-  it("instantToIsoDate uses the given zone", () => {
-    expect(instantToIsoDate(instant, "Asia/Dhaka")).toBe("2026-11-18");
-    expect(instantToIsoDate(instant, "America/New_York")).toBe("2026-11-17");
-    expect(instantToIsoDate(instant, "UTC")).toBe("2026-11-17");
+describe("calendar arithmetic and today", () => {
+  it("addDaysIso crosses month, year and leap-day boundaries", () => {
+    expect(addDaysIso(iso("2026-01-31"), 1)).toBe("2026-02-01");
+    expect(addDaysIso(iso("2026-12-31"), 1)).toBe("2027-01-01");
+    expect(addDaysIso(iso("2024-02-28"), 1)).toBe("2024-02-29");
+    expect(addDaysIso(iso("2026-03-01"), -1)).toBe("2026-02-28");
   });
 
-  it("todayIso uses the company zone, not the process zone", () => {
-    expect(todayIso("Asia/Dhaka", instant)).toBe("2026-11-18");
-    expect(todayIso("America/Los_Angeles", instant)).toBe("2026-11-17");
+  it("utcTodayIso is the UTC calendar date", () => {
+    expect(utcTodayIso(new Date("2026-11-17T23:59:59Z"))).toBe("2026-11-17");
+    expect(utcTodayIso(new Date("2026-11-18T00:00:00Z"))).toBe("2026-11-18");
+    expect(isIsoDate(utcTodayIso())).toBe(true);
   });
 
-  it("todayIso defaults to now and returns an IsoDate", () => {
-    expect(isIsoDate(todayIso("UTC"))).toBe(true);
-  });
+  describe("isBeforeTodayLenient (UTC date, one-day tolerance)", () => {
+    const now = new Date("2026-11-18T03:00:00Z");
 
-  it("todayIso handles DST transitions", () => {
-    // 2026-03-08 07:59 UTC = 2026-03-07 23:59 PST (before the switch).
-    expect(
-      todayIso("America/Los_Angeles", new Date("2026-03-08T07:59:00Z")),
-    ).toBe("2026-03-07");
-    // 2026-03-09 08:00 UTC = 01:00 PDT on 9 Mar (after the switch).
-    expect(
-      todayIso("America/Los_Angeles", new Date("2026-03-09T08:00:00Z")),
-    ).toBe("2026-03-09");
-  });
+    it("accepts past dates", () => {
+      expect(isBeforeTodayLenient(iso("1990-05-01"), now)).toBe(true);
+      expect(isBeforeTodayLenient(iso("2026-11-17"), now)).toBe(true);
+    });
 
-  it("latestTodayIso is the UTC+14 date", () => {
-    expect(latestTodayIso(new Date("2026-11-17T10:00:00Z"))).toBe("2026-11-18");
-    expect(latestTodayIso(new Date("2026-11-17T09:59:00Z"))).toBe("2026-11-17");
+    it("accepts today's UTC date (already yesterday for users ahead of UTC)", () => {
+      expect(isBeforeTodayLenient(iso("2026-11-18"), now)).toBe(true);
+    });
+
+    it("rejects tomorrow and later", () => {
+      expect(isBeforeTodayLenient(iso("2026-11-19"), now)).toBe(false);
+      expect(isBeforeTodayLenient(iso("2030-01-01"), now)).toBe(false);
+    });
   });
 });
 
-describe("formatIsoDate", () => {
-  it("formats as d MMM yyyy in en-GB", () => {
-    expect(formatIsoDate(iso("1990-01-01"))).toBe("1 Jan 1990");
-    expect(formatIsoDate(iso("2026-12-31"))).toBe("31 Dec 2026");
+describe("displayIsoDate", () => {
+  it("shows the calendar date as-is", () => {
+    expect(displayIsoDate(iso("1990-01-01"))).toBe("1990-01-01");
   });
 
-  it("shows a dash for null (unparseable migrated dates)", () => {
-    expect(formatIsoDate(null)).toBe(EMPTY_DATE);
-    expect(formatIsoDate(undefined)).toBe("—");
-  });
-
-  it("accepts another locale", () => {
-    expect(formatIsoDate(iso("2026-07-04"), "en-US")).toBe("Jul 4, 2026");
-  });
-});
-
-describe("formatInstant", () => {
-  const instant = new Date("2026-11-17T20:30:00.000Z");
-
-  it("formats in the given zone with time by default", () => {
-    expect(formatInstant(instant, "Asia/Dhaka")).toBe("18 Nov 2026, 02:30");
-    expect(formatInstant(instant, "UTC")).toBe("17 Nov 2026, 20:30");
-  });
-
-  it("can omit the time", () => {
-    expect(formatInstant(instant, "Asia/Dhaka", { time: false })).toBe(
-      "18 Nov 2026",
-    );
-  });
-
-  it("shows a dash for null or an invalid Date", () => {
-    expect(formatInstant(null, "UTC")).toBe(EMPTY_DATE);
-    expect(formatInstant(new Date("x"), "UTC")).toBe(EMPTY_DATE);
+  it("shows a dash for missing (unparseable migrated) dates", () => {
+    expect(displayIsoDate(null)).toBe(EMPTY_DATE);
+    expect(displayIsoDate(undefined)).toBe("—");
   });
 });
 
@@ -191,5 +164,37 @@ describe("compareIsoDatesNullsLast", () => {
       0,
     );
     expect(compareIsoDatesNullsLast(null, undefined)).toBe(0);
+  });
+});
+
+describe("UTC timestamps", () => {
+  it("serialises an instant as ISO-8601 with Z", () => {
+    const d = new Date(Date.UTC(2026, 10, 18, 9, 30, 5, 123));
+    expect(toUtcTimestamp(d)).toBe("2026-11-18T09:30:05.123Z");
+  });
+
+  it("nullable variant and invalid Date", () => {
+    expect(toUtcTimestampOrNull(null)).toBeNull();
+    expect(toUtcTimestampOrNull(undefined)).toBeNull();
+    expect(() => toUtcTimestamp(new Date("x"))).toThrow(RangeError);
+  });
+
+  it("round-trips through parseUtcTimestamp", () => {
+    const d = new Date("2026-01-02T03:04:05.006Z");
+    expect(parseUtcTimestamp(toUtcTimestamp(d)).getTime()).toBe(d.getTime());
+    expect(parseUtcTimestamp("2026-01-02T03:04:05Z").toISOString()).toBe(
+      "2026-01-02T03:04:05.000Z",
+    );
+  });
+
+  it.each([
+    "2026-01-02T03:04:05+06:00", // offset, not Z
+    "2026-01-02T03:04:05", // no zone
+    "2026-01-02",
+    "2026-02-30T00:00:00Z",
+    "not a date",
+  ])("rejects %j", (v) => {
+    expect(isUtcTimestamp(v)).toBe(false);
+    expect(() => parseUtcTimestamp(v)).toThrow(RangeError);
   });
 });

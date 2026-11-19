@@ -185,16 +185,16 @@ describe("createEmployeeSchema", () => {
     },
   );
 
-  it("rejects a date of birth that is today or later everywhere", () => {
-    // now = 2026-11-17 12:00Z, which is 18 Nov in UTC+14.
+  it("date of birth must be before today (UTC date, one-day tolerance)", () => {
+    // now = 2026-11-17 12:00Z. Tomorrow (UTC) and later are rejected.
     for (const dateOfBirth of ["2026-11-18", "2030-01-01"]) {
       expect(
         errorsOf(createEmployeeSchema, { ...validEmployeeForm, dateOfBirth })
           .dateOfBirth,
       ).toEqual(["Date of birth must be in the past"]);
     }
-    // Whether 17 Nov is already "today" in the company zone is
-    // decided by the service; the schema lets it through.
+    // Today's UTC date is tolerated: for users ahead of UTC it is already
+    // yesterday.
     expect(
       createEmployeeSchema.safeParse({
         ...validEmployeeForm,

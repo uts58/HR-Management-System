@@ -1,35 +1,39 @@
 /**
- * Date and time helpers (ADR-0007). The only place that formats dates.
+ * Date helpers. Client-safe: no env, no time zones.
  *
- * Two kinds of value, never mixed:
- * - Calendar dates (`IsoDate`, `YYYY-MM-DD`): date of birth, leave and
- *   project ranges. Compared as strings (lexical order is chronological).
- *   Converted to/from `Date` only at the Prisma boundary, where Prisma
- *   represents `@db.Date` as UTC midnight.
- * - Instants (`Date`): createdAt, decidedAt, terminatedAt. Stored as UTC,
- *   displayed in the company zone (`APP_TIME_ZONE`).
- *
- * This module is safe to import from client code: it never reads `env`.
- * Server code that needs the company zone uses `@/server/time`, which passes
- * `env.APP_TIME_ZONE` into these functions.
+ * Ruling (director, 2026-11-18; supersedes ADR-0007 as written):
+ * - There is no company time zone.
+ * - Calendar dates (`IsoDate`, `YYYY-MM-DD`: date of birth, leave and project
+ *   ranges) are never converted between zones. They travel as `YYYY-MM-DD`,
+ *   are compared as strings (lexical order is chronological) and are shown
+ *   as-is. They become a `Date` only at the Prisma boundary, where `@db.Date`
+ *   is represented as UTC midnight and read with UTC getters.
+ * - Instants (createdAt, decidedAt, terminatedAt) are stored in UTC and sent
+ *   to the client as ISO-8601 strings ending in `Z`. The client renders them
+ *   in the viewer's own zone (Frontend's component); nothing here formats
+ *   them for display.
+ * - Server-side "today" checks use the UTC date with a one-day tolerance,
+ *   and only where contracts.md requires one (date of birth before today).
  */
 
 import type { IsoDate } from "@/contracts/common";
 
-/** Shown wherever a date is missing (unparseable migrated legacy values). */
+/** Shown wherever a calendar date is missing (unparseable migrated rows). */
 export const EMPTY_DATE = "—";
 
-/** Default display locale (ADR-0007: `d MMM yyyy`, e.g. "1 Jan 1990"). */
-export const DEFAULT_LOCALE = "en-GB";
-
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
+const isLeapYear = (y: number) =>
+  (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
 function daysInMonth(year: number, month: number): number {
-  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-  return month === 2 && leap ? 29 : (DAYS_IN_MONTH[month - 1] ?? 0);
+  return month === 2 && isLeapYear(year) ? 29 : (DAYS_IN_MONTH[month - 1] ?? 0);
 }
+
+const pad = (n: number, width = 2) => String(n).padStart(width, "0");
+
+// ─── Calendar dates ─────────────────────────────────────────────────────────
 
 /** True for a real calendar date written exactly as `YYYY-MM-DD`. */
 export function isIsoDate(value: unknown): value is IsoDate {
@@ -43,7 +47,7 @@ export function isIsoDate(value: unknown): value is IsoDate {
   return day <= daysInMonth(year, month);
 }
 
-/** Narrow a string to `IsoDate`, throwing if it is not one. */
+/** Narrow a string to `IsoDate`, throwing `RangeError` if it is not one. */
 export function parseIsoDate(value: string): IsoDate {
   if (!isIsoDate(value)) {
     throw new RangeError(
@@ -53,22 +57,18 @@ export function parseIsoDate(value: string): IsoDate {
   return value;
 }
 
-const pad = (n: number, width = 2) => String(n).padStart(width, "0");
-
 /**
  * Prisma `@db.Date` value (UTC midnight) -> `IsoDate`, read with UTC
  * getters so the server's zone can never shift the day.
  */
 export function toIsoDate(date: Date): IsoDate {
-  if (Number.isNaN(date.getTime())) {
-    throw new RangeError("Invalid Date");
-  }
+  if (Number.isNaN(date.getTime())) throw new RangeError("Invalid Date");
   return `${pad(date.getUTCFullYear(), 4)}-${pad(date.getUTCMonth() + 1)}-${pad(
     date.getUTCDate(),
   )}` as IsoDate;
 }
 
-/** Nullable variant for read models built from nullable DB columns. */
+/** Nullable variant, for read models built from nullable DB columns. */
 export function toIsoDateOrNull(date: Date | null | undefined): IsoDate | null {
   return date == null ? null : toIsoDate(date);
 }
@@ -81,104 +81,38 @@ export function isoDateToUtcDate(iso: IsoDate): Date {
     number,
   ];
   const date = new Date(Date.UTC(y, m - 1, d));
-  // Date.UTC maps years 0..99 to 1900..1999; undo that.
-  date.setUTCFullYear(y);
+  date.setUTCFullYear(y); // Date.UTC maps years 0..99 to 1900..1999
   return date;
 }
 
-// Intl formatters are relatively expensive to build; cache by key.
-const formatterCache = new Map<string, Intl.DateTimeFormat>();
-function formatter(
-  locale: string,
-  options: Intl.DateTimeFormatOptions,
-): Intl.DateTimeFormat {
-  const key = `${locale}|${JSON.stringify(options)}`;
-  let f = formatterCache.get(key);
-  if (!f) {
-    f = new Intl.DateTimeFormat(locale, options);
-    formatterCache.set(key, f);
-  }
-  return f;
+/** Add (or subtract) whole days to a calendar date. */
+export function addDaysIso(iso: IsoDate, days: number): IsoDate {
+  const date = isoDateToUtcDate(iso);
+  date.setUTCDate(date.getUTCDate() + days);
+  return toIsoDate(date);
+}
+
+/** Today's date in UTC. */
+export function utcTodayIso(now: Date = new Date()): IsoDate {
+  return toIsoDate(now);
 }
 
 /**
- * The calendar date of `instant` in time zone `timeZone`. This is the
- * boundary where an instant becomes a business day.
+ * "Strictly before today" with a one-day tolerance: accepts every date up to
+ * and including today's UTC date. Users ahead of UTC (whose yesterday is
+ * already today in UTC) are never wrongly rejected; users behind UTC may
+ * enter their own today, which is the accepted cost of having no zone.
  */
-export function instantToIsoDate(instant: Date, timeZone: string): IsoDate {
-  const parts = formatter("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(instant);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((p) => p.type === type)?.value);
-  return `${pad(get("year"), 4)}-${pad(get("month"))}-${pad(get("day"))}` as IsoDate;
+export function isBeforeTodayLenient(
+  iso: IsoDate,
+  now: Date = new Date(),
+): boolean {
+  return iso < addDaysIso(utcTodayIso(now), 1);
 }
 
-/**
- * "Today" as a business day in `timeZone`. Server code always passes
- * `env.APP_TIME_ZONE` (or uses `businessTodayIso()` from `@/server/time`);
- * never use `new Date()` with local getters.
- */
-export function todayIso(timeZone: string, now: Date = new Date()): IsoDate {
-  return instantToIsoDate(now, timeZone);
-}
-
-/**
- * The latest calendar date that is "today" anywhere on Earth (UTC+14).
- * Client-side schemas use it for "must be in the past" checks, because the
- * browser does not know the company zone: a date on or after this is in the
- * future in every zone. The service re-checks against the company zone.
- */
-export function latestTodayIso(now: Date = new Date()): IsoDate {
-  return instantToIsoDate(now, "Pacific/Kiritimati");
-}
-
-/**
- * Display a calendar date, e.g. "1 Jan 1990". `null` gives "—".
- * Formatting goes through a UTC-midnight `Date` with `timeZone: "UTC"`, so
- * no zone can shift the day.
- */
-export function formatIsoDate(
-  iso: IsoDate | null | undefined,
-  locale: string = DEFAULT_LOCALE,
-): string {
-  if (iso == null) return EMPTY_DATE;
-  return formatter(locale, {
-    timeZone: "UTC",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(isoDateToUtcDate(iso));
-}
-
-export interface FormatInstantOptions {
-  locale?: string;
-  /** Include the time of day (default true): "1 Jan 2026, 14:05". */
-  time?: boolean;
-}
-
-/**
- * Display an instant in `timeZone`, e.g. "1 Jan 2026, 14:05".
- * Always called on the server with `env.APP_TIME_ZONE` (see
- * `formatTimestamp` in `@/server/time`), so every user sees the same text
- * and there is no hydration mismatch. `null` gives "—".
- */
-export function formatInstant(
-  instant: Date | null | undefined,
-  timeZone: string,
-  { locale = DEFAULT_LOCALE, time = true }: FormatInstantOptions = {},
-): string {
-  if (instant == null || Number.isNaN(instant.getTime())) return EMPTY_DATE;
-  return formatter(locale, {
-    timeZone,
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    ...(time ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : {}),
-  }).format(instant);
+/** Display a calendar date as-is, or "—" when missing. */
+export function displayIsoDate(iso: IsoDate | null | undefined): string {
+  return iso ?? EMPTY_DATE;
 }
 
 /**
@@ -196,4 +130,45 @@ export function compareIsoDatesNullsLast(
   if (a === b) return 0;
   const cmp = a < b ? -1 : 1;
   return direction === "asc" ? cmp : -cmp;
+}
+
+// ─── Instants ───────────────────────────────────────────────────────────────
+
+/** ISO-8601 UTC timestamp string, e.g. `2026-11-18T09:30:00.000Z`. */
+export type UtcTimestamp = string & { readonly __brand: "UtcTimestamp" };
+
+const UTC_TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
+
+/** Serialise an instant for the client: ISO-8601 in UTC with `Z`. */
+export function toUtcTimestamp(instant: Date): UtcTimestamp {
+  if (Number.isNaN(instant.getTime())) throw new RangeError("Invalid Date");
+  return instant.toISOString() as UtcTimestamp;
+}
+
+/** Nullable variant (migrated rows have no createdAt). */
+export function toUtcTimestampOrNull(
+  instant: Date | null | undefined,
+): UtcTimestamp | null {
+  return instant == null ? null : toUtcTimestamp(instant);
+}
+
+/** True for an ISO-8601 UTC string with an explicit `Z` that parses. */
+export function isUtcTimestamp(value: unknown): value is UtcTimestamp {
+  if (typeof value !== "string" || !UTC_TS_RE.test(value)) return false;
+  const ms = Date.parse(value);
+  // Round-trip rejects values engines roll over, such as 30 February.
+  return (
+    !Number.isNaN(ms) &&
+    new Date(ms).toISOString().slice(0, 19) === value.slice(0, 19)
+  );
+}
+
+/** Parse a UTC timestamp string back into a `Date`. */
+export function parseUtcTimestamp(value: string): Date {
+  if (!isUtcTimestamp(value)) {
+    throw new RangeError(
+      `Not an ISO-8601 UTC timestamp: ${JSON.stringify(value)}`,
+    );
+  }
+  return new Date(value);
 }

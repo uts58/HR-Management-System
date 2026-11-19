@@ -1,14 +1,12 @@
 /**
  * Employee input schemas (contracts.md#employee, ADR-0005).
  *
- * Rules that need the database or the company time zone are re-checked in
- * the service (ADR-0005 rule 7):
- * - department/position must exist, username must be free;
- * - date of birth must be before today in APP_TIME_ZONE. The schema only
- *   rejects dates that are today or later in every zone (the browser does
- *   not know the company zone); the service compares against
- *   `businessTodayIso()` and throws VALIDATION on `dateOfBirth` with
- *   DATE_OF_BIRTH_NOT_PAST.
+ * Rules that need the database are checked in the service (ADR-0005 rule 7):
+ * department/position must exist, username must be free.
+ *
+ * Date of birth "before today" uses the UTC date with a one-day tolerance
+ * (director ruling 2026-11-18: no company time zone), so the same check is
+ * exact on the client and the server and needs no service re-check.
  */
 
 import { z } from "zod";
@@ -22,7 +20,7 @@ import {
   type EmployeeStatusFilter,
   type UpdateEmployeeInput,
 } from "@/contracts/employee";
-import { latestTodayIso } from "@/lib/dates";
+import { isBeforeTodayLenient } from "@/lib/dates";
 import {
   entityIdSchema,
   enumField,
@@ -84,7 +82,7 @@ const emailField = z
   .pipe(z.email({ error: "Enter a valid email address" }));
 
 const dateOfBirthField = isoDateField("Date of birth").refine(
-  (v) => v < latestTodayIso(),
+  (v) => isBeforeTodayLenient(v),
   { error: DATE_OF_BIRTH_NOT_PAST },
 );
 
