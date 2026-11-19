@@ -18,11 +18,12 @@ Config (Security owns `web/src/auth/`; option names checked against the Better A
 | Persistence | `prismaAdapter(prisma, { provider: 'postgresql' })` (`better-auth/adapters/prisma`). Data adds the Better Auth models (`user`, `session`, `account`, `verification`, generated with `npx auth generate`) to `web/prisma/schema.prisma`. |
 | Username login | `username()` plugin with `emailAndPassword.enabled: true`. Usernames are lower-cased by default, which matches legacy's case-insensitive login. Sign-in endpoint is `/sign-in/username`. |
 | No self sign-up | `emailAndPassword.disableSignUp: true`. HR creates accounts on the server (`AccountAdminApi`). |
-| Our fields | `user.additionalFields`: `role` (`HR_ADMIN`/`EMPLOYEE`, `input: false`), `mustChangePassword`, `employeeId`, `legacyPersonId`, `disabledAt` (`input: false`), `emailIsPlaceholder` (`input: false`). Accounts without a real email get `<username>@users.invalid` with `emailIsPlaceholder = true`; a DB CHECK enforces the pairing. `terminateEmployee` sets `disabledAt` through `AccountAdminApi.disableLogin`. |
+| Our fields | `user.additionalFields`: `role` (`HR_ADMIN`/`EMPLOYEE`), `mustChangePassword`, `employeeId`, `legacyPersonId`, `disabledAt`, `emailIsPlaceholder`. **All six are `input: false`** (Security Phase 1), so no Better Auth endpoint can set them from a request; only `AccountAdminApi` and the migration write them. Accounts without a real email get `<username>@users.invalid` with `emailIsPlaceholder = true`; a DB CHECK enforces the pairing. `terminateEmployee` sets `disabledAt` through `AccountAdminApi.disableLogin`. |
 | Sessions | **Database-backed** (Better Auth default). `session.cookieCache` stays **disabled**, so every `getSession()` reads the DB and role changes or terminations apply immediately. Defaults: 7-day expiry, refreshed daily. |
+| HTTP surface | **Allowlisted** (Security Phase 1). The `app/api/auth/[...all]` handler serves only `/sign-in/username`, `/sign-out`, `/get-session`, `/ok` and `/error`. Every other Better Auth path returns **404**, so endpoints a plugin adds later stay closed until someone reviews them. |
 | Next.js | Handler at `app/api/auth/[...all]/route.ts` via `toNextJsHandler(auth)`. `nextCookies()` plugin (listed last) so server actions can set and clear cookies. Server code calls `auth.api.getSession({ headers: await headers() })`, but only inside `web/src/auth`. |
 | Password hashing | **argon2id via `@node-rs/argon2`** for every new hash (director ruling), plugged in through `emailAndPassword.password.{hash,verify}`. Parameters: at least the OWASP baseline (m = 19 MiB, t = 2, p = 1). `verify` also accepts legacy **bcrypt** hashes (`$2a$`/`$2b$`/`$2y$`) and checks them with a bcrypt library (Platform adds `bcryptjs` to `web/`). See rule 7 for the rehash. Policy: min 8 / max 128. |
-| Rate limiting | Built in, **production only by default, and only for HTTP requests to `/api/auth/*`. Server-side `auth.api` calls are not limited.** So sign-in goes from the browser to `/api/auth/sign-in/username` (wrapped by `web/src/auth/client.ts`), not through a server action. Add a `customRules` entry for `/sign-in/username` (e.g. 3 per 10 s; the built-in strict rule is documented for `/sign-in/email`). Use `storage: 'database'` if we ever run more than one container. Behind the reverse proxy, set `advanced.ipAddress.ipAddressHeaders` to the one header our proxy overwrites (Platform confirms which). |
+| Rate limiting | Built in, **production only by default, and only for HTTP requests to `/api/auth/*`. Server-side `auth.api` calls are not limited.** So sign-in goes from the browser to `/api/auth/sign-in/username` (wrapped by `web/src/auth/client.ts`), not through a server action. **Limits as implemented (Security Phase 1):** about 50 requests per 60 s per IP, plus 10 failed sign-ins per 60 s per username+IP (legacy parity; keying on username+IP stops a remote attacker locking an account out). Stored **in memory, single instance in v1**. Moving to `storage: 'database'` (or shared storage) is required before running more than one container. Behind the reverse proxy, set `advanced.ipAddress.ipAddressHeaders` to the one header our proxy overwrites (Platform confirms which). |
 | Termination | `AccountAdminApi.disableLogin` sets **`users.disabledAt`** and deletes the user's sessions. Sign-in is rejected for disabled users with the generic failure, enforced in a `hooks.before` on `/sign-in/username`. `getSession()` returns null when `disabledAt` is set or the employee is TERMINATED. **No admin plugin** (director ruling): our `role` column is the source of truth, and Better Auth's `role`/`banned` fields are not used. |
 
 **Nothing outside `web/src/auth/` imports `better-auth`.** Callers use the API below, so the library can be swapped later.
@@ -39,6 +40,17 @@ AuthClientApi.signInWithUsername                                // browser
 AuthActions: signOut, changePassword                            // server actions
 ```
 
+**Module surface** (Security Phase 1). Nothing else in `web/src/auth/` may be imported from outside it:
+
+| Import | Contents | Where it may be used |
+|---|---|---|
+| `@/auth` | `getSession`, `requireSession`, `requireRole`, `AccountAdminApi`, `Role` | server only (`import 'server-only'`) |
+| `@/auth/actions` | `changePassword`, `signOut` server actions | forms and the user menu |
+| `@/auth/client` | `signInWithUsername` | browser only, the sign-in form |
+| `@/auth/paths` | route constants (`/login`, `/change-password`, `/forbidden`, …) | anywhere (pure) |
+
+**Backlog:** check new passwords against a breached-password list (e.g. k-anonymity range queries). Not in v1.
+
 ### Rules
 
 1. **Every** server action, route handler and protected page calls `requireRole()` or `requireSession()` **as its first statement**. `getSession()` is only for pages that render for both anonymous and signed-in users (the login page, which redirects signed-in users).
@@ -47,7 +59,11 @@ AuthActions: signOut, changePassword                            // server action
    - **`"PUBLIC"` skips the session check. It is allowed only in files under `web/src/auth/`** (enforced by Platform's lint rule), and its only use is the idempotent `signOut`, which must work even with an expired session.
    - Sign-in is still never a server action: it goes through Better Auth's HTTP endpoint so the rate limiter applies.
    - **Seam:** Backend imports auth only through `web/src/server/auth-seam.ts`, which re-exports `requireRole` and `requireSession` from `@/auth`. This keeps services and `defineAction` testable with a mocked seam.
-3. **Proxy (`web/src/proxy.ts`) is optimistic only.** It uses `getSessionCookie()` (cookie present or not) to send anonymous users to `/login`. It is never the authorization boundary, as both the Next.js and Better Auth docs warn. The `mustChangePassword` redirect happens in `requireSession`/`requireRole`, because the proxy deliberately doesn't hit the DB.
+3. **Proxy (`web/src/proxy.ts`) is optimistic only** and is never the authorization boundary, as both the Next.js and Better Auth docs warn. It doesn't hit the DB.
+   - It uses `getSessionCookie()` (cookie present or not) to send anonymous page loads to `/login`.
+   - **Forced password change (revised, Security Phase 1):** sign-in sets an `hr.must_change_password` hint cookie when the flag is on, and the proxy redirects page loads to `/change-password` while it's present. This replaces the earlier wording that the proxy doesn't enforce it.
+   - The hint is a UX shortcut only. **The authoritative check stays server-side** in `requireSession`/`requireRole`: pages redirect to `/change-password` and actions get `FORBIDDEN`, unless they set `allowPendingPasswordChange`. Deleting or forging the cookie changes nothing about what the user can do.
+   - **Role failures in pages redirect to `/forbidden`.** We don't use Next's experimental `authInterrupts` (`forbidden()`/`unauthorized()`). Actions return `FORBIDDEN` through `defineAction`/`runAction`.
 4. Layouts are not an auth boundary. Check in each page or its data loader.
 5. Services check the role again and enforce ownership (ADR-0003). Ownership comes from `actor.employeeId`, **never from a request parameter**.
 6. `getSession()` is memoised per request with React `cache`. It returns null when the session has expired or been revoked, the user no longer exists, or the linked employee is TERMINATED.
