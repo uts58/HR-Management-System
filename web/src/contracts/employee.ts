@@ -150,7 +150,7 @@ export interface CreateEmployeeInput {
   email: string; // valid email, max 254, stored lower-case
   gender: Gender;
   maritalStatus: MaritalStatus;
-  dateOfBirth: IsoDate; // must be in the past
+  dateOfBirth: IsoDate; // in the past; server allows <= UTC today + 1 day (ADR-0007)
   /**
    * Optional; matches USERNAME_PATTERN. Default is first.last (lower-case,
    * ASCII-folded, invalid characters dropped) plus a number if taken.

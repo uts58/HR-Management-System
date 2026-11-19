@@ -38,8 +38,9 @@ export type IsoDate = string & { readonly __brand: "IsoDate" };
 
 /**
  * A point in time (createdAt, decidedAt). Stored as timestamptz (UTC).
- * Displayed in the company zone (APP_TIME_ZONE), formatted on the server
- * (ADR-0007).
+ * Serialised to the client as ISO-8601 with `Z` and rendered in the
+ * viewer's browser time zone by the client time component; there is no
+ * company time zone (ADR-0007, user decision 2026-11-18).
  */
 export type Timestamp = Date;
 
