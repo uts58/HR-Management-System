@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import type { Timestamp } from "@/contracts";
+import type { UtcTimestamp } from "@/contracts";
 
 const noopSubscribe = () => () => {};
 
@@ -15,63 +15,72 @@ function useIsClient() {
   );
 }
 
+const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** Deterministic fallback, identical on server and first client render. */
-function utcFallback(date: Date, withTime: boolean) {
-  const day = `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
-  return withTime
-    ? `${day} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`
-    : day;
+/**
+ * Stable fallback, identical on the server and the first client render
+ * (ADR-0007 rule 3): "18 Nov 2026, 09:30 UTC". Built from UTC getters, so
+ * it does not depend on the server's or browser's locale or zone.
+ */
+function utcFallback(date: Date, dateOnly: boolean) {
+  const day = `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return dateOnly
+    ? `${day} UTC`
+    : `${day}, ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
+}
+
+function NotRecorded() {
+  return (
+    <span>
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">Not recorded</span>
+    </span>
+  );
 }
 
 /**
- * A point in time (createdAt, decidedAt, notice dates…) shown in the
- * VIEWER'S browser time zone and locale.
+ * The only UI formatter for instants (ADR-0007 rule 3): createdAt,
+ * decidedAt, terminatedAt, notice dates…
  *
- * Timestamps arrive as UTC ISO-8601 strings (a Date is accepted too). The
- * server and the hydration render output a stable UTC fallback, so there is
- * no hydration mismatch; after mount the text switches to the local format.
- * The element is a semantic <time> whose `title` holds the full timestamp
- * with the zone name. Null (migrated rows) renders "—".
+ * Takes a `UtcTimestamp` (ISO-8601 string ending in Z) and shows it in the
+ * VIEWER'S browser time zone and locale. The server render and the
+ * hydration render output the UTC fallback, then the text switches to local
+ * time after mount, so there is no hydration mismatch. The element is a
+ * semantic <time>; its `title` holds the full timestamp with the zone name.
+ * Null (migrated rows) renders "—".
  *
  * Never use this for calendar dates (DOB, leave and project dates): those
- * are `YYYY-MM-DD` values with no zone. Use <CalendarDate> instead.
+ * are `YYYY-MM-DD` values with no zone. Use <CalendarDate>.
  */
 export function LocalTime({
   value,
   dateOnly = false,
 }: {
-  value: Timestamp | string | null;
-  /** Show only the local date part (still converted to the local zone). */
+  value: UtcTimestamp | null;
+  /** Show only the date part (still the viewer's local date). */
   dateOnly?: boolean;
 }) {
   const isClient = useIsClient();
 
-  if (value === null) {
-    return (
-      <span>
-        <span aria-hidden="true">—</span>
-        <span className="sr-only">Not recorded</span>
-      </span>
-    );
-  }
+  if (value === null) return <NotRecorded />;
 
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return <span>—</span>;
-  const iso = date.toISOString();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return <NotRecorded />;
 
   if (!isClient) {
     return (
-      <time dateTime={iso} title={iso}>
-        {utcFallback(date, !dateOnly)}
+      <time dateTime={value} title={`${utcFallback(date, false)}`}>
+        {utcFallback(date, dateOnly)}
       </time>
     );
   }
 
   const text = new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    ...(dateOnly ? {} : { timeStyle: "short" }),
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    ...(dateOnly ? {} : { hour: "2-digit", minute: "2-digit" }),
   }).format(date);
   const full = new Intl.DateTimeFormat(undefined, {
     dateStyle: "full",
@@ -80,7 +89,7 @@ export function LocalTime({
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (
-    <time dateTime={iso} title={`${full} (${zone})`}>
+    <time dateTime={value} title={`${full} (${zone})`}>
       {text}
     </time>
   );

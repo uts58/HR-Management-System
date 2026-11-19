@@ -7,10 +7,12 @@ import {
   useContext,
   useEffect,
   useRef,
+  useState,
   startTransition,
   type ReactNode,
 } from "react";
 import { cn } from "cn";
+import { z } from "zod";
 
 import type { ActionResult, FieldErrors } from "@/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -37,8 +39,25 @@ export function useFormPending(): boolean {
   return useContext(FormContext).pending;
 }
 
+/** FormData -> plain object (repeated keys become arrays), for Zod. */
+function formDataToObject(form: FormData): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of new Set(form.keys())) {
+    const values = form.getAll(key);
+    out[key] = values.length === 1 ? values[0] : values;
+  }
+  return out;
+}
+
 interface ActionFormProps<T> {
   action: FormAction<T>;
+  /**
+   * The same Zod schema the server action uses (from @/lib/validation,
+   * ADR-0005). Runs before submit for instant, inline feedback; the server
+   * check stays authoritative. With a schema the form sets noValidate, so
+   * every error renders inline instead of as a browser bubble.
+   */
+  schema?: z.ZodType;
   children: ReactNode;
   /** Accessible name for the form (e.g. "Add department"). */
   "aria-label"?: string;
@@ -55,6 +74,7 @@ interface ActionFormProps<T> {
 
 /**
  * Form wrapper for every mutation form (ADR-0006 rule 4):
+ * - validates with the shared Zod schema first, when one is given;
  * - submits through `useActionState`, without React's automatic form reset,
  *   so values survive a failed submit;
  * - exposes `fieldErrors` to <FormField> via context, so errors render next
@@ -65,6 +85,7 @@ interface ActionFormProps<T> {
  */
 export function ActionForm<T>({
   action,
+  schema,
   children,
   successMessage,
   onSuccess,
@@ -81,6 +102,8 @@ export function ActionForm<T>({
   const alertRef = useRef<HTMLDivElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
   const onSuccessRef = useRef(onSuccess);
+  const [clientErrors, setClientErrors] = useState<FieldErrors | null>(null);
+  const [clientErrorTick, setClientErrorTick] = useState(0);
 
   useEffect(() => {
     onSuccessRef.current = onSuccess;
@@ -100,7 +123,15 @@ export function ActionForm<T>({
     (firstInvalid ?? alertRef.current)?.focus();
   }, [state, resetOnSuccess]);
 
-  const fieldErrors = state && !state.ok ? (state.error.fieldErrors ?? {}) : {};
+  useEffect(() => {
+    if (clientErrorTick === 0) return;
+    formRef.current
+      ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      ?.focus();
+  }, [clientErrorTick]);
+
+  const serverError = state && !state.ok && !clientErrors ? state.error : null;
+  const fieldErrors = clientErrors ?? serverError?.fieldErrors ?? {};
 
   return (
     <FormContext.Provider value={{ fieldErrors, pending }}>
@@ -108,24 +139,33 @@ export function ActionForm<T>({
         ref={formRef}
         aria-label={rest["aria-label"]}
         aria-busy={pending || undefined}
+        noValidate={schema ? true : undefined}
         className={cn("flex flex-col gap-5", className)}
         onSubmit={(event) => {
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
-          // TODO(Backend schemas): run the Zod schema from
-          // @/lib/validation/<domain> here for instant feedback, then set
-          // noValidate on the form so all errors render inline.
+          if (schema) {
+            const parsed = schema.safeParse(formDataToObject(formData));
+            if (!parsed.success) {
+              setClientErrors(
+                z.flattenError(parsed.error).fieldErrors as FieldErrors,
+              );
+              setClientErrorTick((tick) => tick + 1);
+              return;
+            }
+          }
+          setClientErrors(null);
           startTransition(() => dispatch(formData));
         }}
       >
-        {state && !state.ok && (
+        {serverError && (
           <Alert variant="destructive" ref={alertRef} tabIndex={-1}>
             <CircleAlertIcon aria-hidden="true" />
             <AlertTitle>{errorTitle}</AlertTitle>
-            <AlertDescription>{state.error.message}</AlertDescription>
+            <AlertDescription>{serverError.message}</AlertDescription>
           </Alert>
         )}
-        {state?.ok && successMessage && (
+        {state?.ok && !clientErrors && successMessage && (
           <div
             ref={statusRef}
             tabIndex={-1}
