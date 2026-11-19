@@ -32,7 +32,7 @@ export function PersonaSwitcher({ current }: { current: StubPersona }) {
   return (
     <div className="flex items-center gap-2 rounded-lg border border-dashed border-warning/60 bg-warning/10 px-2 py-1 text-xs text-warning">
       <label htmlFor={id} className="font-medium whitespace-nowrap">
-        Stub data · view as
+        Stub<span className="hidden sm:inline"> data · view as</span>
       </label>
       <NativeSelect
         id={id}
