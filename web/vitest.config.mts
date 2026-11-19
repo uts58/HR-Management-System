@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
@@ -14,6 +15,16 @@ export default defineConfig({
   resolve: {
     // Resolves the "@/*" alias from tsconfig.json.
     tsconfigPaths: true,
+    alias: [
+      // `import "server-only"` throws outside an RSC build. Map it to an
+      // empty module so tests can import src/server and src/auth files.
+      {
+        find: /^server-only$/,
+        replacement: fileURLToPath(
+          new URL("./vitest/server-only-stub.ts", import.meta.url),
+        ),
+      },
+    ],
   },
   test: {
     passWithNoTests: true,
@@ -33,6 +44,7 @@ export default defineConfig({
             "tests/unit/**/*.{test,spec}.{ts,tsx}",
             // Platform lint tooling tests (local rules + import boundaries)
             "eslint/**/*.test.mjs",
+            "vitest/**/*.test.ts",
           ],
         },
       },
