@@ -16,19 +16,12 @@ import { z } from "zod";
  *
  * New variables go in: the schema below, web/.env.example, the README table,
  * and the `web` service in docker-compose.yml.
+ *
+ * Time zones: there is no company time zone. Timestamps are stored in UTC
+ * and rendered in each viewer's browser zone. The server process runs with
+ * TZ=UTC (set in web/Dockerfile, compose and CI), so server-side date
+ * handling is deterministic.
  */
-
-// IANA zone name such as "Asia/Dhaka" or "UTC". Fixed offsets like "+06:00"
-// are rejected because they ignore DST rules.
-const isValidIanaTimeZone = (tz: string): boolean => {
-  if (/^[+-]/.test(tz)) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 const serverSchema = z.object({
   NODE_ENV: z
@@ -47,15 +40,6 @@ const serverSchema = z.object({
     .min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
   // Public base URL of the app, e.g. http://localhost:3000 or https://hr.example.com
   BETTER_AUTH_URL: z.url(),
-
-  // REQUIRED, no default: the organisation's IANA time zone. The database
-  // stores UTC; this zone only defines the business day (attendance, leave,
-  // "today"). It must be set explicitly for every deployment.
-  APP_TIME_ZONE: z
-    .string({ error: "APP_TIME_ZONE is required (IANA zone, e.g. Asia/Dhaka)" })
-    .refine(isValidIanaTimeZone, {
-      message: "APP_TIME_ZONE must be a valid IANA time zone, e.g. Asia/Dhaka",
-    }),
 
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])

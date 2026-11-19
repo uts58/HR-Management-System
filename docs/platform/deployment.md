@@ -103,9 +103,10 @@ derives `BETTER_AUTH_URL` from `APP_DOMAIN`.
   container exit, so nothing broken gets served. `SKIP_ENV_VALIDATION` is
   honoured only during `next build`. At runtime it is ignored with a loud
   warning.
-- `APP_TIME_ZONE` is required and has **no default**. Set it explicitly for
-  every deployment to the organisation's IANA zone. The DB stores UTC, and
-  this zone only defines the business day.
+- **Time zones:** there is no company time zone. Timestamps are stored in
+  UTC and rendered in each viewer's browser zone. Server-side date handling
+  is deterministic because every web container runs with `TZ=UTC`, set in
+  `web/Dockerfile` and in compose. Don't override it per deployment.
 - **Migrations run as a separate step.** The `web-migrate` image (target
   `migrator`) runs `prisma migrate deploy` once per release, before the new
   `web` image starts. Compose enforces the order with
