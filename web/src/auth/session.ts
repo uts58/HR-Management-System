@@ -1,0 +1,183 @@
+import "server-only";
+
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { cache } from "react";
+import { Role, type RequireOptions, type Session } from "@/contracts";
+import { getAuth } from "./config";
+import { prisma } from "./db";
+import { AuthError } from "./errors";
+import { CHANGE_PASSWORD_PATH, FORBIDDEN_PATH, LOGIN_PATH } from "./paths";
+
+/** The contract Session plus what auth itself needs (never exported from @/auth). */
+export interface LoadedSession {
+  session: Session;
+  sessionId: string;
+  sessionToken: string;
+}
+
+/** Map the DB enum to the contract Role; anything unexpected is treated as the least privilege. */
+export function toRole(value: string | null | undefined): Role {
+  return value === Role.HR_ADMIN ? Role.HR_ADMIN : Role.EMPLOYEE;
+}
+
+function logError(msg: string, err: unknown): void {
+  console.error(
+    JSON.stringify({
+      level: "error",
+      msg,
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
+}
+
+/**
+ * Resolve a session from request headers. Exported for integration tests;
+ * app code uses getSession().
+ */
+export async function loadSessionFromHeaders(
+  requestHeaders: Headers,
+): Promise<LoadedSession | null> {
+  const result = await getAuth().api.getSession({
+    headers: requestHeaders,
+    query: { disableCookieCache: true },
+  });
+  if (!result) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: result.user.id },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      role: true,
+      mustChangePassword: true,
+      employeeId: true,
+      disabledAt: true,
+      employee: {
+        select: { firstName: true, lastName: true, employmentStatus: true },
+      },
+    },
+  });
+  if (!user) return null;
+
+  if (
+    user.disabledAt !== null ||
+    user.employee?.employmentStatus === "TERMINATED"
+  ) {
+    // Revoke anything left over (disableLogin already does this; this
+    // covers a status set some other way).
+    await prisma.session.deleteMany({ where: { userId: user.id } });
+    return null;
+  }
+
+  const fullName = user.employee
+    ? `${user.employee.firstName} ${user.employee.lastName}`.trim()
+    : "";
+
+  return {
+    sessionId: result.session.id,
+    sessionToken: result.session.token,
+    session: {
+      user: {
+        userId: user.id,
+        employeeId: user.employeeId,
+        username: user.username,
+        displayName: fullName || user.name || user.username,
+        role: toRole(user.role),
+        mustChangePassword: user.mustChangePassword,
+      },
+      expires: new Date(result.session.expiresAt).toISOString(),
+    },
+  };
+}
+
+/** Memoised per request. Never throws. */
+export const loadCurrentSession = cache(
+  async (): Promise<LoadedSession | null> => {
+    try {
+      return await loadSessionFromHeaders(await headers());
+    } catch (err) {
+      logError("auth: getSession failed", err);
+      return null;
+    }
+  },
+);
+
+/** Current session or null. Never throws, never redirects. */
+export async function getSession(): Promise<Session | null> {
+  return (await loadCurrentSession())?.session ?? null;
+}
+
+async function currentPath(): Promise<string | null> {
+  try {
+    const h = await headers();
+    // Set by proxy.ts for every matched request.
+    return h.get("x-hr-pathname");
+  } catch {
+    return null;
+  }
+}
+
+async function failUnauthenticated(
+  opts: RequireOptions | undefined,
+): Promise<never> {
+  if (opts?.onFail === "redirect") {
+    const path = await currentPath();
+    redirect(
+      path
+        ? `${LOGIN_PATH}?callbackUrl=${encodeURIComponent(path)}`
+        : LOGIN_PATH,
+    );
+  }
+  throw new AuthError("UNAUTHENTICATED");
+}
+
+/** Pure decision used by requireSession/requireRole (unit-tested). */
+export function checkAccess(
+  session: Session | null,
+  roles: readonly Role[] | null,
+  opts: RequireOptions | undefined,
+): "ok" | "unauthenticated" | "must-change-password" | "forbidden" {
+  if (!session) return "unauthenticated";
+  if (session.user.mustChangePassword && !opts?.allowPendingPasswordChange) {
+    return "must-change-password";
+  }
+  if (roles && !roles.includes(session.user.role)) return "forbidden";
+  return "ok";
+}
+
+async function enforce(
+  roles: readonly Role[] | null,
+  opts: RequireOptions | undefined,
+): Promise<Session> {
+  const session = await getSession();
+  const decision = checkAccess(session, roles, opts);
+  const redirectMode = opts?.onFail === "redirect";
+  switch (decision) {
+    case "ok":
+      return session as Session;
+    case "unauthenticated":
+      return failUnauthenticated(opts);
+    case "must-change-password":
+      if (redirectMode) redirect(CHANGE_PASSWORD_PATH);
+      throw new AuthError("FORBIDDEN", "Change your password to continue.");
+    case "forbidden":
+      if (redirectMode) redirect(FORBIDDEN_PATH);
+      throw new AuthError("FORBIDDEN");
+  }
+}
+
+/** Any signed-in user. */
+export function requireSession(opts?: RequireOptions): Promise<Session> {
+  return enforce(null, opts);
+}
+
+/** Signed-in user whose role is `role` (or one of `role`). */
+export function requireRole(
+  role: Role | readonly Role[],
+  opts?: RequireOptions,
+): Promise<Session> {
+  const roles: readonly Role[] = typeof role === "string" ? [role] : role;
+  return enforce(roles, opts);
+}
