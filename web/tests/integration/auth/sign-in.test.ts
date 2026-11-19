@@ -125,18 +125,40 @@ describe("sign-in (POST /api/auth/sign-in/username)", () => {
     expect(await prisma.user.count()).toBe(0);
   });
 
-  it("rate-limits /sign-in/username per client IP (10 per minute)", async () => {
+  it("locks a username after 10 failures from one IP without blocking a colleague on the same IP", async () => {
     await createUser({ username: "jane", password: "right-pass" });
-    const ip = freshIp();
+    await createUser({ username: "omar", password: "omar-pass-1" });
+    const officeIp = freshIp();
     const statuses: number[] = [];
     for (let i = 0; i < 11; i++)
-      statuses.push((await signIn("jane", "wrong", ip)).status);
+      statuses.push((await signIn("jane", "wrong", officeIp)).status);
     expect(statuses.slice(0, 10).every((s) => s === 401)).toBe(true);
     expect(statuses[10]).toBe(429);
-    // Even the right password is refused from that IP for now...
-    expect((await signIn("jane", "right-pass", ip)).status).toBe(429);
-    // ...but not from another client.
+    // Jane is locked out from that IP, even with the right password...
+    expect((await signIn("JANE", "right-pass", officeIp)).status).toBe(429);
+    // ...her colleague behind the same NAT address is not...
+    expect((await signIn("omar", "omar-pass-1", officeIp)).status).toBe(200);
+    // ...and an attacker's failures elsewhere don't lock Jane out at home.
     expect((await signIn("jane", "right-pass", freshIp())).status).toBe(200);
+  });
+
+  it("a successful sign-in resets the per-username counter", async () => {
+    await createUser({ username: "jane", password: "right-pass" });
+    const ip = freshIp();
+    for (let i = 0; i < 9; i++)
+      expect((await signIn("jane", "wrong", ip)).status).toBe(401);
+    expect((await signIn("jane", "right-pass", ip)).status).toBe(200);
+    for (let i = 0; i < 9; i++)
+      expect((await signIn("jane", "wrong", ip)).status).toBe(401);
+  });
+
+  it("still caps all attempts per IP (50 per minute) across usernames", async () => {
+    const ip = freshIp();
+    const statuses: number[] = [];
+    for (let i = 0; i < 51; i++)
+      statuses.push((await signIn(`user${i}`, "whatever", ip)).status);
+    expect(statuses.slice(0, 50).every((s) => s === 401)).toBe(true);
+    expect(statuses[50]).toBe(429);
   });
 
   it("sets the must-change hint cookie for flagged users and clears it otherwise", async () => {
