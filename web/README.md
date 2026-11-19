@@ -7,19 +7,19 @@ deployment topology and the cutover runbook.
 
 ## Stack
 
-| Concern    | Choice (pinned in `package.json`)                                 |
-| ---------- | ----------------------------------------------------------------- |
-| Runtime    | Node.js 26 LTS (`.nvmrc`), engines `>=24.11`                      |
-| Framework  | Next.js 16.4 (App Router, Turbopack, `output: "standalone"`)      |
-| UI         | React 19.3, Tailwind CSS 4.3, shadcn/ui (`base-nova`, Base UI)    |
-| Language   | TypeScript 6.0, `strict` + `noUncheckedIndexedAccess`             |
-| Data       | Prisma ORM 7.10 (`prisma-client` generator, `@prisma/adapter-pg`) |
-| Auth       | Better Auth 1.7 + `@better-auth/prisma-adapter`                   |
-| Validation | Zod 4                                                             |
-| Passwords  | `@node-rs/argon2` (new hashes), `bcryptjs` (verify legacy hashes) |
-| Dates      | date-fns 4 (org time zone via `APP_TIME_ZONE`)                    |
-| Tests      | Vitest 5 (unit + integration projects), Playwright 1.65 (e2e)     |
-| Lint       | ESLint 9 flat config (`eslint-config-next`) + Prettier 3          |
+| Concern    | Choice (pinned in `package.json`)                                                      |
+| ---------- | -------------------------------------------------------------------------------------- |
+| Runtime    | Node.js 26 LTS (`.nvmrc`), engines `>=24.11`                                           |
+| Framework  | Next.js 16.4 (App Router, Turbopack, `output: "standalone"`)                           |
+| UI         | React 19.3, Tailwind CSS 4.3, shadcn/ui (`base-nova`, Base UI)                         |
+| Language   | TypeScript 6.0, `strict` + `noUncheckedIndexedAccess`                                  |
+| Data       | Prisma ORM 7.10 (`prisma-client` generator, `@prisma/adapter-pg`)                      |
+| Auth       | Better Auth 1.7 + `@better-auth/prisma-adapter`                                        |
+| Validation | Zod 4                                                                                  |
+| Passwords  | `@node-rs/argon2` (new hashes), `bcryptjs` (verify legacy hashes)                      |
+| Dates      | date-fns 4. Stored in UTC, rendered in the viewer's browser zone; server runs `TZ=UTC` |
+| Tests      | Vitest 5 (unit + integration projects), Playwright 1.65 (e2e)                          |
+| Lint       | ESLint 9 flat config (`eslint-config-next`) + Prettier 3                               |
 
 ## Local setup
 
@@ -67,14 +67,14 @@ Validated at server start by [`src/env.ts`](src/env.ts). If a variable is
 missing or invalid, the process exits. Import `env` from `@/env` and do not
 read `process.env` directly.
 
-| Variable              | Required | Example                                                                                                                |
-| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | yes      | `postgresql://hr_web_app:changeme_web@localhost:5432/hr_web`                                                           |
-| `BETTER_AUTH_SECRET`  | yes      | 32+ random chars (`openssl rand -base64 32`)                                                                           |
-| `BETTER_AUTH_URL`     | yes      | `http://localhost:3000`                                                                                                |
-| `APP_TIME_ZONE`       | **yes**  | IANA zone, e.g. `Asia/Dhaka`. No default: set it per deployment. The DB stores UTC; this zone defines the business day |
-| `LOG_LEVEL`           | no       | `info` (default)                                                                                                       |
-| `SKIP_ENV_VALIDATION` | no       | `1` skips validation **only during `next build`** (and in Vitest). Ignored with a warning at runtime                   |
+| Variable              | Required | Example                                                                                                           |
+| --------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | yes      | `postgresql://hr_web_app:changeme_web@localhost:5432/hr_web`                                                      |
+| `BETTER_AUTH_SECRET`  | yes      | 32+ random chars (`openssl rand -base64 32`)                                                                      |
+| `BETTER_AUTH_URL`     | yes      | `http://localhost:3000`                                                                                           |
+| `TZ`                  | no       | `UTC`. Fixed in Docker, compose and CI; keep it in `.env` so `npm run dev` matches. There is no company time zone |
+| `LOG_LEVEL`           | no       | `info` (default)                                                                                                  |
+| `SKIP_ENV_VALIDATION` | no       | `1` skips validation **only during `next build`** (and in Vitest). Ignored with a warning at runtime              |
 
 To add a variable, update `src/env.ts`, `.env.example`, this table,
 `docker-compose.yml` (`web` service) and the CI job env if tests need it.
@@ -123,6 +123,20 @@ export const createEmployee = defineAction({ role, schema, handler });
 function exports, `let`, re-exports, default exports, wrapped calls, and
 inline `'use server'` functions. Tests for the rule and the boundaries live in
 `eslint/rules/eslint-rules.test.mjs` and run with `npm test`.
+
+The same rule checks every `defineAction(...)` call, in any file:
+
+- It takes one inline object literal (no variables, no spreads).
+- The config declares `role`.
+- `role` is a string literal, a member expression like `Role.HR_ADMIN`, or
+  an array of those, so lint can read it.
+- `role: "PUBLIC"` (no session required) is allowed **only in
+  `src/auth/**`**.
+
+**`server-only`:** `src/server/**` and `src/auth/**` files start with
+`import "server-only"`, so importing them into a client component fails the
+build. Under Vitest the import resolves to an empty stub
+(`vitest/server-only-stub.ts`), so unit tests can import server files.
 
 The Prisma client is generated to `src/generated/prisma` (gitignored). Import
 it as `@/generated/prisma/client`, not from `@prisma/client`. Prisma 7

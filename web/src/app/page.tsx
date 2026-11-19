@@ -1,16 +1,11 @@
-import { Button } from "@/components/ui/button";
+import { redirect } from "next/navigation";
 
-// Placeholder page from the Platform scaffold. Frontend owns this file.
-export default function Home() {
-  return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-3xl font-semibold tracking-tight">
-        HR Management System
-      </h1>
-      <p className="text-muted-foreground">
-        New application scaffold. Migration in progress.
-      </p>
-      <Button>Get started</Button>
-    </main>
-  );
+/**
+ * `/` sends signed-in users to the dashboard and everyone else to /login
+ * (feature map row 1).
+ */
+export default async function Home() {
+  // TODO(Security): const session = await getSession();
+  // redirect(session ? "/dashboard" : "/login");
+  redirect("/dashboard");
 }

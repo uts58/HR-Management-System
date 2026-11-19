@@ -27,10 +27,10 @@ ruleTester.run("hr/server-actions", rule, {
       code: `"use server";\n${imp}export const createX = defineAction({ role: "HR", schema, handler });`,
     },
     {
-      code: `"use server";\nimport { defineAction } from "@/server/action";\nexport const a = defineAction({}), b = defineAction({});`,
+      code: `"use server";\nimport { defineAction } from "@/server/action";\nexport const a = defineAction({ role: "HR_ADMIN" }), b = defineAction({ role: "HR_ADMIN" });`,
     },
     {
-      code: `"use server";\n${imp}export type Input = { id: string };\nexport interface Out { ok: boolean }\nexport type { Foo } from "./foo";\nexport const a = defineAction({});`,
+      code: `"use server";\n${imp}export type Input = { id: string };\nexport interface Out { ok: boolean }\nexport type { Foo } from "./foo";\nexport const a = defineAction({ role: "HR_ADMIN" });`,
     },
     // Not a 'use server' file: anything goes (except inline directives).
     { code: `export function helper() { return 1; }` },
@@ -47,11 +47,11 @@ ruleTester.run("hr/server-actions", rule, {
       errors: [{ messageId: "notDefineAction" }],
     },
     {
-      code: `"use server";\n${imp}export let createX = defineAction({});`,
+      code: `"use server";\n${imp}export let createX = defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "forbiddenExportForm" }],
     },
     {
-      code: `"use server";\n${imp}const x = defineAction({});\nexport { x };`,
+      code: `"use server";\n${imp}const x = defineAction({ role: "HR_ADMIN" });\nexport { x };`,
       errors: [{ messageId: "forbiddenExportForm" }],
     },
     {
@@ -63,33 +63,33 @@ ruleTester.run("hr/server-actions", rule, {
       errors: [{ messageId: "forbiddenExportForm" }],
     },
     {
-      code: `"use server";\n${imp}export default defineAction({});`,
+      code: `"use server";\n${imp}export default defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "forbiddenExportForm" }],
     },
     {
-      code: `"use server";\n${imp}export const x = defineAction({}) as unknown as Foo;`,
+      code: `"use server";\n${imp}export const x = defineAction({ role: "HR_ADMIN" }) as unknown as Foo;`,
       errors: [{ messageId: "notDefineAction" }],
     },
     {
-      code: `"use server";\n${imp}export const x = wrap(defineAction({}));`,
+      code: `"use server";\n${imp}export const x = wrap(defineAction({ role: "HR_ADMIN" }));`,
       errors: [{ messageId: "notDefineAction" }],
     },
     {
       // Locally defined lookalike.
-      code: `"use server";\nconst defineAction = (c) => c;\nexport const x = defineAction({});`,
+      code: `"use server";\nconst defineAction = (c) => c;\nexport const x = defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "defineActionNotImported" }],
     },
     {
-      code: `"use server";\nimport { defineAction } from "./my-own";\nexport const x = defineAction({});`,
+      code: `"use server";\nimport { defineAction } from "./my-own";\nexport const x = defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "defineActionNotImported" }],
     },
     {
       // Only @/server/action is allowed (ADR-0002), not lib/.
-      code: `"use server";\nimport { defineAction } from "@/lib/action";\nexport const x = defineAction({});`,
+      code: `"use server";\nimport { defineAction } from "@/lib/action";\nexport const x = defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "defineActionNotImported" }],
     },
     {
-      code: `"use server";\nimport { other as defineAction } from "@/server/action";\nexport const x = defineAction({});`,
+      code: `"use server";\nimport { other as defineAction } from "@/server/action";\nexport const x = defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "defineActionNotImported" }],
     },
     {
@@ -101,6 +101,63 @@ ruleTester.run("hr/server-actions", rule, {
       errors: [{ messageId: "inlineUseServer" }],
     },
   ],
+});
+
+// --- defineAction role checks (PUBLIC only in src/auth) --------------------
+const srcRoot = path.resolve(import.meta.dirname, "..", "..", "src");
+const authActions = path.join(srcRoot, "auth", "actions.ts");
+const appActions = path.join(srcRoot, "app", "employees", "actions.ts");
+const action = (role, filename = appActions) => ({
+  code: `"use server";\n${imp}export const a = defineAction({ ${role} schema, handler });`,
+  filename,
+});
+
+ruleTester.run("hr/server-actions (roles)", rule, {
+  valid: [
+    action('role: "HR_ADMIN",'),
+    action("role: Role.EMPLOYEE,"),
+    action('role: ["HR_ADMIN", Role.EMPLOYEE],'),
+    action('role: "ANY", allowPendingPasswordChange: true,'),
+    action('role: "PUBLIC",', authActions),
+    action("role: `PUBLIC`,", authActions),
+    // Inside src/auth, nested folders count too.
+    action('role: "PUBLIC",', path.join(srcRoot, "auth", "sign-in", "a.ts")),
+  ],
+  invalid: [
+    ['role: "PUBLIC",', "publicOutsideAuth"],
+    ["role: `PUBLIC`,", "publicOutsideAuth"],
+    ['role: ["HR_ADMIN", "PUBLIC"],', "publicOutsideAuth"],
+    ["role: Roles.PUBLIC,", "publicOutsideAuth"],
+    ['role: "PUBLIC" as const,', "publicOutsideAuth"],
+    ["role: someVar,", "roleNotStatic"],
+    ["role,", "roleNotStatic"],
+    ["role: [...roles],", "roleNotStatic"],
+    ["", "missingRole"],
+  ]
+    .map(([role, messageId]) => ({ ...action(role), errors: [{ messageId }] }))
+    .concat([
+      {
+        code: `"use server";\n${imp}const cfg = { role: "PUBLIC" };\nexport const a = defineAction(cfg);`,
+        filename: appActions,
+        errors: [{ messageId: "configNotInline" }],
+      },
+      {
+        code: `"use server";\n${imp}export const a = defineAction({ ...base, role: "HR_ADMIN" });`,
+        filename: appActions,
+        errors: [{ messageId: "configNotInline" }],
+      },
+      {
+        // Also checked outside 'use server' files.
+        code: `${imp}const a = defineAction({ role: "PUBLIC", schema, handler });`,
+        filename: path.join(srcRoot, "server", "x.ts"),
+        errors: [{ messageId: "publicOutsideAuth" }],
+      },
+      {
+        // A look-alike directory name is not src/auth.
+        ...action('role: "PUBLIC",', path.join(srcRoot, "authz", "a.ts")),
+        errors: [{ messageId: "publicOutsideAuth" }],
+      },
+    ]),
 });
 
 // ---------------------------------------------------------------------------

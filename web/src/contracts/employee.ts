@@ -10,7 +10,7 @@ import type {
   IsoDate,
   Option,
   PositionId,
-  Timestamp,
+  UtcTimestamp,
 } from "./common";
 import type { IssuedCredentials, Role } from "./auth";
 
@@ -78,7 +78,7 @@ export interface EmployeeListItem {
   email: string | null;
   role: Role | null; // null when the employee has no login account
   status: EmploymentStatus;
-  terminatedAt: Timestamp | null;
+  terminatedAt: UtcTimestamp | null;
 }
 
 /**
@@ -109,8 +109,8 @@ export interface EmployeeDetail {
   dateOfBirth: IsoDate | null;
   username: string | null; // login name, null when no account
   status: EmploymentStatus;
-  terminatedAt: Timestamp | null;
-  createdAt: Timestamp | null; // null for migrated rows
+  terminatedAt: UtcTimestamp | null;
+  createdAt: UtcTimestamp | null; // null for migrated rows
 }
 
 /**
@@ -215,7 +215,10 @@ export interface EmployeeService {
 
   /**
    * HR_ADMIN. Updates profile fields. Does NOT change the username
-   * (legacy renamed the login to the new first name).
+   * (legacy renamed the login to the new first name). If the name changes
+   * and the employee has an account, calls
+   * AccountAdminApi.updateDisplayName in the same transaction so the
+   * user's display name follows.
    * Throws NOT_FOUND (incl. placeholder), VALIDATION; CONFLICT if TERMINATED.
    */
   updateEmployee(

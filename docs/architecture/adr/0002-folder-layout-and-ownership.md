@@ -18,6 +18,7 @@ The new app lives in `web/` next to the legacy app until cutover. Each path has 
    ├─ prisma7.config.ts    Platform + Data (Prisma 7 CLI config)
    ├─ prisma/              Data: schema.prisma, migrations, seed (generator output must stay ../src/generated/prisma)
    ├─ tests/               QA: e2e (Playwright), shared fixtures, auth-matrix tests
+   │  └─ integration/      DB-backed Vitest: QA's suites, plus server/ (Backend) and auth/ (Security)
    └─ src/
       ├─ env.ts            Platform: Zod-validated server env; import `env`, never read process.env directly
       ├─ instrumentation.ts  Platform: validates env at boot, exits on failure
@@ -27,7 +28,11 @@ The new app lives in `web/` next to the legacy app until cutover. Each path has 
       ├─ contracts/        Tech Lead: type-only service + auth contracts
       ├─ server/           Backend: services, Prisma client, errors, action wrapper
       │  ├─ db.ts          the single PrismaClient instance (Prisma 7 + PrismaPg adapter)
-      │  ├─ errors.ts      ServiceError, toActionResult()
+      │  ├─ errors.ts      ServiceError, runAction()
+      │  ├─ action.ts      defineAction()
+      │  ├─ auth-seam.ts   re-exports requireRole/requireSession from @/auth (ADR-0004)
+      │  ├─ page.ts        page helpers: orNotFound(promise), idOrNotFound(param)
+      │  ├─ actions/<area>.ts  'use server' files, one per area (employee, org, leave, notice, performance); defineAction exports only
       │  └─ <domain>/      employee | org | leave | notice | performance
       │     ├─ service.ts  implements the contract interface
       │     └─ *.test.ts   Vitest, colocated
@@ -35,29 +40,31 @@ The new app lives in `web/` next to the legacy app until cutover. Each path has 
       │  ├─ validation/    Zod schemas, one file per domain
       │  ├─ dates.ts       IsoDate helpers and formatter (ADR-0007)
       │  └─ utils.ts       shadcn `cn` re-export (Backend owns it per the lib/ ruling; trivial, Frontend may touch it)
-      ├─ app/              Frontend: routes, layouts, pages, and the server actions
+      ├─ app/              Frontend: routes, layouts, pages (no 'use server' files)
       │  ├─ api/auth/[...all]/route.ts   Security: Better Auth handler (one-line toNextJsHandler)
-      │  ├─ api/health/route.ts          Platform: liveness check, no DB access
-      │  └─ (domain)/…/actions.ts   'use server' files colocated with the route that uses them
+      │  └─ api/health/route.ts          Platform: liveness check, no DB access
       └─ components/       Frontend: shadcn/ui in components/ui, feature components next to it
 ```
 
 ### Who writes server actions?
 
-Server actions are thin glue in `web/src/app/**/actions.ts`, so Frontend owns the files. Each action does exactly four things (ADR-0003):
-`requireRole()` → Zod `safeParse` → call a service → `revalidatePath`/`redirect` and return `ActionResult`.
-If an action needs more than that, the extra logic goes into the service (Backend).
+**Revised (Backend Phase 1b ruling):** server actions live in **`web/src/server/actions/<area>.ts`**, one `'use server'` file per area, and Backend owns them. Every export is a `defineAction(...)`. Auth's own actions (`changePassword`, `signOut`) stay in `web/src/auth/actions.ts` (Security). Pages and client components import actions from those two places. `app/**` contains no `'use server'` files.
+
+Each action does exactly four things (ADR-0003): `requireRole()` → Zod parse → call a service → `revalidatePath` and return `ActionResult`. If an action needs more than that, the extra logic goes into the service.
+
+- **Revalidation:** mutations revalidate the `(app)` layout, which refreshes every protected page. That's acceptable for v1; narrow it per route if it ever becomes a performance problem.
+- **Page helpers** (`server/page.ts`, Backend): `orNotFound(promise)` turns a service's `NOT_FOUND` `ServiceError` into Next's `notFound()`, and `idOrNotFound(param)` parses a route id param or calls `notFound()`.
 
 ### Import rules (Platform enforces them with ESLint `no-restricted-imports`)
 
 | Module | May import from |
 |---|---|
 | `contracts/` | nothing (only other contract files) |
-| `lib/validation/` | `zod`, `contracts/` |
+| `lib/validation/` | `zod`, `contracts/`, `@/lib/dates` (pure and client-safe, director ruling) |
 | `server/` | `contracts/`, `lib/`, `@/generated/prisma/*`, `@prisma/adapter-pg`, `auth/` (types, plus `AccountAdminApi` per ADR-0004 rule 10) |
 | `auth/` | `better-auth` (**only here**), `contracts/`, `lib/`, `server/db.ts` (Prisma client for the adapter and user lookups) |
 | `app/` | `auth/`, `server/<domain>/*` services (only from server components/actions; **never** `server/db`), `lib/`, `contracts/`, `components/` |
-| `tests/integration/` | anything, including `@/server/db` and the generated client (fixtures, truncation) |
+| `tests/integration/` | anything, including `@/server/db` and the generated client (fixtures, truncation). Owners by subfolder: `server/` Backend, `auth/` Security, the rest QA. Test databases must be named `*_test` or `*_it`, so the suites can refuse to run against anything else. |
 | `components/` | `contracts/`, `lib/validation/`, `components/`, `auth/client.ts` (sign-in form only). **Never** `server/`, the rest of `auth/`, or Prisma |
 
 `server/**` and `auth/**` start with `import 'server-only'`.
@@ -72,7 +79,8 @@ The lint rules must cover paths as well as package names:
 - Every export of a `'use server'` file must be `export const x = defineAction({ role, schema, handler })`. Backend provides `defineAction` in `server/action.ts`; it runs `requireRole` → `schema.parse` → `handler(actor, input)` inside `runAction`.
 - A local ESLint rule (Platform) rejects any other export form in `'use server'` files, and inline `'use server'` functions outside them.
 - QA's authorization-matrix test is the runtime backstop (ADR-0004).
-- Exceptions (`signOut`, `changePassword` in `auth/actions.ts`) use `defineAction({ role: 'ANY', allowPendingPasswordChange })`.
+- `role` is a `Role`, a list of roles, `"ANY"` (any signed-in user), or `"PUBLIC"` (no session needed). **`"PUBLIC"` is allowed only in files under `web/src/auth/`** (lint-enforced) and is used only for the idempotent `signOut`. `changePassword` uses `"ANY"` with `allowPendingPasswordChange: true`. Sign-in is not a server action (ADR-0004).
+- **Action input shape:** an action that targets one record and takes fields receives a single object `{ id, ...fields }`, validated by one schema named `<action>ActionSchema` (e.g. `updateEmployeeActionSchema = updateEmployeeSchema.extend({ id })`). The action then calls `service(actor, id, fields)`. Actions that only need an id take `{ id }`.
 
 ## Consequences
 

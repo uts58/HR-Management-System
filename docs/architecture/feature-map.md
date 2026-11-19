@@ -4,7 +4,7 @@ Owner: Tech Lead. Each row is one parity item (ADR-0009). QA tracks status per r
 
 The legacy app mounts **33 routes**: 19 in `routes/index.js` at `/` and 14 in `routes/hr.js` at `/hr`. `routes/users.js` exists but is never mounted. Every legacy route except `/`, `/actAdmin` and `/logout` checks only that someone is logged in. **None checks the role.** The "Role" column is the role the new app enforces.
 
-Ownership: **Frontend** owns pages and their `actions.ts` (`web/src/app/**`). **Backend** owns the service function. **Security** owns auth pages/actions and `requireRole`. **QA** owns the E2E journey for every row.
+Ownership: **Frontend** owns pages (`web/src/app/**`). **Backend** owns the service function and the server action (`web/src/server/actions/<area>.ts`; action names match the service functions). **Security** owns auth pages/actions and `requireRole`. **QA** owns the E2E journey for every row.
 
 ## Auth and shell
 
@@ -56,9 +56,9 @@ Ownership: **Frontend** owns pages and their `actions.ts` (`web/src/app/**`). **
 |---|---|---|---|---|---|---|
 | 24 | `GET /addLeave` | `/leave/apply` | – | EMPLOYEE | Frontend | Date pickers instead of free text. Type select uses `REQUESTABLE_LEAVE_TYPES` (no `OTHER`) |
 | 25 | `POST /saveLeave` | `applyForLeave` action | `leaveService.applyForLeave` | EMPLOYEE | Frontend / Backend | end ≥ start |
-| 26 | `GET /viewLeave` (also marks decided rows read) | `/leave/history` + `markLeaveDecisionsSeen` action called once after render | `listMyLeaveRequests`, `markMyLeaveDecisionsSeen` | EMPLOYEE | Frontend / Backend | Read and mark-seen are split (no side effects in GET) |
+| 26 | `GET /viewLeave` (also marks decided rows read) | `/leave/history` + `markMyLeaveDecisionsSeen` action called once after render | `listMyLeaveRequests`, `markMyLeaveDecisionsSeen` | EMPLOYEE | Frontend / Backend | Read and mark-seen are split (no side effects in GET) |
 | 27 | `GET /displayLeave` (pending queue) | `/leave/requests` | `listPendingLeaveRequests` | HR_ADMIN | Frontend / Backend | Oldest first |
-| 28 | `GET /assignLeave?id=&status=` | `decideLeave` action (Approve / Reject buttons, confirm) | `decideLeaveRequest` | HR_ADMIN | Frontend / Backend | Only PENDING → APPROVED/REJECTED. Records decidedBy/At |
+| 28 | `GET /assignLeave?id=&status=` | `decideLeaveRequest({ id, decision })` action (Approve / Reject buttons, confirm) | `decideLeaveRequest` | HR_ADMIN | Frontend / Backend | Only PENDING → APPROVED/REJECTED. Records decidedBy/At |
 | 29 | `GET /viewLeavebyAdmin` | `/leave/all` | `listAllLeaveRequests` | HR_ADMIN | Frontend / Backend | Same columns as legacy (employee, type, from, to, reason, status). Migrated rows may show `OTHER` type, "—" for unparseable dates, and "Unknown employee #N" for placeholder employees |
 
 ## Performance appraisal

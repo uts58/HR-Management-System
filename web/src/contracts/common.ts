@@ -37,12 +37,14 @@ export type AppraisalId = number;
 export type IsoDate = string & { readonly __brand: "IsoDate" };
 
 /**
- * A point in time (createdAt, decidedAt). Stored as timestamptz (UTC).
- * Serialised to the client as ISO-8601 with `Z` and rendered in the
+ * A point in time (createdAt, decidedAt) as an ISO-8601 UTC string ending
+ * in `Z`, e.g. "2026-11-18T09:30:00.000Z". Stored as timestamptz (UTC);
+ * services convert Prisma's `Date` with `toIsoInstant()` at the boundary,
+ * so read models are plain JSON-safe strings, never `Date`. Rendered in the
  * viewer's browser time zone by the client time component; there is no
  * company time zone (ADR-0007, user decision 2026-11-18).
  */
-export type Timestamp = Date;
+export type UtcTimestamp = string & { readonly __brand: "UtcTimestamp" };
 
 // ─── Errors and results (ADR-0006) ──────────────────────────────────────────
 
