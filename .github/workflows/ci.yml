@@ -23,6 +23,7 @@ jobs:
   web-quality:
     name: web / lint, typecheck, unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -43,6 +44,7 @@ jobs:
   web-build:
     name: web / build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: web
@@ -63,6 +65,7 @@ jobs:
   web-integration:
     name: web / integration tests (Postgres)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: web
@@ -100,6 +103,7 @@ jobs:
     # confirmed for Playwright yet (see legacy-e2e). Unpin once both suites
     # run on a Playwright version that supports it.
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: web
@@ -124,11 +128,19 @@ jobs:
         id: detect
         shell: bash
         run: |
-          if compgen -G "tests/e2e/**/*.spec.ts" > /dev/null || compgen -G "tests/e2e/*.spec.ts" > /dev/null; then
+          if [ -d tests/e2e ] && find tests/e2e -name '*.spec.ts' -print -quit | grep -q .; then
             echo "has_tests=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_tests=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No Playwright specs in web/tests/e2e yet; skipping e2e."
+            # Make the skip impossible to miss: a green job here means
+            # "nothing ran", not "e2e passed".
+            echo "::notice title=web e2e SKIPPED::No Playwright specs (*.spec.ts) in web/tests/e2e. The e2e suite did NOT run; this green job is a skip, not a pass."
+            {
+              echo "## web / e2e: SKIPPED"
+              echo
+              echo "No \`*.spec.ts\` files under \`web/tests/e2e\`, so Playwright did **not** run."
+              echo "This job is green because it was skipped, not because e2e tests passed."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/setup-node@v7
         if: steps.detect.outputs.has_tests == 'true'
@@ -138,8 +150,36 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - if: steps.detect.outputs.has_tests == 'true'
         run: npm ci
-      - if: steps.detect.outputs.has_tests == 'true'
-        run: npx playwright install --with-deps chromium
+      - name: Playwright version
+        id: pw
+        if: steps.detect.outputs.has_tests == 'true'
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: pw-cache
+        if: steps.detect.outputs.has_tests == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium OS dependencies
+        if: steps.detect.outputs.has_tests == 'true'
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          # Fail instead of waiting forever on a dpkg lock or a slow mirror.
+          printf '%s\n' 'DPkg::Lock::Timeout "300";' 'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/99-ci-timeouts > /dev/null
+          # Run as root ourselves: Playwright's own `sudo` would drop
+          # DEBIAN_FRONTEND.
+          sudo env "PATH=$PATH" DEBIAN_FRONTEND=noninteractive ./node_modules/.bin/playwright install-deps chromium
+      - name: Install Chromium
+        if: steps.detect.outputs.has_tests == 'true' && steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        env:
+          DEBUG: pw:install
+        run: npx playwright install chromium
       - if: steps.detect.outputs.has_tests == 'true'
         run: npx prisma migrate deploy
       - if: steps.detect.outputs.has_tests == 'true'
@@ -159,6 +199,7 @@ jobs:
   web-docker:
     name: web / docker build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -187,6 +228,7 @@ jobs:
   legacy:
     name: legacy / install + syntax check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -224,6 +266,7 @@ jobs:
     # which fails with "Playwright does not support chromium on
     # ubuntu26.04-x64" (first CI run, 007e5d8).
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16-alpine
@@ -261,13 +304,59 @@ jobs:
       - name: Install suite
         working-directory: legacy-tests
         run: npm ci
-      - name: Install Chromium
+      - name: Playwright version
+        id: pw
         working-directory: legacy-tests
-        run: npx playwright install --with-deps chromium
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium OS dependencies
+        working-directory: legacy-tests
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          # Fail instead of waiting forever on a dpkg lock or a slow mirror.
+          printf '%s\n' 'DPkg::Lock::Timeout "300";' 'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/99-ci-timeouts > /dev/null
+          # Run as root ourselves: Playwright's own `sudo` would drop
+          # DEBIAN_FRONTEND.
+          sudo env "PATH=$PATH" DEBIAN_FRONTEND=noninteractive ./node_modules/.bin/playwright install-deps chromium
+      # WORKAROUND, remove once legacy-tests uses Playwright >= 1.65 (QA).
+      # In run 44433297981 the Playwright 1.56.1 browser installer stalled at
+      # the end of the Chromium download under Node 26 for 93 minutes. apt had
+      # already finished, and the same version installs fine under Node 24.
+      # So the browser download runs under Node 24, and the job switches back
+      # to the project's Node (web/.nvmrc) right after.
+      - uses: actions/setup-node@v7
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        with:
+          node-version: 24
+      - name: Install Chromium (browser download)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        working-directory: legacy-tests
+        timeout-minutes: 10
+        env:
+          DEBUG: pw:install
+        run: |
+          node --version
+          npx playwright install chromium
+      - uses: actions/setup-node@v7
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        with:
+          node-version-file: web/.nvmrc
       - name: Run suite
         # globalSetup resets the DB from legacy-tests/fixtures/seed.sql first.
         working-directory: legacy-tests
-        run: npm test
+        timeout-minutes: 10
+        run: |
+          node --version
+          npm test
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
