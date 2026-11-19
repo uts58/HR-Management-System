@@ -134,13 +134,15 @@ async function assertOrgRefs(
   departmentId: number,
   positionId: number,
 ): Promise<void> {
-  const [department, position] = await Promise.all([
-    tx.department.findUnique({
-      where: { id: departmentId },
-      select: { id: true },
-    }),
-    tx.position.findUnique({ where: { id: positionId }, select: { id: true } }),
-  ]);
+  // Sequential: a transaction has one connection, so no parallel queries.
+  const department = await tx.department.findUnique({
+    where: { id: departmentId },
+    select: { id: true },
+  });
+  const position = await tx.position.findUnique({
+    where: { id: positionId },
+    select: { id: true },
+  });
   const errors: Record<string, string[]> = {};
   if (!department) errors.departmentId = [MESSAGES.unknownDepartment];
   if (!position) errors.positionId = [MESSAGES.unknownPosition];
