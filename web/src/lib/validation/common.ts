@@ -42,14 +42,17 @@ export function requiredText(label: string, max: number) {
  * blank all become `null`.
  */
 export function optionalText(label: string, max: number) {
-  return z.preprocess(
-    (v) => (isBlank(v) ? null : v),
-    z
-      .string({ error: `${label} must be text` })
-      .trim()
-      .max(max, { error: `${label} must be at most ${max} characters` })
-      .nullable(),
-  );
+  return z
+    .preprocess(
+      (v) => (isBlank(v) ? null : v),
+      z
+        .string({ error: `${label} must be text` })
+        .trim()
+        .max(max, { error: `${label} must be at most ${max} characters` })
+        .nullable(),
+    )
+    .optional() // the key may be omitted by callers
+    .transform((v) => v ?? null);
 }
 
 /**

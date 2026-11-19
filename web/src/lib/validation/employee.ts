@@ -47,21 +47,23 @@ const usernameRe = new RegExp(USERNAME_PATTERN);
  * case-insensitive), 3..30 of `[a-z0-9._]`. Blank means "generate the
  * default first.last".
  */
-export const usernameField = z.preprocess(
-  (v) =>
-    v == null || (typeof v === "string" && v.trim() === "")
-      ? undefined
-      : typeof v === "string"
-        ? v.trim().toLowerCase()
-        : v,
-  z
-    .string({ error: "Username must be text" })
-    .regex(usernameRe, {
-      error:
-        "Username must be 3-30 characters: lower-case letters, digits, dots or underscores",
-    })
-    .optional(),
-);
+export const usernameField = z
+  .preprocess(
+    (v) =>
+      v == null || (typeof v === "string" && v.trim() === "")
+        ? undefined
+        : typeof v === "string"
+          ? v.trim().toLowerCase()
+          : v,
+    z
+      .string({ error: "Username must be text" })
+      .regex(usernameRe, {
+        error:
+          "Username must be 3-30 characters: lower-case letters, digits, dots or underscores",
+      })
+      .optional(),
+  )
+  .optional(); // the key may be omitted
 
 const contactNoField = requiredText("Contact number", CONTACT_NO_MAX)
   .min(CONTACT_NO_MIN, {
