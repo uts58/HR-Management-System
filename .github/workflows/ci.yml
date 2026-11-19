@@ -209,3 +209,64 @@ jobs:
         # dependency that is missing from package.json fails CI.
         run: |
           node -e "for (const m of ['./lib/auth','./lib/password','./lib/session','./lib/prisma']) require(m); console.log('modules ok')"
+
+  # -------------------------------------------------------------------------
+  # QA's parity suite (legacy-tests/) against the hardened legacy app.
+  # See docs/qa/test-strategy.md sections 6 and 7. Known open defects are
+  # `test.fail` (expected failures), so a green run means 57 pass and
+  # 3 fail as expected. A defect that starts passing fails the run on purpose.
+  legacy-e2e:
+    name: legacy / e2e (Playwright parity suite)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hruser
+          POSTGRES_PASSWORD: qa_pass
+          POSTGRES_DB: hrdb_qa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hruser -d hrdb_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://hruser:qa_pass@localhost:5432/hrdb_qa
+      BASE_URL: http://localhost:3100
+      # Playwright starts `node app.js` itself (legacy-tests/playwright.config.ts)
+      # with TRUST_PROXY=1 and BCRYPT_ROUNDS=4. Each test context sends its own
+      # X-Forwarded-For, so the login rate limit applies per test.
+      START_LEGACY: "1"
+      SESSION_SECRET: ci-only-legacy-tests-secret
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            legacy-tests/package-lock.json
+      - name: Install legacy app
+        run: npm ci
+      - name: Create legacy schema
+        run: npx prisma db push
+      - name: Create session table
+        run: npm run db:session-table
+      - name: Install suite
+        working-directory: legacy-tests
+        run: npm ci
+      - name: Install Chromium
+        working-directory: legacy-tests
+        run: npx playwright install --with-deps chromium
+      - name: Run suite
+        # globalSetup resets the DB from legacy-tests/fixtures/seed.sql first.
+        working-directory: legacy-tests
+        run: npm test
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: legacy-playwright-report
+          path: |
+            legacy-tests/playwright-report
+            legacy-tests/test-results
+          retention-days: 7

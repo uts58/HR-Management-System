@@ -2,6 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import contractsImportsRule from "./eslint/rules/contracts-imports.mjs";
 import serverActionsRule from "./eslint/rules/server-actions.mjs";
 
 // ---------------------------------------------------------------------------
@@ -74,8 +75,20 @@ const eslintConfig = defineConfig([
 
   // Local rules.
   {
-    plugins: { hr: { rules: { "server-actions": serverActionsRule } } },
+    plugins: {
+      hr: {
+        rules: {
+          "server-actions": serverActionsRule,
+          "contracts-imports": contractsImportsRule,
+        },
+      },
+    },
     rules: { "hr/server-actions": "error" },
+  },
+  {
+    // Contracts may import only types, and only from other contract files.
+    files: ["src/contracts/**"],
+    rules: { "hr/contracts-imports": "error" },
   },
 
   // Boundary zones: the default comes first, and later entries override it.
