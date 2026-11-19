@@ -125,6 +125,11 @@ await prisma.$transaction(async (tx) => {
   deleted. `NOT_FOUND` for an unknown user.
 - `disableLogin(tx, userId)`: sets `disabledAt` (keeps an earlier value) and
   deletes all sessions. `NOT_FOUND` for an unknown user.
+- `updateDisplayName(tx, userId, name)`: sets `user.name` (header/menu
+  name) when HR renames an employee; never changes the username. The name
+  is trimmed (inner whitespace collapsed), required, max 200 characters, no
+  control characters (`VALIDATION`, field `name`). `NOT_FOUND` for an
+  unknown user.
 
 All three write with the caller's `tx`, so they roll back with it. Never log
 `temporaryPassword`.
