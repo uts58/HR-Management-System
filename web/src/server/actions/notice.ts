@@ -6,8 +6,8 @@ import {
   deleteNoticeSchema,
 } from "@/lib/validation/notice";
 import { defineAction } from "@/server/action";
-import { revalidateApp } from "../revalidate";
-import { noticeService } from "./service";
+import { revalidateApp } from "@/server/revalidate";
+import { noticeService } from "@/server/notice/service";
 
 export const createNotice = defineAction({
   role: Role.HR_ADMIN,

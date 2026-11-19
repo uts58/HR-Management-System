@@ -8,8 +8,8 @@ import {
   deletePositionSchema,
 } from "@/lib/validation/org";
 import { defineAction } from "@/server/action";
-import { revalidateApp } from "../revalidate";
-import { orgService } from "./service";
+import { revalidateApp } from "@/server/revalidate";
+import { orgService } from "@/server/org/service";
 
 export const createDepartment = defineAction({
   role: Role.HR_ADMIN,

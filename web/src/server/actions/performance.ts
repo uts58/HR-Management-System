@@ -6,8 +6,8 @@ import {
   deleteAppraisalSchema,
 } from "@/lib/validation/performance";
 import { defineAction } from "@/server/action";
-import { revalidateApp } from "../revalidate";
-import { performanceService } from "./service";
+import { revalidateApp } from "@/server/revalidate";
+import { performanceService } from "@/server/performance/service";
 
 export const createAppraisal = defineAction({
   role: Role.HR_ADMIN,

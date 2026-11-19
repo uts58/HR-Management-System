@@ -7,8 +7,8 @@ import {
   decideLeaveRequestSchema,
 } from "@/lib/validation/leave";
 import { defineAction } from "@/server/action";
-import { revalidateApp } from "../revalidate";
-import { leaveService } from "./service";
+import { revalidateApp } from "@/server/revalidate";
+import { leaveService } from "@/server/leave/service";
 
 export const applyForLeave = defineAction({
   role: Role.EMPLOYEE,

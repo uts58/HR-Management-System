@@ -8,8 +8,8 @@ import {
   updateEmployeeActionSchema,
 } from "@/lib/validation/employee";
 import { defineAction } from "@/server/action";
-import { revalidateApp } from "../revalidate";
-import { employeeService } from "./service";
+import { revalidateApp } from "@/server/revalidate";
+import { employeeService } from "@/server/employee/service";
 
 /** Returns the new employee and the one-time credentials to show HR. */
 export const createEmployee = defineAction({
