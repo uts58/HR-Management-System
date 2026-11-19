@@ -10,7 +10,7 @@ import type {
   IsoDate,
   Option,
   PositionId,
-  Timestamp,
+  UtcTimestamp,
 } from "./common";
 import type { IssuedCredentials, Role } from "./auth";
 
@@ -78,7 +78,7 @@ export interface EmployeeListItem {
   email: string | null;
   role: Role | null; // null when the employee has no login account
   status: EmploymentStatus;
-  terminatedAt: Timestamp | null;
+  terminatedAt: UtcTimestamp | null;
 }
 
 /**
@@ -109,8 +109,8 @@ export interface EmployeeDetail {
   dateOfBirth: IsoDate | null;
   username: string | null; // login name, null when no account
   status: EmploymentStatus;
-  terminatedAt: Timestamp | null;
-  createdAt: Timestamp | null; // null for migrated rows
+  terminatedAt: UtcTimestamp | null;
+  createdAt: UtcTimestamp | null; // null for migrated rows
 }
 
 /**
@@ -150,7 +150,7 @@ export interface CreateEmployeeInput {
   email: string; // valid email, max 254, stored lower-case
   gender: Gender;
   maritalStatus: MaritalStatus;
-  dateOfBirth: IsoDate; // must be in the past
+  dateOfBirth: IsoDate; // in the past; server allows <= UTC today + 1 day (ADR-0007)
   /**
    * Optional; matches USERNAME_PATTERN. Default is first.last (lower-case,
    * ASCII-folded, invalid characters dropped) plus a number if taken.

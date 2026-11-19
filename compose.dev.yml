@@ -12,8 +12,9 @@
 # In dev it also has CREATEDB, which `prisma migrate dev` needs for its
 # shadow database.
 #
-# The new app also needs APP_TIME_ZONE. Set it in web/.env (placeholder
-# there: Asia/Dhaka). It has no default and must be set per deployment.
+# Everything runs in UTC. web/.env.example sets TZ=UTC for `npm run dev`.
+# There is no company time zone: browsers render timestamps in the viewer's
+# own zone.
 #
 # Postgres listens on 127.0.0.1 only, so it is not reachable from your LAN.
 # Reset everything: docker compose -f compose.dev.yml down -v
@@ -26,6 +27,7 @@ services:
       POSTGRES_DB: hrdb
       POSTGRES_USER: hruser
       POSTGRES_PASSWORD: changeme
+      TZ: UTC
       # Read by docker/postgres/create-web-dbs.sh (initdb script)
       WEB_DB_USER: hr_web_app
       WEB_DB_PASS: changeme_web

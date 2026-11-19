@@ -8,7 +8,7 @@ TypeScript source of truth: [`web/src/contracts/`](../../web/src/contracts/). If
 - Every service function is `fn(actor: Actor, ...args)`. No service is callable anonymously. `Actor = { userId, employeeId | null, role }` comes from the session (ADR-0003).
 - "Role" below is the role the **service** enforces. The calling action enforces it too, with `requireRole` (ADR-0004).
 - Services throw `ServiceError` with the listed codes. Actions return `ActionResult<T>` (ADR-0006). `UNAUTHENTICATED`/`INTERNAL` can come from any action and aren't repeated below.
-- Calendar dates are `IsoDate` (`YYYY-MM-DD`), instants are `Date` (ADR-0007).
+- Calendar dates are `IsoDate` (`YYYY-MM-DD`, never converted). Instants are `UtcTimestamp` in every read model (ISO-8601 UTC strings ending in `Z`, never `Date`; services convert at the Prisma boundary), stored as UTC, and rendered in the viewer's browser time zone. There is no company time zone and no `APP_TIME_ZONE` (ADR-0007; this user decision of 2026-11-18 reverses the earlier director ruling).
 - String inputs are trimmed. Empty optional strings become `null`.
 - Read models allow `null` wherever migrated legacy data can be empty, even when create/update now require the field.
 - Legend: **[CHANGE]** = intentional change from legacy, **[NEW]** = no legacy equivalent (director-approved where listed).
@@ -29,6 +29,14 @@ Implemented by Security in `web/src/auth/` on **Better Auth** (Prisma adapter, d
 | `Role` | `'HR_ADMIN' \| 'EMPLOYEE'` | Legacy `person.access` 1 / 0. |
 
 `SessionUser = { userId, employeeId | null, username, displayName, role, mustChangePassword }`.
+
+**Auth seam (Backend ↔ Security, director ruling):**
+- Backend never imports `@/auth` directly. `web/src/server/auth-seam.ts` re-exports `requireRole` and `requireSession` from `@/auth`, and `defineAction` and services use only the seam, so tests can mock it.
+- **Failure contract:** in throw mode, auth failures throw an `Error` with `name === "AuthError"` and `code` either `"UNAUTHENTICATED"` (no valid session, or the user is disabled or terminated) or `"FORBIDDEN"` (wrong role). `runAction` maps both to `ActionResult` (ADR-0006).
+- **Pending password change:** a user with `mustChangePassword = true` gets `FORBIDDEN` from every action unless that action sets `allowPendingPasswordChange` (only `changePassword` does; `signOut` is `"PUBLIC"`).
+- `defineAction` roles: a `Role`, a list of roles, `"ANY"` (signed in), or `"PUBLIC"` (only allowed under `web/src/auth/`, lint-enforced; used for `signOut`).
+
+**Action input convention:** an action that targets one record with fields takes `{ id, ...fields }`, validated by `<action>ActionSchema` (e.g. `updateEmployeeActionSchema`). It calls the service as `fn(actor, id, fields)`. Id-only actions take `{ id }` (ADR-0002).
 
 ### Account administration (`AccountAdminApi`, server-only, called by Backend's employee service)
 
@@ -109,7 +117,7 @@ The legacy form said "All fields are mandatory except Middle name". We now enfor
 | email | required, valid, ≤254, stored lower-case. **Not** unique. | client regex |
 | gender | `MALE` \| `FEMALE` | `1` / `0`, default male |
 | maritalStatus | `SINGLE` \| `MARRIED` \| `DIVORCED` | lower-case strings, `"0"` if not chosen |
-| dateOfBirth | `IsoDate`, before today | free text "01 Jan 2019" |
+| dateOfBirth | `IsoDate`, in the past. The server accepts dates up to the UTC date + 1 day, because the viewer's time zone is unknown (ADR-0007 rule 4); the client form checks against the browser's local date. | free text "01 Jan 2019" |
 | username (create only) | optional, `USERNAME_PATTERN` (3–30 chars of `[a-z0-9._]`), unique (case-insensitive). Default `first.last`, with `2`, `3`… added if taken. | `person.Name = firstName` |
 
 ### Business rules
@@ -146,7 +154,7 @@ Departments and positions. Implemented by Backend in `web/src/server/org/`. Type
 
 1. Name is trimmed, 1–100 characters, required (parity: legacy rejected blank names with "Name required").
 2. **[CHANGE]** Names are unique case-insensitive within their table → `CONFLICT` "A department with this name already exists" on field `name`. Legacy allowed duplicates. Data enforces this with a hand-written unique index on `lower(name)`. Prisma's error for that index may not name the field, so the service checks first, and also catches the unique violation from the insert (a race) and maps it to the same `CONFLICT`.
-3. **Deleting a department or position that employees use [CHANGE]:** rejected with `CONFLICT` "N employees are assigned to this department. Reassign them first." Terminated employees count, because their records keep the reference. The UI disables the delete button when `totalEmployeeCount > 0`. Legacy deleted the row (no foreign key), and those employees then showed an empty position/department everywhere.
+3. **Deleting a department or position that employees use [CHANGE]:** rejected with `CONFLICT` "N employees are assigned to this department. Reassign them first." Terminated employees count, because their records keep the reference. The UI disables the delete button when `totalEmployeeCount > 0`. The service checks first, and also catches a foreign-key violation (P2003) from the delete and converts it to the same `CONFLICT`. Globally, P2003 stays `INTERNAL` (ADR-0006). Legacy deleted the row (no foreign key), and those employees then showed an empty position/department everywhere.
 4. Rename is not supported (parity).
 
 ---

@@ -3,7 +3,7 @@
  * Business rules: docs/architecture/contracts.md#notice
  */
 
-import type { Actor, NoticeId, Timestamp } from "./common";
+import type { Actor, NoticeId, UtcTimestamp } from "./common";
 
 /** Legacy `notice.type`: 0 = general, 1 = urgent, 2 = holiday. */
 export const NOTICE_TYPES = ["GENERAL", "URGENT", "HOLIDAY"] as const;
@@ -15,7 +15,7 @@ export interface Notice {
   body: string;
   type: NoticeType;
   /** Legacy `date` was a locale string; migrated values are parsed or null. */
-  createdAt: Timestamp | null;
+  createdAt: UtcTimestamp | null;
 }
 
 export interface CreateNoticeInput {

@@ -10,10 +10,11 @@
 #   web    -> db ${WEB_DB_NAME:-hr_web} as ${WEB_DB_USER:-hr_web_app}, a
 #             NOSUPERUSER role that owns only hr_web. db-init creates it and
 #             revokes PUBLIC CONNECT on both databases.
-# The web profile needs WEB_DB_PASS and BETTER_AUTH_SECRET, and APP_TIME_ZONE
-# must be set for every deployment (see .env.example). Use URL-safe
-# passwords, e.g. `openssl rand -hex 24`, because they are embedded in
-# DATABASE_URL.
+# The web profile needs WEB_DB_PASS and BETTER_AUTH_SECRET (see .env.example).
+# Use URL-safe passwords, e.g. `openssl rand -hex 24`, because they are
+# embedded in DATABASE_URL.
+# Web containers run with TZ=UTC. There is no company time zone: timestamps
+# are stored in UTC and rendered in each viewer's browser zone.
 #
 # Production: add compose.prod.yml (Caddy TLS proxy, no published app/db ports).
 #
@@ -96,6 +97,7 @@ services:
     profiles: ["web"]
     environment:
       DATABASE_URL: postgresql://${WEB_DB_USER:-hr_web_app}:${WEB_DB_PASS:-}@db:5432/${WEB_DB_NAME:-hr_web}
+      TZ: UTC
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -116,9 +118,9 @@ services:
       # boot if they are missing or invalid (src/env.ts).
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
-      # No default on purpose: set per deployment (IANA zone, e.g. Asia/Dhaka).
-      # The DB stores UTC; this only defines the business day.
-      APP_TIME_ZONE: ${APP_TIME_ZONE:-}
+      # Fixed, not configurable: server-side dates are always UTC (also set
+      # in web/Dockerfile).
+      TZ: UTC
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       web-migrate:
