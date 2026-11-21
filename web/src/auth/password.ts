@@ -1,0 +1,113 @@
+import "server-only";
+
+import { randomInt } from "node:crypto";
+import { hash as argon2Hash, verify as argon2Verify } from "@node-rs/argon2";
+import bcrypt from "bcryptjs";
+
+/**
+ * Password hashing for Better Auth (`emailAndPassword.password`) and for
+ * AccountAdminApi, which writes hashes inside the caller's transaction.
+ *
+ * New hashes: argon2id at the OWASP baseline (m = 19 MiB, t = 2, p = 1).
+ * The @node-rs/argon2 default algorithm is argon2id; tests assert the
+ * `$argon2id$` prefix.
+ * Verify also accepts legacy bcrypt (`$2a$`/`$2b$`/`$2y$`) written by the
+ * patched legacy app or the migration (ADR-0004 rule 7).
+ */
+export const ARGON2_OPTIONS = {
+  memoryCost: 19_456, // KiB = 19 MiB
+  timeCost: 2,
+  parallelism: 1,
+} as const;
+
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;
+
+const BCRYPT_RE = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+const ARGON2ID_PREFIX = "$argon2id$";
+
+export function isBcryptHash(stored: string): boolean {
+  return BCRYPT_RE.test(stored);
+}
+
+export function isArgon2idHash(stored: string): boolean {
+  return stored.startsWith(ARGON2ID_PREFIX);
+}
+
+/** argon2id hash of `password`. */
+export function hashPassword(password: string): Promise<string> {
+  return argon2Hash(password, ARGON2_OPTIONS);
+}
+
+/**
+ * true if `password` matches `hash` (argon2id or bcrypt). Unknown formats,
+ * malformed hashes and plain text never match, and this never throws.
+ */
+export async function verifyPassword({
+  hash,
+  password,
+}: {
+  hash: string;
+  password: string;
+}): Promise<boolean> {
+  try {
+    if (isArgon2idHash(hash)) return await argon2Verify(hash, password);
+    if (isBcryptHash(hash)) {
+      // bcrypt ignores bytes after 72. Our max length can exceed that, so
+      // refuse longer inputs for bcrypt hashes instead of truncating.
+      if (Buffer.byteLength(password, "utf8") > 72) return false;
+      return await bcrypt.compare(password, hash);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** A stored hash that should be replaced with argon2id after a successful login. */
+export function needsRehash(stored: string): boolean {
+  return isBcryptHash(stored);
+}
+
+// No look-alike characters (0/O, 1/l/I), so HR can read it out.
+const TEMP_ALPHABET =
+  "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export const TEMPORARY_PASSWORD_LENGTH = 16;
+
+/** Random temporary password (CSPRNG, ~92 bits). Shown once, never stored in plain text. */
+export function generateTemporaryPassword(): string {
+  let out = "";
+  for (let i = 0; i < TEMPORARY_PASSWORD_LENGTH; i++) {
+    out += TEMP_ALPHABET[randomInt(TEMP_ALPHABET.length)];
+  }
+  return out;
+}
+
+export type PasswordPolicyField = "newPassword" | "confirmPassword";
+
+/**
+ * Policy for passwords users choose (contract Auth rule 5). Returns field
+ * errors, or null when the password is acceptable.
+ */
+export function checkPasswordPolicy(input: {
+  newPassword: string;
+  confirmPassword: string;
+  username: string;
+}): Partial<Record<PasswordPolicyField, string[]>> | null {
+  const { newPassword, confirmPassword, username } = input;
+  const errors: string[] = [];
+  if (newPassword.length < PASSWORD_MIN_LENGTH) {
+    errors.push(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
+  }
+  if (newPassword.length > PASSWORD_MAX_LENGTH) {
+    errors.push(`Use at most ${PASSWORD_MAX_LENGTH} characters.`);
+  }
+  if (newPassword.trim().toLowerCase() === username.toLowerCase()) {
+    errors.push("The password must not be your username.");
+  }
+  if (errors.length > 0) return { newPassword: errors };
+  if (newPassword !== confirmPassword) {
+    return { confirmPassword: ["The passwords do not match."] };
+  }
+  return null;
+}

@@ -36,6 +36,8 @@ Implemented by Security in `web/src/auth/` on **Better Auth** (Prisma adapter, d
 - **Pending password change:** a user with `mustChangePassword = true` gets `FORBIDDEN` from every action unless that action sets `allowPendingPasswordChange` (only `changePassword` does; `signOut` is `"PUBLIC"`).
 - `defineAction` roles: a `Role`, a list of roles, `"ANY"` (signed in), or `"PUBLIC"` (only allowed under `web/src/auth/`, lint-enforced; used for `signOut`).
 
+**Where actions live:** `web/src/server/actions/<area>.ts` (Backend; one `'use server'` file per area, `defineAction` exports only) and `web/src/auth/actions.ts` (Security). Action names match the service function, e.g. `decideLeaveRequest({ id, decision })` and `markMyLeaveDecisionsSeen()`. Pages use the helpers in `web/src/server/page.ts`: `orNotFound(promise)` (service `NOT_FOUND` → `notFound()`) and `idOrNotFound(param)` (parse a route id or `notFound()`). Mutations revalidate the `(app)` layout (accepted for v1).
+
 **Action input convention:** an action that targets one record with fields takes `{ id, ...fields }`, validated by `<action>ActionSchema` (e.g. `updateEmployeeActionSchema`). It calls the service as `fn(actor, id, fields)`. Id-only actions take `{ id }` (ADR-0002).
 
 ### Account administration (`AccountAdminApi`, server-only, called by Backend's employee service)
@@ -44,31 +46,40 @@ Implemented by Security in `web/src/auth/` on **Better Auth** (Prisma adapter, d
 |---|---|
 | `createLoginAccount(tx, { employeeId, username, displayName, email?, role })` | Creates the Better Auth `user` + credential `account` inside the caller's transaction, with a random temporary password (≥12 chars) and `mustChangePassword = true`. If no usable email is supplied (missing or already taken), it uses `<username>@users.invalid` **and sets `emailIsPlaceholder = true`**; a DB CHECK rejects a placeholder address without the flag. Returns `{ userId, credentials }`. `CONFLICT` on a taken username. |
 | `issueTemporaryPassword(tx, userId)` | New temporary password, `mustChangePassword = true`, all sessions revoked. **Creates the credential account if it's missing**: migrated users whose legacy password was empty have none. |
+| `updateDisplayName(tx, userId, name)` | Sets the user's display name (`user.name`). `updateEmployee` calls it in the same transaction when HR renames an employee (director ruling, Backend Phase 1b). Never changes the username. |
+| `disableLogin(tx, userId)` | Sets `users.disabledAt = now`, which blocks sign-in and `getSession()`, and deletes all of the user's sessions (termination). Our `role` column is the source of truth; Better Auth's admin-plugin `role`/`banned` fields are not used. |
 
-**`user.additionalFields`** (Data schema, Security config; type `AuthUserAdditionalFields`):
+**`user.additionalFields`** (Data schema, Security config; type `AuthUserAdditionalFields`). **All six are `input: false`**: no Better Auth endpoint can set them from a request. Only `AccountAdminApi` and the migration write them.
 
 | Field | Notes |
 |---|---|
-| `role` | `input: false`. Source of truth for authorization. |
-| `mustChangePassword` | |
+| `role` | Source of truth for authorization. |
+| `mustChangePassword` | Set by account creation, password reset and the migration (plain-text users). Cleared by `changePassword`. |
 | `employeeId` | Unique FK to `employee`, `Restrict`. |
 | `legacyPersonId` | Legacy `person.id`, set only on migrated users. |
-| `disabledAt` | `input: false`. When set, sign-in is blocked and sessions are dropped. |
-| `emailIsPlaceholder` | `input: false`. True for `@users.invalid` addresses. |
-| `disableLogin(tx, userId)` | Sets `users.disabledAt = now`, which blocks sign-in and `getSession()`, and deletes all of the user's sessions (termination). Our `role` column is the source of truth; Better Auth's admin-plugin `role`/`banned` fields are not used. |
+| `disabledAt` | When set, sign-in is blocked and sessions are dropped. |
+| `emailIsPlaceholder` | True for `@users.invalid` addresses. |
+
+**Auth implementation decisions (Security Phase 1; detail in ADR-0004):**
+- **Module surface:** `@/auth` (server-only: `getSession`, `requireSession`, `requireRole`, `AccountAdminApi`), `@/auth/actions` (`changePassword`, `signOut`), `@/auth/client` (browser sign-in only), `@/auth/paths` (route constants). Nothing else in `web/src/auth/` is importable from outside it.
+- **HTTP surface is allowlisted:** `/api/auth/sign-in/username`, `/sign-out`, `/get-session`, `/ok`, `/error`. Every other Better Auth path returns 404.
+- **Forced password change:** sign-in sets an `hr.must_change_password` hint cookie, and the proxy redirects page loads to `/change-password` while it's present. The **authoritative** check is server-side in `requireSession`/`requireRole`: pages redirect and actions get `FORBIDDEN`, unless they set `allowPendingPasswordChange`.
+- **Role failures:** pages redirect to `/forbidden` (no experimental `authInterrupts`); actions return `FORBIDDEN` via `defineAction`.
+- **Rate limits:** about 50 requests per 60 s per IP, plus 10 failed sign-ins per 60 s per username+IP (legacy parity). In memory, single instance in v1.
+- **Backlog:** breached-password check on new passwords.
 
 ### Sign-in, sign-out, change password
 
 | Function | Where | Role | Input | Output | Errors |
 |---|---|---|---|---|---|
 | `signInWithUsername` (`AuthClientApi`) | browser → `POST /api/auth/sign-in/username` | anonymous | `{ username, password }` | `ActionResult<{ redirectTo }>` | `VALIDATION` (generic "Invalid username or password"), rate-limited (HTTP 429 → "Too many attempts") |
-| `signOut` (`AuthActions`) | server action | any | – | `void` | – |
+| `signOut` (`AuthActions`) | server action, `defineAction({ role: "PUBLIC" })` (idempotent) | any, including no session | – | `void` | – |
 | `changePassword` (`AuthActions`) | server action | any signed-in (also while `mustChangePassword`) | `{ currentPassword, newPassword, confirmPassword }` | `ActionResult` | `VALIDATION` (wrong current password → field `currentPassword`; mismatch → `confirmPassword`; policy → `newPassword`) |
 
 ### Business rules
 
 1. Username matching is case-insensitive (legacy parity: `mode: 'insensitive'`; the Better Auth `username` plugin lower-cases by default).
-1a. **Sign-in is not a server action.** Better Auth's rate limiter only covers HTTP requests to `/api/auth/*`; server-side `auth.api` calls are not limited. The form calls the endpoint from the browser, and Security adds a `customRules` entry for `/sign-in/username`.
+1a. **Sign-in is not a server action.** Better Auth's rate limiter only covers HTTP requests to `/api/auth/*`; server-side `auth.api` calls are not limited. The form calls the endpoint from the browser (`@/auth/client`), with the limits listed above.
 1b. Public sign-up is disabled (`emailAndPassword.disableSignUp: true`). Only HR creates accounts.
 1c. TERMINATED employees can't sign in, and their sessions are revoked at termination. The mechanism is `users.disabledAt` (set by `disableLogin`): any user with it set gets the generic login failure, and `getSession()` returns null.
 1d. **Forced password change for migrated plain-text users (director ruling):** users who still had a plain-text legacy password at migration get `mustChangePassword = true`, and must change it on their next login. Users already on bcrypt aren't forced.
@@ -125,7 +136,7 @@ The legacy form said "All fields are mandatory except Middle name". We now enfor
 1. **Employee ID generation [CHANGE]:** the database assigns ids (identity/sequence). The migration keeps legacy ids and moves the sequence past `max(id)`. Legacy computed `max(id)+1` when the form loaded and trusted the read-only field the browser sent back, which races when two HR users add employees at once.
 2. **Create** inserts an `ACTIVE` employee and its login account through `AccountAdminApi.createLoginAccount(tx, …)` (role `EMPLOYEE`, random temporary password of at least 12 characters, `mustChangePassword = true`) in **one transaction**. The plain temporary password is returned once in `credentials` and shown to HR on the success screen. It is never logged or stored in plain text. **[CHANGE]** Legacy generated an 8-character random password that nobody could ever see, so new employees could not log in.
 3. New accounts are always `EMPLOYEE` (parity: there is no UI to create HR admins. The seed and migration create them).
-4. **Update** does not touch the username or the role. **[CHANGE]** Legacy set `person.Name` to the new first name, which changed the login name.
+4. **Update** does not touch the username or the role. **[CHANGE]** Legacy set `person.Name` to the new first name, which changed the login name. When the name changes and the employee has an account, the linked user's **display name** follows: `AccountAdminApi.updateDisplayName`, called in the same transaction.
 5. **Termination replaces delete [CHANGE, director ruling].** Employees have `status: ACTIVE | TERMINATED` and `terminatedAt`. `terminateEmployee` runs in one transaction: sets `status = TERMINATED` and `terminatedAt = now`, calls `AccountAdminApi.disableLogin`, which sets `users.disabledAt` (no sign-in, all sessions revoked), and sets the employee's `PENDING` leave requests to `REJECTED` (`decidedBy = actor`). Leave and appraisal history is **kept**. Blocked with `CONFLICT` for yourself, the last active `HR_ADMIN`, or someone already terminated. There is **no hard delete in v1** and no reinstatement. Legacy hard-deleted `employee` + `person` and left leave/performance rows pointing at nothing.
 6. **Listing [CHANGE]:** by default shows ACTIVE employees only, the HR admin included, with a role badge, plus a filter for Terminated/All. Legacy hid `id == 1` by hard-coding it.
 6a. Terminated employees can't be edited or have their password reset, and don't appear in pickers (appraisals). Their usernames stay reserved. In leave and appraisal lists they appear with a "Terminated" marker (`employee.status` on `EmployeeRef`).
@@ -275,5 +286,5 @@ These are assumptions the contracts make about the Prisma schema. Please confirm
 
 - **Security:** Better Auth config per ADR-0004. Implement `AccountAdminApi` so it writes inside the caller's Prisma transaction (not through `auth.api`). Hashing is argon2id, with bcrypt verify and rehash-on-login in a `hooks.after` on `/sign-in/username` (director ruling). Add a `customRules` rate limit for `/sign-in/username` and decide storage (memory is fine for one container). `disableLogin` uses `users.disabledAt` (no admin plugin), enforced at sign-in (e.g. a `hooks.before` on `/sign-in/username` that gives the generic failure) and in `getSession()`. Force `/change-password` for `mustChangePassword` users, including migrated plain-text users. Keep the username plugin's default validator (it matches `USERNAME_PATTERN`). Settle the email placeholder (Data Q4a). Proxy lives at `web/src/proxy.ts` (approved).
 - **Backend:** confirm `runAction`/`unstable_rethrow` naming. You own all of `web/src/lib/` (director ruling).
-- **Frontend:** actions colocated in `app/**/actions.ts` (ADR-0002). How the one-time credentials screen works (no reload, copy button).
+- **Frontend:** import actions from `@/server/actions/<area>` and `@/auth/actions` (ADR-0002, revised). How the one-time credentials screen works (no reload, copy button).
 - **QA:** please confirm in `legacy-tests/` that `POST /hr/saveEmp` and `/hr/editEmp` actually fail (multipart body is never parsed), so the parity baseline is right.
