@@ -28,6 +28,8 @@
  * through `useActionState` (`(prevState, formData)`).
  */
 
+import "server-only";
+
 import { z } from "zod";
 import { Role, type RequireOptions, type Session } from "@/contracts/auth";
 import type { ActionResult, Actor } from "@/contracts/common";
@@ -36,7 +38,14 @@ import type { AuthGate } from "./auth-seam";
 import { runAction, type ErrorLogger } from "./errors";
 
 /** A role, a list of roles, or "ANY" signed-in user. */
-export type ActionRole = Role | readonly Role[] | "ANY";
+export type SignedInRole = Role | readonly Role[] | "ANY";
+
+/**
+ * "PUBLIC" skips the session check entirely. Allowed only under
+ * web/src/auth/ (Platform lint rule) and used only for the idempotent
+ * signOut (ADR-0002).
+ */
+export type ActionRole = SignedInRole | "PUBLIC";
 
 export interface ActionContext {
   /** The full session, for the rare handler that needs more than Actor. */
@@ -44,17 +53,29 @@ export interface ActionContext {
 }
 
 export interface ActionDefinition<S extends z.ZodType, O> {
-  role: ActionRole;
+  role: SignedInRole;
   schema: S;
   /**
    * Let users with `mustChangePassword` through. Only Security's
-   * changePassword and signOut set this (ADR-0004 rule 8).
+   * changePassword sets this (ADR-0004 rule 8).
    */
   allowPendingPasswordChange?: boolean;
   handler: (
     actor: Actor,
     input: z.output<S>,
     context: ActionContext,
+  ) => Promise<O> | O;
+}
+
+/** A "PUBLIC" action: no session check, so no actor or session. */
+export interface PublicActionDefinition<S extends z.ZodType, O> {
+  role: "PUBLIC";
+  schema: S;
+  allowPendingPasswordChange?: never;
+  handler: (
+    actor: null,
+    input: z.output<S>,
+    context: { session: null },
   ) => Promise<O> | O;
 }
 
@@ -101,7 +122,7 @@ function rawInput(args: readonly unknown[]): unknown {
 const ROLE_VALUES = new Set<string>(Object.values(Role));
 
 function assertValidRole(role: ActionRole): void {
-  if (role === "ANY") return;
+  if (role === "ANY" || role === "PUBLIC") return;
   const roles: readonly unknown[] = Array.isArray(role) ? role : [role];
   if (roles.length === 0 || !roles.every((r) => ROLE_VALUES.has(r as string))) {
     // A misconfigured action fails when its module loads, not at request time.
@@ -119,29 +140,42 @@ export interface DefineActionDeps {
  * uses the exported `defineAction`; tests pass a fake `auth`.
  */
 export function createDefineAction({ auth, log }: DefineActionDeps) {
-  return function defineAction<S extends z.ZodType, O>(
+  function defineAction<S extends z.ZodType, O>(
     definition: ActionDefinition<S, O>,
+  ): ServerAction<z.input<S>, O>;
+  function defineAction<S extends z.ZodType, O>(
+    definition: PublicActionDefinition<S, O>,
+  ): ServerAction<z.input<S>, O>;
+  function defineAction<S extends z.ZodType, O>(
+    definition: ActionDefinition<S, O> | PublicActionDefinition<S, O>,
   ): ServerAction<z.input<S>, O> {
-    const { role, schema, handler, allowPendingPasswordChange } = definition;
-    assertValidRole(role);
+    assertValidRole(definition.role);
     const options: RequireOptions = {
       onFail: "throw",
-      ...(allowPendingPasswordChange ? { allowPendingPasswordChange } : {}),
+      ...(definition.allowPendingPasswordChange
+        ? { allowPendingPasswordChange: true }
+        : {}),
     };
 
     async function action(...args: unknown[]): Promise<ActionResult<O>> {
       return runAction(async () => {
+        if (definition.role === "PUBLIC") {
+          const input = await definition.schema.parseAsync(rawInput(args));
+          return definition.handler(null, input, { session: null });
+        }
+        const { role } = definition;
         const session =
           role === "ANY"
             ? await auth.requireSession(options)
             : await auth.requireRole(role, options);
-        const input = await schema.parseAsync(rawInput(args));
-        return handler(toActor(session), input, { session });
+        const input = await definition.schema.parseAsync(rawInput(args));
+        return definition.handler(toActor(session), input, { session });
       }, log);
     }
 
     return action as ServerAction<z.input<S>, O>;
-  };
+  }
+  return defineAction;
 }
 
 /** See the module comment. Bound to `@/auth` through `./auth-seam`. */

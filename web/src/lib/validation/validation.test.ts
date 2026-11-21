@@ -186,21 +186,20 @@ describe("createEmployeeSchema", () => {
   );
 
   it("date of birth must be before today (UTC date, one-day tolerance)", () => {
-    // now = 2026-11-17 12:00Z. Tomorrow (UTC) and later are rejected.
-    for (const dateOfBirth of ["2026-11-18", "2030-01-01"]) {
+    // now = 2026-11-17 12:00Z. Later than the UTC date + 1 day is rejected.
+    for (const dateOfBirth of ["2026-11-19", "2030-01-01"]) {
       expect(
         errorsOf(createEmployeeSchema, { ...validEmployeeForm, dateOfBirth })
           .dateOfBirth,
       ).toEqual(["Date of birth must be in the past"]);
     }
-    // Today's UTC date is tolerated: for users ahead of UTC it is already
-    // yesterday.
-    expect(
-      createEmployeeSchema.safeParse({
-        ...validEmployeeForm,
-        dateOfBirth: "2026-11-17",
-      }).success,
-    ).toBe(true);
+    // Up to the UTC date + 1 day is tolerated (ADR-0007 rule 4).
+    for (const dateOfBirth of ["2026-11-17", "2026-11-18"]) {
+      expect(
+        createEmployeeSchema.safeParse({ ...validEmployeeForm, dateOfBirth })
+          .success,
+      ).toBe(true);
+    }
   });
 
   it.each(["ab", "a".repeat(31), "ada lovelace", "ada-l", "adä"])(
