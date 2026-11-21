@@ -339,7 +339,12 @@ export function createEmployeeService(
       return db.$transaction(async (tx) => {
         const current = await tx.employee.findFirst({
           where: { id, ...NOT_PLACEHOLDER },
-          select: { employmentStatus: true },
+          select: {
+            employmentStatus: true,
+            firstName: true,
+            lastName: true,
+            user: { select: { id: true } },
+          },
         });
         if (!current) throw notFoundError(MESSAGES.notFound);
         if (current.employmentStatus === "TERMINATED") {
@@ -352,6 +357,12 @@ export function createEmployeeService(
           data: toEmployeeData(input),
         });
         if (count === 0) throw conflictError(MESSAGES.terminatedEdit);
+        // The login's display name ("First Last") follows a rename, in the
+        // same transaction (contract Employee rule 4). Username never changes.
+        const newName = shortName(input);
+        if (current.user && newName !== shortName(current)) {
+          await accounts.updateDisplayName(tx, current.user.id, newName);
+        }
         return toDetail(
           await tx.employee.findUniqueOrThrow({
             where: { id },

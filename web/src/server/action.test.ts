@@ -323,8 +323,8 @@ describe("defineAction roles and options", () => {
   });
 });
 
-describe("production defineAction before @/auth exists", () => {
-  it("fails closed: every action returns UNAUTHENTICATED", async () => {
+describe("production defineAction (wired to @/auth)", () => {
+  it("returns UNAUTHENTICATED outside a signed-in request", async () => {
     const handler = vi.fn(async () => "should not run");
     const action = productionDefineAction({
       role: Role.HR_ADMIN,
@@ -380,7 +380,7 @@ describe('role "PUBLIC"', () => {
     });
   });
 
-  it("works with the production defineAction before @/auth exists", async () => {
+  it("works with the production defineAction without any session", async () => {
     const action = productionDefineAction({
       role: "PUBLIC",
       schema: noInputSchema,
