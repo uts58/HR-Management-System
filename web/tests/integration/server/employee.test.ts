@@ -8,7 +8,7 @@ import {
 import { leaveService } from "@/server/leave/service";
 import {
   db,
-  fakeAccountAdmin,
+  recordingAccountAdmin,
   makeDepartment,
   makeEmployee,
   makePerson,
@@ -23,7 +23,7 @@ beforeEach(resetDatabase);
 afterAll(() => db.$disconnect());
 
 async function setup() {
-  const accounts = fakeAccountAdmin();
+  const accounts = recordingAccountAdmin();
   const service = createEmployeeService(accounts.api);
   const hr = await makePerson("HR_ADMIN", {
     firstName: "Hr",
@@ -68,9 +68,18 @@ describe("employeeService.createEmployee", () => {
   it("creates an ACTIVE employee and its login account in one transaction", async () => {
     const { service, hr, form, accounts } = await setup();
     const result = await service.createEmployee(hr.actor, form as never);
-    expect(result.credentials).toEqual({
-      username: "jose.nunez",
-      temporaryPassword: "Temp-Password-123",
+    expect(result.credentials.username).toBe("jose.nunez");
+    expect(result.credentials.temporaryPassword.length).toBeGreaterThanOrEqual(
+      12,
+    );
+    const user = await db.user.findUniqueOrThrow({
+      where: { username: "jose.nunez" },
+    });
+    expect(user).toMatchObject({
+      employeeId: result.employee.id,
+      name: "José Ñúñez",
+      role: "EMPLOYEE",
+      mustChangePassword: true,
     });
     expect(result.employee).toMatchObject({
       firstName: "José",
@@ -132,14 +141,26 @@ describe("employeeService.createEmployee", () => {
     expect(await db.employee.count()).toBe(before);
   });
 
-  it("rolls back the employee when the account step fails (fail-closed seam)", async () => {
+  it("rolls back the employee and account when the account step fails", async () => {
     const { hr, form } = await setup();
-    const before = await db.employee.count();
-    const e = await rejection(
-      productionEmployeeService.createEmployee(hr.actor, form as never),
+    const failing = createEmployeeService(
+      recordingAccountAdmin("createLoginAccount").api,
     );
-    expect(e.name).toBe("AccountAdminNotConfiguredError");
-    expect(await db.employee.count()).toBe(before);
+    const employeesBefore = await db.employee.count();
+    const usersBefore = await db.user.count();
+    const e = await rejection(failing.createEmployee(hr.actor, form as never));
+    expect(e.message).toBe("forced createLoginAccount failure");
+    expect(await db.employee.count()).toBe(employeesBefore);
+    expect(await db.user.count()).toBe(usersBefore);
+  });
+
+  it("the production service is wired to Security's accountAdmin", async () => {
+    const { hr, form } = await setup();
+    const result = await productionEmployeeService.createEmployee(
+      hr.actor,
+      form as never,
+    );
+    expect(result.employee.username).toBe("jose.nunez");
   });
 });
 
@@ -259,6 +280,57 @@ describe("employeeService.updateEmployee", () => {
     expect(updated.username).toBe(emp.user.username);
   });
 
+  it("a rename updates the login's display name in the same transaction", async () => {
+    const { service, hr, emp, form, accounts } = await setup();
+    await service.updateEmployee(hr.actor, emp.employee.id, {
+      ...form,
+      firstName: "Grace",
+      lastName: "Hopper",
+    } as never);
+    const user = await db.user.findUniqueOrThrow({
+      where: { id: emp.user.id },
+    });
+    expect(user.name).toBe("Grace Hopper");
+    expect(user.username).toBe(emp.user.username);
+    expect(accounts.calls).toEqual([`rename:${emp.user.id}:Grace Hopper`]);
+  });
+
+  it("no display-name call when the name is unchanged or there is no account", async () => {
+    const { service, hr, emp, form, accounts } = await setup();
+    const noLogin = await makeEmployee({ firstName: "No", lastName: "Login" });
+    await service.updateEmployee(hr.actor, emp.employee.id, {
+      ...form,
+      firstName: "Emp",
+      lastName: "One",
+    } as never);
+    await service.updateEmployee(hr.actor, noLogin.id, {
+      ...form,
+      firstName: "Still",
+    } as never);
+    expect(accounts.calls).toEqual([]);
+  });
+
+  it("a failing display-name update rolls back the employee change", async () => {
+    const { hr, emp, form } = await setup();
+    const failing = createEmployeeService(
+      recordingAccountAdmin("updateDisplayName").api,
+    );
+    await rejection(
+      failing.updateEmployee(hr.actor, emp.employee.id, {
+        ...form,
+        firstName: "Rolled",
+      } as never),
+    );
+    const row = await db.employee.findUniqueOrThrow({
+      where: { id: emp.employee.id },
+    });
+    expect(row.firstName).toBe("Emp");
+    const user = await db.user.findUniqueOrThrow({
+      where: { id: emp.user.id },
+    });
+    expect(user.name).not.toBe("Rolled One");
+  });
+
   it("terminated employees can't be edited", async () => {
     const { service, hr, form } = await setup();
     const gone = await makeEmployee({
@@ -350,11 +422,13 @@ describe("employeeService.resetEmployeePassword", () => {
       hr.actor,
       emp.employee.id,
     );
-    expect(creds).toEqual({
-      username: emp.user.username,
-      temporaryPassword: "Temp-Password-456",
-    });
+    expect(creds.username).toBe(emp.user.username);
+    expect(creds.temporaryPassword.length).toBeGreaterThanOrEqual(12);
     expect(accounts.calls).toEqual([`reset:${emp.user.id}`]);
+    expect(
+      (await db.user.findUniqueOrThrow({ where: { id: emp.user.id } }))
+        .mustChangePassword,
+    ).toBe(true);
   });
 
   it("terminated is CONFLICT; no account is NOT_FOUND", async () => {

@@ -11,8 +11,8 @@ import { randomUUID } from "node:crypto";
 import type { AccountAdminApi } from "@/contracts/auth";
 import type { Actor } from "@/contracts/common";
 import type { Prisma } from "@/generated/prisma/client";
-import { db, type Tx } from "@/server/db";
-import { conflictError } from "@/server/errors";
+import { accountAdmin } from "@/server/account-admin-seam";
+import { db } from "@/server/db";
 
 const dbName = new URL(
   process.env.DATABASE_URL ?? "postgres://x/none",
@@ -96,66 +96,40 @@ export async function makePlaceholder(id?: number) {
 }
 
 /**
- * In-test stand-in for Security's AccountAdminApi. Writes through the
- * caller's transaction client, like the real one must.
+ * Security's real AccountAdminApi, wrapped to record calls. It writes
+ * through the caller's transaction client. `failOn` makes one method throw
+ * after the real call, to prove the employee change rolls back with it.
  */
-export function fakeAccountAdmin() {
+export function recordingAccountAdmin(failOn?: keyof AccountAdminApi): {
+  api: AccountAdminApi;
+  calls: string[];
+} {
   const calls: string[] = [];
+  const maybeFail = (method: keyof AccountAdminApi) => {
+    if (failOn === method) throw new Error(`forced ${method} failure`);
+  };
   const api: AccountAdminApi = {
-    async createLoginAccount(rawTx, input) {
-      const tx = rawTx as Tx;
+    async createLoginAccount(tx, input) {
       calls.push(`create:${input.username}`);
-      const taken = await tx.user.findUnique({
-        where: { username: input.username },
-      });
-      if (taken)
-        throw conflictError("This username is already taken", "username");
-      const emailTaken = input.email
-        ? await tx.user.findUnique({ where: { email: input.email } })
-        : null;
-      const usePlaceholder = !input.email || !!emailTaken;
-      const user = await tx.user.create({
-        data: {
-          id: randomUUID(),
-          name: input.displayName,
-          email: usePlaceholder
-            ? `${input.username}@users.invalid`
-            : (input.email as string),
-          emailIsPlaceholder: usePlaceholder,
-          username: input.username,
-          role: input.role,
-          mustChangePassword: true,
-          employeeId: input.employeeId,
-        },
-      });
-      return {
-        userId: user.id,
-        credentials: {
-          username: input.username,
-          temporaryPassword: "Temp-Password-123",
-        },
-      };
+      const result = await accountAdmin.createLoginAccount(tx, input);
+      maybeFail("createLoginAccount");
+      return result;
     },
-    async issueTemporaryPassword(rawTx, userId) {
-      const tx = rawTx as Tx;
+    async issueTemporaryPassword(tx, userId) {
       calls.push(`reset:${userId}`);
-      const user = await tx.user.update({
-        where: { id: userId },
-        data: { mustChangePassword: true },
-      });
-      return {
-        username: user.username,
-        temporaryPassword: "Temp-Password-456",
-      };
+      const result = await accountAdmin.issueTemporaryPassword(tx, userId);
+      maybeFail("issueTemporaryPassword");
+      return result;
     },
-    async disableLogin(rawTx, userId) {
-      const tx = rawTx as Tx;
+    async disableLogin(tx, userId) {
       calls.push(`disable:${userId}`);
-      await tx.user.update({
-        where: { id: userId },
-        data: { disabledAt: new Date() },
-      });
-      await tx.session.deleteMany({ where: { userId } });
+      await accountAdmin.disableLogin(tx, userId);
+      maybeFail("disableLogin");
+    },
+    async updateDisplayName(tx, userId, name) {
+      calls.push(`rename:${userId}:${name}`);
+      await accountAdmin.updateDisplayName(tx, userId, name);
+      maybeFail("updateDisplayName");
     },
   };
   return { api, calls };
