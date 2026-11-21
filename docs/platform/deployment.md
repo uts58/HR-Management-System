@@ -199,6 +199,17 @@ usage for the DB volume, and alerts on backup job failure.
       kept for N years per HR retention policy, then drop it.
 - [ ] Remove the legacy code from the repo (separate PR) and the `legacy` CI job.
 - [ ] Move `web/` to the repo root if desired.
+- [ ] **Re-enable Dependabot.** The user turned it off for the duration of
+      the migration.
+      1. Turn it back on:
+         `gh api -X PUT repos/uts58/HR-Management-System/vulnerability-alerts`
+         and
+         `gh api -X PUT repos/uts58/HR-Management-System/automated-security-fixes`.
+      2. Restore `.github/dependabot.yml` if one was removed. None existed when
+         Dependabot was turned off.
+      3. Triage open alerts. Known: #49, minimatch via shadcn, dev-only.
+      4. Close the obsolete legacy bump PRs #17 (morgan, since removed) and #15
+         (qs/body-parser/express), because the legacy app is retired.
 
 ## 4. Open questions
 
