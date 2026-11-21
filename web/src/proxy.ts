@@ -5,19 +5,30 @@ import {
   hasSessionCookie,
   MUST_CHANGE_COOKIE,
 } from "@/auth/proxy-helpers";
+import {
+  buildSecurityHeaders,
+  generateNonce,
+  NONCE_HEADER,
+} from "@/auth/security-headers";
+import { env } from "@/env";
 
 /**
- * Optimistic redirects only (ADR-0004 rule 3). This is NOT the
- * authorization boundary: every page, action and route handler calls
- * requireSession/requireRole, which read the database. No DB access here.
+ * 1. Security headers on every matched response, including a per-request
+ *    nonce CSP (Next 16 CSP guide). The CSP also goes on the forwarded
+ *    request, which is how Next.js finds the nonce for its own scripts;
+ *    Server Components read it from `x-nonce` (getCspNonce()).
  *
- * - No session cookie: GET/HEAD of a protected page -> /login?callbackUrl=…
- * - Forced password change hint cookie: GET/HEAD of any page other than
- *   /change-password -> /change-password.
- * - Non-GET requests (server actions) pass through; the action itself
- *   returns UNAUTHENTICATED/FORBIDDEN.
- * - Sets x-hr-pathname so requireSession({ onFail: 'redirect' }) can build
- *   the callbackUrl. Any client-sent value is overwritten.
+ * 2. Optimistic redirects only (ADR-0004 rule 3). This is NOT the
+ *    authorization boundary: every page, action and route handler calls
+ *    requireSession/requireRole, which read the database. No DB access here.
+ *    - No session cookie: GET/HEAD of a protected page -> /login?callbackUrl=…
+ *    - Forced password change hint cookie: GET/HEAD of any page other than
+ *      /change-password -> /change-password.
+ *    - Non-GET requests (server actions) pass through; the action itself
+ *      returns UNAUTHENTICATED/FORBIDDEN.
+ *    - Sets x-hr-pathname so requireSession({ onFail: 'redirect' }) can
+ *      build the callbackUrl. Client-sent values of x-hr-pathname, x-nonce
+ *      and Content-Security-Policy are overwritten.
  */
 
 const PUBLIC_PATHS = [LOGIN_PATH];
@@ -32,8 +43,31 @@ function isPublic(pathname: string): boolean {
   );
 }
 
+function securityHeaders(nonce: string): Record<string, string> {
+  const isProduction = env.NODE_ENV === "production";
+  const https = env.BETTER_AUTH_URL?.startsWith("https://") ?? false;
+  return buildSecurityHeaders({
+    nonce,
+    isDev: env.NODE_ENV === "development",
+    upgradeInsecureRequests: isProduction && https,
+    hsts: isProduction && https,
+  });
+}
+
+function withHeaders(
+  response: NextResponse,
+  headers: Record<string, string>,
+): NextResponse {
+  for (const [name, value] of Object.entries(headers)) {
+    response.headers.set(name, value);
+  }
+  return response;
+}
+
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const nonce = generateNonce();
+  const headers = securityHeaders(nonce);
   const isPageRequest = request.method === "GET" || request.method === "HEAD";
   const isApi = pathname.startsWith("/api/");
 
@@ -42,7 +76,7 @@ export function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = LOGIN_PATH;
       url.search = `?callbackUrl=${encodeURIComponent(pathname + search)}`;
-      return NextResponse.redirect(url);
+      return withHeaders(NextResponse.redirect(url), headers);
     }
     if (
       pathname !== CHANGE_PASSWORD_PATH &&
@@ -51,13 +85,21 @@ export function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = CHANGE_PASSWORD_PATH;
       url.search = "";
-      return NextResponse.redirect(url);
+      return withHeaders(NextResponse.redirect(url), headers);
     }
   }
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-hr-pathname", pathname + search);
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  requestHeaders.set(NONCE_HEADER, nonce);
+  requestHeaders.set(
+    "Content-Security-Policy",
+    headers["Content-Security-Policy"]!,
+  );
+  return withHeaders(
+    NextResponse.next({ request: { headers: requestHeaders } }),
+    headers,
+  );
 }
 
 export const config = {

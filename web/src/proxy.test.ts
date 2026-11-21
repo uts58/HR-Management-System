@@ -59,4 +59,39 @@ describe("proxy", () => {
       "/dashboard",
     );
   });
+
+  it("adds a fresh nonce CSP to the response and forwards it (and x-nonce) to Next", () => {
+    const r = new NextRequest("http://localhost:3000/dashboard", {
+      headers: {
+        cookie: SESSION,
+        "x-nonce": "attacker",
+        "content-security-policy": "script-src *",
+      },
+    });
+    const res = proxy(r);
+    const csp = res.headers.get("content-security-policy")!;
+    const nonce = /'nonce-([^']+)'/.exec(csp)?.[1];
+    expect(nonce).toBeTruthy();
+    expect(nonce).not.toBe("attacker");
+    expect(res.headers.get("x-middleware-request-x-nonce")).toBe(nonce);
+    expect(
+      res.headers.get("x-middleware-request-content-security-policy"),
+    ).toBe(csp);
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("cross-origin-opener-policy")).toBe("same-origin");
+
+    const other = proxy(req("/dashboard", { cookie: SESSION }));
+    expect(other.headers.get("content-security-policy")).not.toBe(csp);
+  });
+
+  it("puts the security headers on redirects too", () => {
+    const res = proxy(req("/employees"));
+    expect(res.headers.get("location")).toBeTruthy();
+    expect(res.headers.get("content-security-policy")).toContain(
+      "frame-ancestors 'none'",
+    );
+    expect(res.headers.get("referrer-policy")).toBe(
+      "strict-origin-when-cross-origin",
+    );
+  });
 });
