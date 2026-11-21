@@ -1,0 +1,132 @@
+/**
+ * E2E database reset (QA): TRUNCATE every app table, run Data's
+ * prisma/seed.ts, then load qa-fixtures.sql on top (ADR-0008 rule 3:
+ * "seed data for E2E comes from one fixture module, built on Data's seed").
+ *
+ * Two entry points:
+ *  - `ensureDatabaseReset()`: called by the worker fixture in
+ *    tests/support/fixtures.ts. Resets ONCE per Playwright run even with
+ *    several workers: an advisory lock serialises workers and a stamp row
+ *    (keyed by the runner's process id, shared by all workers of a run)
+ *    records that this run already reset.
+ *    TODO(Platform): replace with `globalSetup` in playwright.config.ts.
+ *  - CLI: `npx tsx tests/support/db/reset.ts` (always resets).
+ *
+ * Uses `pg` directly: E2E code may not import the Prisma client (ADR-0002).
+ * Never point DATABASE_URL at a database you care about.
+ */
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import bcrypt from "bcryptjs";
+import pg from "pg";
+
+import { DATABASE_URL, DB_RESET } from "../env";
+import { QA_PASSWORD } from "../users";
+
+const WEB_DIR = path.resolve(__dirname, "../../..");
+const LOCK_KEY = 72_026_117; // arbitrary, constant advisory-lock id
+
+async function truncateAll(client: pg.Client) {
+  const { rows } = await client.query<{ tablename: string }>(
+    `SELECT tablename FROM pg_tables
+     WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`,
+  );
+  if (rows.length === 0) {
+    throw new Error(
+      "No tables in the public schema. Run `npx prisma migrate deploy` first.",
+    );
+  }
+  const list = rows.map((r) => `"${r.tablename}"`).join(", ");
+  await client.query(`TRUNCATE ${list} RESTART IDENTITY CASCADE`);
+}
+
+function runDataSeed() {
+  // prisma7.config.ts runs the same command for `npm run db:seed`.
+  const tsxCli = path.join(WEB_DIR, "node_modules", "tsx", "dist", "cli.mjs");
+  execFileSync(process.execPath, [tsxCli, "prisma/seed.ts"], {
+    cwd: WEB_DIR,
+    env: { ...process.env, DATABASE_URL },
+    stdio: "pipe",
+  });
+}
+
+async function loadQaFixtures(client: pg.Client) {
+  const hash = await bcrypt.hash(QA_PASSWORD, 10);
+  const sql = readFileSync(path.join(__dirname, "qa-fixtures.sql"), "utf8")
+    .split("{{QA_HASH}}")
+    .join(hash);
+  await client.query(sql);
+}
+
+/** ADR-0008 rule 1a: only databases named *_test or *_it may be wiped. */
+export function assertTestDatabase(url: string): void {
+  const name = new URL(url).pathname.replace(/^\//, "");
+  if (!/_(test|it)$/.test(name)) {
+    throw new Error(
+      `Refusing to reset database "${name}": E2E only truncates databases named *_test or *_it (ADR-0008).`,
+    );
+  }
+}
+
+export async function resetDatabase(client?: pg.Client): Promise<void> {
+  assertTestDatabase(DATABASE_URL);
+  const own = !client;
+  const c = client ?? new pg.Client({ connectionString: DATABASE_URL });
+  if (own) await c.connect();
+  try {
+    await truncateAll(c);
+    runDataSeed();
+    await loadQaFixtures(c);
+  } finally {
+    if (own) await c.end();
+  }
+}
+
+/** Reset once per Playwright run (see file header). */
+export async function ensureDatabaseReset(): Promise<void> {
+  if (!DB_RESET) return;
+  if (!DATABASE_URL) {
+    throw new Error(
+      "DATABASE_URL is not set. The E2E suite resets and seeds the app's database before running; " +
+        "point DATABASE_URL at the same throwaway database the app uses, or set E2E_DB_RESET=0.",
+    );
+  }
+  const runId = `${process.env.E2E_RUN_ID ?? process.ppid}`;
+  const client = new pg.Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [LOCK_KEY]);
+    // Own schema, so Prisma never sees it as drift in "public".
+    await client.query(`CREATE SCHEMA IF NOT EXISTS qa_e2e`);
+    await client.query(
+      `CREATE TABLE IF NOT EXISTS qa_e2e.runs (run_id text PRIMARY KEY, reset_at timestamptz NOT NULL DEFAULT now())`,
+    );
+    const done = await client.query(
+      "SELECT 1 FROM qa_e2e.runs WHERE run_id = $1",
+      [runId],
+    );
+    if (done.rowCount === 0) {
+      await resetDatabase(client);
+      await client.query("DELETE FROM qa_e2e.runs");
+      await client.query("INSERT INTO qa_e2e.runs (run_id) VALUES ($1)", [
+        runId,
+      ]);
+    }
+  } finally {
+    await client
+      .query("SELECT pg_advisory_unlock($1)", [LOCK_KEY])
+      .catch(() => {});
+    await client.end();
+  }
+}
+
+// CLI: npx tsx tests/support/db/reset.ts
+if (require.main === module) {
+  resetDatabase()
+    .then(() => console.log("E2E database reset: seed + QA fixtures loaded."))
+    .catch((err: unknown) => {
+      console.error(err);
+      process.exit(1);
+    });
+}
