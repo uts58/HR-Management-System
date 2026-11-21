@@ -116,9 +116,18 @@ jobs:
           --health-cmd "pg_isready -U hruser -d hr_web_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
+      # The DB name must end in _test or _it: QA's reset refuses anything else.
       DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
-      BETTER_AUTH_URL: http://localhost:3000
+      # ONE canonical origin. playwright.config.ts derives baseURL and the
+      # standalone server's HOSTNAME from this value. Better Auth's
+      # trustedOrigins is [BETTER_AUTH_URL] (src/auth/config.ts), so a
+      # localhost vs 127.0.0.1 mismatch would 403 the login.
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      # Switch for the @backend-tagged specs (tests/support/env.ts). Leave it
+      # OFF until Frontend's real-service wiring is on main; the director
+      # will say when. To enable, set it to "1".
+      E2E_BACKEND: "0"
     steps:
       - uses: actions/checkout@v7
       - name: Detect e2e tests
