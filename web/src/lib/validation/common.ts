@@ -28,12 +28,16 @@ const isBlank = (v: unknown): boolean =>
 /**
  * Required trimmed string of 1..max characters.
  * `label` is used in messages: "First name is required".
+ *
+ * Field schemas here avoid `abort: true`: an aborting issue on any field
+ * makes Zod skip object-level refinements (such as the date-order checks),
+ * so those errors would only appear after this field was fixed.
  */
 export function requiredText(label: string, max: number) {
   return z
     .string({ error: `${label} is required` })
     .trim()
-    .min(1, { error: `${label} is required`, abort: true })
+    .min(1, { error: `${label} is required` })
     .max(max, { error: `${label} must be at most ${max} characters` });
 }
 
@@ -88,17 +92,19 @@ export const idInputSchema = z.object({ id: entityIdSchema });
  * MIN_INPUT_DATE..MAX_INPUT_DATE. Output is the branded `IsoDate`.
  */
 export function isoDateField(label: string) {
+  // Each check guards itself instead of using `abort: true` (see
+  // requiredText), so a field reports exactly one error.
   return z
     .string({ error: `${label} is required` })
     .trim()
-    .min(1, { error: `${label} is required`, abort: true })
-    .refine(isIsoDate, {
+    .min(1, { error: `${label} is required` })
+    .refine((v) => v === "" || isIsoDate(v), {
       error: `${label} must be a valid date (YYYY-MM-DD)`,
-      abort: true,
     })
-    .refine((v) => v >= MIN_INPUT_DATE && v <= MAX_INPUT_DATE, {
-      error: `${label} must be between 1900 and 2100`,
-    })
+    .refine(
+      (v) => !isIsoDate(v) || (v >= MIN_INPUT_DATE && v <= MAX_INPUT_DATE),
+      { error: `${label} must be between 1900 and 2100` },
+    )
     .transform((v) => v as IsoDate);
 }
 
@@ -111,6 +117,18 @@ export function enumField<const T extends readonly [string, ...string[]]>(
   message: string,
 ) {
   return z.enum(values, { error: message });
+}
+
+/**
+ * `when` option for an object-level `.refine` that compares some fields
+ * (e.g. end date >= start date). Zod skips object refinements once any
+ * field has failed, so date-order errors would only appear after every
+ * other field was fixed. This runs the check whenever the fields it reads
+ * parsed cleanly, so all errors show at once.
+ */
+export function whenFieldsValid(...keys: string[]) {
+  return (payload: z.core.ParsePayload): boolean =>
+    !payload.issues.some((issue) => keys.includes(String(issue.path?.[0])));
 }
 
 /**

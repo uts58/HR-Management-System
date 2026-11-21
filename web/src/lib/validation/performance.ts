@@ -11,7 +11,13 @@ import {
   type CreateAppraisalInput,
   type Rating,
 } from "@/contracts/performance";
-import { idField, idInputSchema, isoDateField, requiredText } from "./common";
+import {
+  idField,
+  idInputSchema,
+  isoDateField,
+  requiredText,
+  whenFieldsValid,
+} from "./common";
 
 export const PROJECT_NAME_MAX = 200;
 
@@ -40,6 +46,8 @@ export const createAppraisalSchema = z
   .refine((v) => v.projectEnd >= v.projectStart, {
     error: "End date cannot be before the start date",
     path: ["projectEnd"],
+    // Runs even when other fields fail, so all errors show at once.
+    when: whenFieldsValid("projectStart", "projectEnd"),
   }) satisfies z.ZodType<CreateAppraisalInput>;
 
 export const deleteAppraisalSchema = idInputSchema;

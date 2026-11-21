@@ -330,6 +330,28 @@ describe("applyForLeaveSchema (BUG-12)", () => {
     ).toEqual(["End date cannot be before the start date"]);
   });
 
+  it("shows the date-order error together with other field errors", () => {
+    const errors = errorsOf(applyForLeaveSchema, {
+      leaveType: "OTHER",
+      startDate: "2026-11-21",
+      endDate: "2026-11-20",
+      reason: "x".repeat(1001),
+    });
+    expect(errors).toEqual({
+      leaveType: ["Select a leave type"],
+      endDate: ["End date cannot be before the start date"],
+      reason: ["Reason must be at most 1000 characters"],
+    });
+  });
+
+  it("skips the date-order check while a date itself is invalid", () => {
+    expect(
+      errorsOf(applyForLeaveSchema, { ...valid, startDate: "bad" }),
+    ).toEqual({
+      startDate: ["Start date must be a valid date (YYYY-MM-DD)"],
+    });
+  });
+
   it("rejects OTHER and unknown leave types for new requests", () => {
     for (const leaveType of ["OTHER", "Sick Leave", ""]) {
       expect(
@@ -437,6 +459,22 @@ describe("createAppraisalSchema (BUG-11)", () => {
         projectEnd: "2026-01-31",
       }).projectEnd,
     ).toEqual(["End date cannot be before the start date"]);
+  });
+
+  it("shows the date-order error together with other field errors", () => {
+    const errors = errorsOf(createAppraisalSchema, {
+      employeeId: "",
+      projectName: "",
+      projectStart: "2026-02-01",
+      projectEnd: "2026-01-31",
+      rating: "9",
+    });
+    expect(errors).toEqual({
+      employeeId: ["Select an employee"],
+      projectName: ["Project name is required"],
+      projectEnd: ["End date cannot be before the start date"],
+      rating: ["Rating must be between 1 and 5"],
+    });
   });
 
   it("requires project name and dates", () => {

@@ -20,7 +20,7 @@ import {
   type EmployeeStatusFilter,
   type UpdateEmployeeInput,
 } from "@/contracts/employee";
-import { isBeforeTodayLenient } from "@/lib/dates";
+import { isBeforeTodayLenient, isIsoDate } from "@/lib/dates";
 import {
   entityIdSchema,
   enumField,
@@ -63,26 +63,36 @@ export const usernameField = z
   )
   .optional(); // the key may be omitted
 
+// The checks after "required" skip empty input themselves (no `abort`, see
+// requiredText in ./common), so a blank field reports only "required".
+const filled = (test: (v: string) => boolean) => (v: string) =>
+  v === "" || test(v);
+
 const contactNoField = requiredText("Contact number", CONTACT_NO_MAX)
-  .min(CONTACT_NO_MIN, {
-    error: `Contact number must be at least ${CONTACT_NO_MIN} characters`,
-  })
-  .regex(/^[0-9+\-() ]+$/, {
-    error:
-      "Contact number may only contain digits, spaces and the characters + - ( )",
-  })
-  .regex(/[0-9]/, { error: "Contact number must contain digits" });
+  .refine(
+    filled((v) => v.length >= CONTACT_NO_MIN),
+    `Contact number must be at least ${CONTACT_NO_MIN} characters`,
+  )
+  .refine(
+    filled((v) => /^[0-9+\-() ]+$/.test(v)),
+    "Contact number may only contain digits, spaces and the characters + - ( )",
+  )
+  .refine(
+    filled((v) => /[0-9]/.test(v)),
+    "Contact number must contain digits",
+  );
 
 const emailField = z
   .string({ error: "Email is required" })
   .trim()
-  .min(1, { error: "Email is required", abort: true })
+  .min(1, { error: "Email is required" })
   .max(EMAIL_MAX, { error: `Email must be at most ${EMAIL_MAX} characters` })
   .toLowerCase()
+  // A pipe stops at the first stage's issues, so "" is only "required".
   .pipe(z.email({ error: "Enter a valid email address" }));
 
 const dateOfBirthField = isoDateField("Date of birth").refine(
-  (v) => isBeforeTodayLenient(v),
+  (v) => !isIsoDate(v) || isBeforeTodayLenient(v),
   { error: DATE_OF_BIRTH_NOT_PAST },
 );
 
