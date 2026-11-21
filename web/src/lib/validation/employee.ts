@@ -4,9 +4,9 @@
  * Rules that need the database are checked in the service (ADR-0005 rule 7):
  * department/position must exist, username must be free.
  *
- * Date of birth "before today" uses the UTC date with a one-day tolerance
- * (director ruling 2026-11-18: no company time zone), so the same check is
- * exact on the client and the server and needs no service re-check.
+ * Date of birth "before today" accepts up to the UTC date + 1 day
+ * (ADR-0007 rule 4: the viewer's zone is unknown on the server). Forms may
+ * add a stricter check against the browser's local date.
  */
 
 import { z } from "zod";

@@ -16,7 +16,7 @@
  *   and only where contracts.md requires one (date of birth before today).
  */
 
-import type { IsoDate } from "@/contracts/common";
+import type { IsoDate, UtcTimestamp } from "@/contracts/common";
 
 /** Shown wherever a calendar date is missing (unparseable migrated rows). */
 export const EMPTY_DATE = "—";
@@ -98,16 +98,16 @@ export function utcTodayIso(now: Date = new Date()): IsoDate {
 }
 
 /**
- * "Strictly before today" with a one-day tolerance: accepts every date up to
- * and including today's UTC date. Users ahead of UTC (whose yesterday is
- * already today in UTC) are never wrongly rejected; users behind UTC may
- * enter their own today, which is the accepted cost of having no zone.
+ * Server rule for "before today" (ADR-0007 rule 4): the viewer's zone is
+ * unknown, so it accepts `iso <= todayUtc + 1 day`. No valid input is
+ * rejected in any zone; an edge-day input the tolerance lets through is
+ * harmless. Client forms may add a stricter check with the browser's date.
  */
 export function isBeforeTodayLenient(
   iso: IsoDate,
   now: Date = new Date(),
 ): boolean {
-  return iso < addDaysIso(utcTodayIso(now), 1);
+  return iso <= addDaysIso(utcTodayIso(now), 1);
 }
 
 /** Display a calendar date as-is, or "—" when missing. */
@@ -134,22 +134,19 @@ export function compareIsoDatesNullsLast(
 
 // ─── Instants ───────────────────────────────────────────────────────────────
 
-/** ISO-8601 UTC timestamp string, e.g. `2026-11-18T09:30:00.000Z`. */
-export type UtcTimestamp = string & { readonly __brand: "UtcTimestamp" };
-
 const UTC_TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
 /** Serialise an instant for the client: ISO-8601 in UTC with `Z`. */
-export function toUtcTimestamp(instant: Date): UtcTimestamp {
+export function toIsoInstant(instant: Date): UtcTimestamp {
   if (Number.isNaN(instant.getTime())) throw new RangeError("Invalid Date");
   return instant.toISOString() as UtcTimestamp;
 }
 
 /** Nullable variant (migrated rows have no createdAt). */
-export function toUtcTimestampOrNull(
+export function toIsoInstantOrNull(
   instant: Date | null | undefined,
 ): UtcTimestamp | null {
-  return instant == null ? null : toUtcTimestamp(instant);
+  return instant == null ? null : toIsoInstant(instant);
 }
 
 /** True for an ISO-8601 UTC string with an explicit `Z` that parses. */

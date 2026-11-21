@@ -11,6 +11,8 @@
  * nor `@/auth`, and duplicate module copies cannot defeat the checks.
  */
 
+import "server-only";
+
 import { unstable_rethrow } from "next/navigation";
 import { ZodError, z } from "zod";
 import type { AuthErrorShape, AuthFailure } from "@/contracts/auth";
@@ -143,6 +145,15 @@ export function isPrismaKnownError(
   }
   const actual = (e as { code?: unknown }).code;
   return typeof actual === "string" && (code === undefined || actual === code);
+}
+
+/**
+ * True for a Prisma P2003 foreign-key violation. Deliberately NOT mapped
+ * globally (it stays INTERNAL, ADR-0006): only delete services that can hit
+ * a Restrict FK catch it and convert it to CONFLICT with their own message.
+ */
+export function isForeignKeyViolation(e: unknown): boolean {
+  return isPrismaKnownError(e, "P2003");
 }
 
 /** What a unique violation tells us about the constraint it hit. */
