@@ -158,6 +158,39 @@ describe("forced password change", () => {
 });
 
 describe("server actions through defineAction", () => {
+  it("signOut (PUBLIC) succeeds quietly when signed out, revoked, or pending a change", async () => {
+    const { signOut } = await import("@/auth/actions");
+
+    // No cookie at all.
+    request.headers = new Headers();
+    expect(await signOut()).toEqual({ ok: true, data: undefined });
+
+    // A cookie whose session was already revoked.
+    const userId = await createUser({
+      username: "jane",
+      password: "jane-pass-1",
+    });
+    await signInAs("jane", "jane-pass-1");
+    await prisma.session.deleteMany({ where: { userId } });
+    expect(await signOut()).toEqual({ ok: true, data: undefined });
+
+    // A user who must change their password can still sign out, and only
+    // their own session ends.
+    await prisma.user.update({
+      where: { id: userId },
+      data: { mustChangePassword: true },
+    });
+    const other = await createUser({
+      username: "omar",
+      password: "omar-pass-1",
+    });
+    await signIn("omar", "omar-pass-1");
+    await signInAs("jane", "jane-pass-1");
+    expect(await signOut()).toEqual({ ok: true, data: undefined });
+    expect(await prisma.session.count({ where: { userId } })).toBe(0);
+    expect(await prisma.session.count({ where: { userId: other } })).toBe(1);
+  });
+
   it("a forced-change user: normal actions FORBIDDEN, changePassword and signOut allowed", async () => {
     const { changePassword, signOut } = await import("@/auth/actions");
     const { defineAction } = await import("@/server/action");
