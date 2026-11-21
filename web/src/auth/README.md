@@ -178,6 +178,70 @@ All three write with the caller's `tx`, so they roll back with it. Never log
 - **Times**: everything is UTC on the server; `Session.expires` is an ISO
   UTC string. Format it in the viewer's browser if it is ever shown.
 
+## Security headers (src/proxy.ts, security-headers.ts)
+
+Every request the proxy matches (all routes except `_next/static`,
+`_next/image`, `favicon.ico` and files with an extension) gets these
+headers, on normal responses and on the proxy's redirects:
+
+| Header                       | Value                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`    | `default-src 'self'; script-src 'self' 'nonce-<per request>' 'strict-dynamic'` (+ `'unsafe-eval'` only under `next dev`)`; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'` (+ `upgrade-insecure-requests` in production over https) |
+| `Strict-Transport-Security`  | `max-age=31536000; includeSubDomains`, production over https only                                                                                                                                                                                                                                                                                                      |
+| `X-Content-Type-Options`     | `nosniff`                                                                                                                                                                                                                                                                                                                                                              |
+| `Referrer-Policy`            | `strict-origin-when-cross-origin`                                                                                                                                                                                                                                                                                                                                      |
+| `Permissions-Policy`         | `camera=(), microphone=(), geolocation=()`                                                                                                                                                                                                                                                                                                                             |
+| `Cross-Origin-Opener-Policy` | `same-origin`                                                                                                                                                                                                                                                                                                                                                          |
+
+How the nonce works (Next 16 CSP guide): the proxy puts the CSP on the
+forwarded request too; Next.js reads the nonce from it and adds it to its
+own scripts. Hand-written inline scripts must read it with
+`getCspNonce()` from `@/auth/csp-nonce` (which also makes the page
+dynamic, as nonces require).
+
+- **Scripts are nonce-only.** Any `<script>` without the nonce is blocked.
+- **Styles allow `'unsafe-inline'`** (no nonce in `style-src`, since a
+  nonce would make browsers ignore `'unsafe-inline'`): sonner injects a
+  `<style>` element at runtime without a nonce, and React/shadcn use inline
+  `style` attributes, which can't carry one.
+
+**Required Frontend change** (must land together with this; until then the
+theme no-flash script is blocked and the prerendered `/` and `/_not-found`
+pages lose all their scripts). In `web/src/app/layout.tsx`:
+
+```diff
++import { getCspNonce } from "@/auth/csp-nonce";
+ import { THEME_INIT_SCRIPT } from "@/components/shell/theme-script";
+ …
+-export default function RootLayout({ children }: LayoutProps<"/">) {
++export default async function RootLayout({ children }: LayoutProps<"/">) {
++  const nonce = await getCspNonce();
+   return (
+ …
+-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
++        <script
++          nonce={nonce}
++          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
++        />
+```
+
+Reading headers in the root layout makes every page dynamic (nonces can't
+be prerendered; `cacheComponents` is already off). Verified with
+`next build` + `next start`: with the change, every `<script>` on `/login`,
+a 404 page and `/forbidden` carries the response's nonce. Without it,
+`/login` has one blocked script (the theme script) and the static 404 page
+has all 13 blocked.
+
+**Caddy overlap** (docker/caddy/Caddyfile): Caddy also sets
+`Strict-Transport-Security`, `X-Content-Type-Options` and `Referrer-Policy`
+with the **same values**. Its `header` block is deferred (it contains a
+`-Server` deletion), so Caddy's values replace ours: no duplicates, no
+conflict. Caddy sets no CSP, Permissions-Policy or COOP, so those come only
+from the app. No Caddyfile change is required. Optional for Platform:
+static assets under `_next/static` bypass the proxy, so outside Caddy
+(e.g. `next start` locally) they get no `nosniff`; adding it via
+`next.config.ts` `headers()` would cover that.
+
 ## Tests
 
 - Unit (no DB): `src/auth/*.test.ts`, `src/proxy.test.ts`.
