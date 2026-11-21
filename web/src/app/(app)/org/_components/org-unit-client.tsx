@@ -8,15 +8,19 @@ import { ActionForm, SubmitButton } from "@/components/forms/action-form";
 import { TextField } from "@/components/forms/form-field";
 import { createDepartmentSchema, createPositionSchema } from "@/lib/validation";
 
-import { stubCommand, stubFormAction } from "../../../_stubs/actions";
+import {
+  createDepartment,
+  createPosition,
+  deleteDepartment,
+  deletePosition,
+} from "@/server/actions/org";
+
 import type { OrgUnitKind } from "./org-unit-copy";
 import { ORG_UNIT_COPY } from "./org-unit-copy";
 
-// TODO(wire): import createDepartment / createPosition
-// from @/server/actions.
 const createActions = {
-  department: stubFormAction("createDepartment"),
-  position: stubFormAction("createPosition"),
+  department: createDepartment,
+  position: createPosition,
 };
 
 /** "Add department/position" form (feature map rows 16, 19). */
@@ -81,12 +85,11 @@ export function DeleteOrgUnitButton({
       pendingLabel="Deleting…"
       destructive
       successMessage={`${copy.singular} deleted.`}
-      onConfirm={() => {
-        void id;
-        return stubCommand(
-          kind === "department" ? "deleteDepartment" : "deletePosition",
-        );
-      }}
+      onConfirm={() =>
+        kind === "department"
+          ? deleteDepartment({ id })
+          : deletePosition({ id })
+      }
       onSuccess={() => router.refresh()}
     />
   );

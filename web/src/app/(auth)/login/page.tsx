@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+
+import { getSession } from "@/auth";
+import { CHANGE_PASSWORD_PATH, DASHBOARD_PATH } from "@/auth/paths";
 
 import {
   Card,
@@ -17,7 +21,12 @@ export const metadata: Metadata = { title: "Sign in" };
  * Security's. [CHANGE] No notices here: they moved behind login.
  */
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  // TODO(Security): const session = await getSession(); if (session) redirect("/dashboard");
+  const session = await getSession();
+  if (session) {
+    redirect(
+      session.user.mustChangePassword ? CHANGE_PASSWORD_PATH : DASHBOARD_PATH,
+    );
+  }
   const { callbackUrl } = await searchParams;
 
   return (

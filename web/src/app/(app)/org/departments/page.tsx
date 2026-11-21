@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 
-import { listDepartmentsStub } from "../../../_stubs/services";
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
+import { orgService } from "@/server/org/service";
 import { OrgUnitPage } from "../_components/org-unit-page";
 
 export const metadata: Metadata = { title: "Departments" };
 
 /** Feature map rows 15–17 (legacy /hr/addDep). HR only. */
 export default async function DepartmentsPage() {
-  // TODO(Security): await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  // TODO(Backend): orgService.listDepartments(actor)
-  const departments = await listDepartmentsStub();
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const departments = await orgService.listDepartments(actor);
   return <OrgUnitPage kind="department" rows={departments} />;
 }

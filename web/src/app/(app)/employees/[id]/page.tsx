@@ -1,7 +1,9 @@
 import { PencilIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
 
 import { PageHeader } from "@/components/common/page-header";
 import { EmploymentStatusBadge } from "@/components/common/status-badges";
@@ -9,14 +11,13 @@ import { EmployeeDetails } from "@/components/employees/employee-details";
 import { LocalTime } from "@/components/local-time";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { employeeService } from "@/server/employee/service";
+import { idOrNotFound, orNotFound } from "@/server/page";
 
-import { getEmployeeStub } from "../../../_stubs/services";
-import { getSessionStub } from "../../../_stubs/session";
 import {
   ResetPasswordButton,
   TerminateEmployeeButton,
 } from "../_components/employee-actions";
-import { parseId } from "../_components/parse-id";
 
 export const metadata: Metadata = { title: "Employee details" };
 
@@ -24,13 +25,10 @@ export const metadata: Metadata = { title: "Employee details" };
 export default async function EmployeeDetailPage({
   params,
 }: PageProps<"/employees/[id]">) {
-  // TODO(Security): const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  const session = await getSessionStub();
-  const id = parseId((await params).id);
-  if (id === null) notFound();
-  // TODO(Backend): employeeService.getEmployee(actor, id); NOT_FOUND → notFound()
-  const employee = await getEmployeeStub(id);
-  if (!employee) notFound();
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const id = idOrNotFound((await params).id);
+  const employee = await orNotFound(employeeService.getEmployee(actor, id));
 
   const name = `${employee.firstName} ${employee.lastName}`;
   const active = employee.status === "ACTIVE";

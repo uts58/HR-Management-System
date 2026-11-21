@@ -2,13 +2,15 @@ import { KeyRoundIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { requireSession } from "@/auth";
 import { NotFoundState } from "@/components/common/not-found-state";
 import { PageHeader } from "@/components/common/page-header";
 import { EmployeeDetails } from "@/components/employees/employee-details";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-import { getMyProfileStub } from "../../_stubs/services";
+import { toActor } from "@/server/action";
+import { employeeService } from "@/server/employee/service";
+import { isServiceError } from "@/server/errors";
 
 export const metadata: Metadata = { title: "My profile" };
 
@@ -17,10 +19,15 @@ export const metadata: Metadata = { title: "My profile" };
  * Read-only for everyone (parity: nobody edits their own details).
  */
 export default async function ProfilePage() {
-  // TODO(Security): await requireSession({ onFail: "redirect" });
-  // TODO(Backend): employeeService.getMyProfile(actor); NOT_FOUND → the
-  // "no employee record" state below.
-  const profile = await getMyProfileStub();
+  const session = await requireSession({ onFail: "redirect" });
+  // NOT_FOUND means the account has no employee record: show the
+  // explanation below instead of a generic 404.
+  const profile = await employeeService
+    .getMyProfile(toActor(session))
+    .catch((e: unknown) => {
+      if (isServiceError(e) && e.code === "NOT_FOUND") return null;
+      throw e;
+    });
 
   if (!profile) {
     return (

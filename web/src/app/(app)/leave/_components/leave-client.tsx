@@ -9,7 +9,6 @@ import {
   LEAVE_TYPE_LABELS,
   REQUESTABLE_LEAVE_TYPES,
   type LeaveDecision,
-  type LeaveRequest,
 } from "@/contracts";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { ActionForm, SubmitButton } from "@/components/forms/action-form";
@@ -20,11 +19,11 @@ import {
 } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { applyForLeaveSchema } from "@/lib/validation";
-
-import { stubCommand, stubFormAction } from "../../../_stubs/actions";
-
-// TODO(wire): import applyForLeave from @/server/actions.
-const applyForLeaveAction = stubFormAction<LeaveRequest>("applyForLeave");
+import {
+  applyForLeave,
+  decideLeaveRequest,
+  markMyLeaveDecisionsSeen,
+} from "@/server/actions/leave";
 
 /**
  * Leave request form (feature map rows 24–25). Fields = ApplyForLeaveInput.
@@ -35,7 +34,7 @@ export function ApplyLeaveForm() {
   return (
     <ActionForm
       aria-label="Apply for leave"
-      action={applyForLeaveAction}
+      action={applyForLeave}
       schema={applyForLeaveSchema}
       successMessage="Leave request submitted. HR will review it."
       resetOnSuccess
@@ -92,12 +91,8 @@ export function DecideLeaveButtons({
   employeeName: string;
 }) {
   const router = useRouter();
-  const decide = (decision: LeaveDecision) => {
-    void id;
-    void decision;
-    // TODO(wire): import decideLeave(id, decision) from @/server/actions.
-    return stubCommand("decideLeave");
-  };
+  const decide = (decision: LeaveDecision) =>
+    decideLeaveRequest({ id, decision });
   return (
     <div className="flex justify-end gap-1.5">
       <ConfirmActionDialog
@@ -140,9 +135,9 @@ export function MarkLeaveDecisionsSeen({ unseen }: { unseen: number }) {
   useEffect(() => {
     if (done.current || unseen === 0) return;
     done.current = true;
-    // TODO(wire): import markLeaveDecisionsSeen from @/server/actions
-    // (leaveService.markMyLeaveDecisionsSeen).
-    void stubCommand("markLeaveDecisionsSeen");
+    // Fire and forget: a failure only means the dashboard notice stays
+    // until the next visit.
+    void markMyLeaveDecisionsSeen();
   }, [unseen]);
   return null;
 }

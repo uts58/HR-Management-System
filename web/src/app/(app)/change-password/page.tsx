@@ -1,11 +1,11 @@
 import { ShieldAlertIcon } from "lucide-react";
 import type { Metadata } from "next";
 
+import { requireSession } from "@/auth";
 import { PageHeader } from "@/components/common/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { getSessionStub } from "../../_stubs/session";
 import { ChangePasswordForm } from "./change-password-form";
 
 export const metadata: Metadata = { title: "Change password" };
@@ -16,8 +16,10 @@ export const metadata: Metadata = { title: "Change password" };
  * hides the navigation.
  */
 export default async function ChangePasswordPage() {
-  // TODO(Security): const session = await requireSession({ onFail: "redirect", allowPendingPasswordChange: true });
-  const session = await getSessionStub();
+  const session = await requireSession({
+    onFail: "redirect",
+    allowPendingPasswordChange: true,
+  });
   const forced = session.user.mustChangePassword;
 
   return (

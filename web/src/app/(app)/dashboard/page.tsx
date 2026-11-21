@@ -10,11 +10,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cn } from "cn";
 
+import { requireSession } from "@/auth";
 import { RECENT_NOTICE_LIMIT, type Notice } from "@/contracts";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { NoticeTypeBadge } from "@/components/common/status-badges";
 import { LocalTime } from "@/components/local-time";
+import { toActor } from "@/server/action";
+import { leaveService } from "@/server/leave/service";
+import { noticeService } from "@/server/notice/service";
 import {
   Card,
   CardContent,
@@ -23,28 +27,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import {
-  countMyUnseenDecisionsStub,
-  countPendingLeaveRequestsStub,
-  listRecentNoticesStub,
-} from "../../_stubs/services";
-import { getSessionStub } from "../../_stubs/session";
-
 export const metadata: Metadata = { title: "Dashboard" };
 
 /** Feature map row 4 (legacy /home). HR and employee variants. */
 export default async function DashboardPage() {
-  // TODO(Security): const session = await requireSession({ onFail: "redirect" });
-  const session = await getSessionStub();
+  const session = await requireSession({ onFail: "redirect" });
+  const actor = toActor(session);
   const isHr = session.user.role === "HR_ADMIN";
 
-  // TODO(Backend): noticeService.listRecentNotices(actor, RECENT_NOTICE_LIMIT)
-  const notices = await listRecentNoticesStub(RECENT_NOTICE_LIMIT);
-  // TODO(Backend): leaveService.countPendingLeaveRequests(actor) (HR) /
-  // leaveService.countMyUnseenDecisions(actor) (employee)
-  const leaveCount = isHr
-    ? await countPendingLeaveRequestsStub()
-    : await countMyUnseenDecisionsStub();
+  const [notices, leaveCount] = await Promise.all([
+    noticeService.listRecentNotices(actor, RECENT_NOTICE_LIMIT),
+    isHr
+      ? leaveService.countPendingLeaveRequests(actor)
+      : // Accounts without an employee record have no leave of their own.
+        session.user.employeeId === null
+        ? Promise.resolve(0)
+        : leaveService.countMyUnseenDecisions(actor),
+  ]);
 
   return (
     <>

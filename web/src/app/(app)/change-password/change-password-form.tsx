@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 
+import { changePassword } from "@/auth/actions";
+import { DASHBOARD_PATH } from "@/auth/paths";
 import { ActionForm, SubmitButton } from "@/components/forms/action-form";
 import { TextField } from "@/components/forms/form-field";
 import {
@@ -9,12 +11,6 @@ import {
   PASSWORD_MIN,
   changePasswordSchema,
 } from "@/lib/validation";
-
-import { stubFormAction } from "../../_stubs/actions";
-
-// TODO(Security): replace with `changePassword` from "@/auth/actions"
-// (defineAction role "ANY", allowPendingPasswordChange: true).
-const changePasswordAction = stubFormAction("changePassword");
 
 /**
  * Change password (feature map rows 5–6). Fields = ChangePasswordInput.
@@ -26,7 +22,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
   return (
     <ActionForm
       aria-label="Change password"
-      action={changePasswordAction}
+      action={changePassword}
       schema={changePasswordSchema}
       successMessage={
         forced
@@ -35,7 +31,12 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
       }
       resetOnSuccess
       onSuccess={() => {
-        if (forced) router.replace("/dashboard");
+        // The forced change leaves the restricted shell; a normal change
+        // stays here (other sessions were signed out).
+        if (forced) {
+          router.replace(DASHBOARD_PATH);
+          router.refresh();
+        }
       }}
     >
       <TextField

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { Role, requireRole } from "@/auth";
 import { PageHeader } from "@/components/common/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -9,7 +10,7 @@ export const metadata: Metadata = { title: "Apply for leave" };
 
 /** Feature map row 24 (legacy /addLeave). EMPLOYEE only. */
 export default async function ApplyLeavePage() {
-  // TODO(Security): await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
+  await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
   return (
     <>
       <PageHeader
