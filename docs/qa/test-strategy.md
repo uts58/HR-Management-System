@@ -140,3 +140,66 @@ Environment variables:
 Defect status: `legacy-tests/support/defects.ts` records each defect as open / fixed / partial, matching inventory section 11. Only **open** defects are expected failures. When a fix lands, flip the status in both places in the same PR.
 
 Repeatability: `fixtures/seed.sql` truncates every table (and the `legacy_session.session` table if present) and loads the `prisma/seed.js` data, plus QA-only users (`mary`, `temp`, `paula`, `olive`, `gone`) and an in-use department and position. Destructive tests therefore never touch shared data, and tests also create uniquely named records. Seeded passwords are plaintext; the hardened app upgrades each one to bcrypt on first login, so no hashing step is needed. The rate limiter's counters live in app memory and are **not** cleared by the DB reset. The per-context client IP is what keeps re-runs from accumulating against one bucket, so don't remove it without raising the limits instead (`LOGIN_RATE_LIMIT_IP` / `LOGIN_RATE_LIMIT_USER`, test environments only).
+
+## 8. Web E2E suite (`web/tests/e2e`, Phase 2)
+
+### Layout
+| Path | What |
+|---|---|
+| `web/tests/e2e/*.spec.ts` | One file per area: auth, navigation, forbidden, password, employees (with profile and email display), org, leave, notices, appraisals, dates |
+| `web/tests/support/fixtures.ts` | `test` with `hr`, `employee`, `app` (anonymous) and `as(user, { timezoneId })` fixtures; page objects bundled as `App` |
+| `web/tests/support/pages/` | Page objects. Roles, labels and visible text only (ADR-0008 rule 5) |
+| `web/tests/support/users.ts` | Every account the suite uses (Data's seed + QA fixtures) |
+| `web/tests/support/db/` | `reset.ts` + `qa-fixtures.sql` (test data, below) |
+
+### Two modes
+- **Untagged specs** must pass against both the stub UI (today) and the wired app. They cover:
+  - the real Better Auth sign-in API and the proxy;
+  - role-based navigation, the forced-change shell and `/forbidden`;
+  - client-side validation, including BUG-05/11/12;
+  - confirmation dialogs and calendar-date rendering.
+- **`@backend` specs** need real services, persistence and real page guards: CRUD journeys, toasts, role enforcement, terminate and reset password, the BUG-06 dashboard count, "No email on file" and placeholder employees.
+  - They are **skipped** (reported as skipped, never as passed) unless `E2E_BACKEND=1`.
+  - Once Frontend replaces `app/_stubs`, CI sets `E2E_BACKEND=1` and the tag is only informational.
+
+### Test data
+1. `reset.ts` truncates every table in `public` except `_prisma_migrations`, runs Data's `prisma/seed.ts`, then loads `qa-fixtures.sql`. It refuses any database not named `*_test` or `*_it` (ADR-0008 rule 1a).
+2. QA fixtures use ids 101 and up:
+   - a placeholder employee (#101) with leave and appraisal history;
+   - `nora.noemail`: placeholder login email, no contact email;
+   - `carl.contact`: placeholder login email, contact email present;
+   - one dedicated user per destructive journey: `terry.terminate`, `rita.reset`, `chad.changer`, `fran.forced`, `lena.leave`, `eric.edit`.
+
+   All use the password `QaPass#2026`, stored as bcrypt and rehashed to argon2id on first sign-in, like migrated users.
+3. The reset runs **once per Playwright run**, from a worker-scoped auto fixture.
+   - A Postgres advisory lock serialises the workers, and a stamp in the `qa_e2e` schema records that this run has reset. The stamp lives outside `public`, so Prisma sees no drift.
+   - This is interim until Platform adds `globalSetup` (see needs below).
+   - `E2E_DB_RESET=0` skips the reset. Manual reset: `npx tsx tests/support/db/reset.ts`.
+4. Specs are parallel-safe. Created records get unique names (`uid()`), and any test that changes a user does it to that user's own fixture account.
+
+### Sign-in and rate limits
+- Fixtures sign in through `POST /api/auth/sign-in/username`, the same call the login form makes. The form itself is covered in `auth.spec.ts`.
+- Each browser context sends its own `X-Forwarded-For` (from 198.18.0.0/15). Better Auth's per-IP limit (50/60 s) and the per-username+IP failure limit (10/60 s) therefore apply per test.
+- While the stub UI is in place, fixtures also set the `hr-stub-persona` cookie to match the signed-in role. It is harmless once the stubs are deleted.
+
+### Running
+```bash
+# throwaway DB named *_test, migrated
+export DATABASE_URL=postgresql://user:pass@127.0.0.1:5432/hr_web_test
+cd web && npx prisma migrate deploy
+# The app: Platform's config starts `npm run dev` locally, or the standalone server in CI.
+# BETTER_AUTH_URL must equal the browser origin (see Platform needs).
+npm run test:e2e                         # stub UI: @backend specs skip
+E2E_BACKEND=1 npm run test:e2e           # after wiring
+```
+
+### Needs from other leads
+- **Platform:**
+  1. Add `globalSetup` to `playwright.config.ts`, calling `resetDatabase()` from `tests/support/db/reset.ts`. The worker fixture then goes.
+  2. Align `BETTER_AUTH_URL` with the Playwright `baseURL` in CI: either `BETTER_AUTH_URL=http://127.0.0.1:3000`, or `PLAYWRIGHT_BASE_URL=http://localhost:3000`. Once the browser holds any cookie, Better Auth returns 403 for a mismatched Origin, so the wired login form would fail in CI.
+  3. Set `E2E_BACKEND=1` in `web-e2e` once the stubs are gone.
+- **Frontend:**
+  - No data-testids are needed so far.
+  - Keep the accessible names the suite relies on: form `aria-label`s, `Terminate <name>`, `Delete <name>`, `Approve leave for <name>`, the credential panel region names, and the toast texts.
+  - Delete `app/_stubs`, including the persona switcher.
+- **Backend/Frontend (minor UX):** cross-field rules (end ≥ start) only show after every other field is valid, because the Zod refine runs last. A `superRefine` with field paths would show all errors at once.
