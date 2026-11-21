@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { getCspNonce } from "@/auth/csp-nonce";
 import { THEME_INIT_SCRIPT } from "@/components/shell/theme-script";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -31,7 +32,10 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Per-request CSP nonce from proxy.ts (Security). Reading it makes every
+  // page dynamic, which nonces require.
+  const nonce = await getCspNonce();
   return (
     <html
       lang="en"
@@ -40,7 +44,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
       </head>
       <body className="flex min-h-full flex-col">
         {children}
