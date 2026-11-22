@@ -86,7 +86,6 @@ export default async function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="text-muted-foreground">
-              {/* Static text carried over from the legacy dashboard. */}
               The payroll module automates the pay process by gathering data on
               employee time and attendance, calculating various deductions and
               taxes, and generating periodic pay cheques and employee tax

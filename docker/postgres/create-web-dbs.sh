@@ -1,5 +1,5 @@
 #!/bin/sh
-# Provisions the new app's least-privilege role and database(s) on the
+# Provisions the app's least-privilege role and database(s) on the
 # shared Postgres server. Idempotent, so it is safe to re-run. Used in two
 # ways:
 #   - as a /docker-entrypoint-initdb.d script (fresh volumes, compose.dev.yml)
@@ -10,7 +10,7 @@
 # Postgres superuser from POSTGRES_USER / PGUSER).
 #
 # Env:
-#   WEB_DB_USER      login role for the new app (default hr_web_app)
+#   WEB_DB_USER      login role for the app (default hr_web_app)
 #   WEB_DB_PASS      its password (required; also rotated on every run)
 #   WEB_DB_NAMES     space-separated databases owned by that role (default hr_web)
 #   WEB_DB_CREATEDB  1 = grant CREATEDB (dev only: `prisma migrate dev` needs
