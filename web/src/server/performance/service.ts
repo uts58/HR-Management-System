@@ -9,11 +9,7 @@ import {
   type Rating,
 } from "@/contracts/performance";
 import type { Prisma } from "@/generated/prisma/client";
-import {
-  isoDateToUtcDate,
-  toIsoDateOrNull,
-  toIsoInstant,
-} from "@/lib/dates";
+import { isoDateToUtcDate, toIsoDateOrNull, toIsoInstant } from "@/lib/dates";
 import { entityIdSchema } from "@/lib/validation/common";
 import { createAppraisalSchema } from "@/lib/validation/performance";
 import { db } from "../db";
