@@ -60,9 +60,12 @@ export class EmployeesPage {
     return row(this.page, name);
   }
 
-  async openDetails(fullName: string) {
-    await this.row(fullName).getByRole("link", { name: fullName }).click();
-    await expectHeading(this.page, fullName);
+  /** `heading` differs from the list name: the page title is "first last", without the middle name. */
+  async openDetails(fullName: string, heading: string | RegExp = fullName) {
+    await this.row(fullName)
+      .getByRole("link", { name: fullName, exact: true })
+      .click();
+    await expectHeading(this.page, heading);
   }
 
   // ---- Create (/employees/new) ----
@@ -131,7 +134,7 @@ export class EmployeesPage {
   // ---- Edit (/employees/[id]/edit) ----
   async openEdit(fullName: string) {
     await this.row(fullName)
-      .getByRole("link", { name: `Edit ${fullName}` })
+      .getByRole("link", { name: `Edit ${fullName}`, exact: true })
       .click();
     await expectHeading(this.page, /edit/i);
   }

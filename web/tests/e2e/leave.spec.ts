@@ -163,11 +163,16 @@ test.describe("Leave: journeys", { tag: BACKEND_TAG }, () => {
       to: "2027-09-02",
       reason: second,
     });
-    await hr.page.goto("/leave/requests");
-    const rows = await hr.page.getByRole("row").allInnerTexts();
+    let rows: string[] = [];
+    await expect
+      .poll(async () => {
+        await hr.page.goto("/leave/requests");
+        rows = await hr.page.getByRole("row").allInnerTexts();
+        return [first, second].every((r) => rows.some((t) => t.includes(r)));
+      })
+      .toBe(true);
     const i1 = rows.findIndex((r) => r.includes(first));
     const i2 = rows.findIndex((r) => r.includes(second));
-    expect(i1).toBeGreaterThan(-1);
     expect(i1).toBeLessThan(i2);
   });
 

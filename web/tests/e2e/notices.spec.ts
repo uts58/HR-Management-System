@@ -69,6 +69,8 @@ test.describe("Notices: journeys", { tag: BACKEND_TAG }, () => {
     for (const t of titles) {
       await hr.notices.post(t, "Batch notice.", "General");
       await expectToast(hr.page, "Notice posted.");
+      // Toasts stack, so wait for this notice itself before posting the next.
+      await expect(hr.notices.row(t)).toBeVisible();
     }
     await employee.dashboard.goto();
     const shown = await employee.dashboard
