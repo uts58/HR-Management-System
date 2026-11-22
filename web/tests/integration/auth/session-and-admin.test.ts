@@ -249,6 +249,27 @@ describe("server actions through defineAction", () => {
 });
 
 describe("changePassword", () => {
+  it("rate-limits wrong current-password guesses per user", async () => {
+    await createUser({ username: "guess", password: "old-pass-12" });
+    await signInAs("guess", "old-pass-12");
+    const current = await loadSessionFromHeaders(request.headers);
+    const attempt = (currentPassword: string) =>
+      changePasswordForSession(current!, {
+        currentPassword,
+        newPassword: "new-pass-123",
+        confirmPassword: "new-pass-123",
+      });
+
+    for (let i = 0; i < 10; i++)
+      await expect(attempt(`wrong-${i}`)).rejects.toMatchObject({
+        message: "Current password is incorrect",
+      });
+    await expect(attempt("old-pass-12")).rejects.toMatchObject({
+      code: "VALIDATION",
+      message: "Too many attempts, try again shortly",
+    });
+  });
+
   it("verifies the current password, writes argon2id, revokes only the OTHER sessions", async () => {
     const userId = await createUser({
       username: "jane",
