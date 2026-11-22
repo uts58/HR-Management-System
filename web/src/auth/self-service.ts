@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies, headers } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import type { ChangePasswordInput } from "@/contracts";
 import { getAuth } from "./config";
 import { prisma } from "./db";
@@ -97,7 +98,8 @@ export async function changePasswordForSession(
 
   try {
     (await cookies()).delete(MUST_CHANGE_COOKIE);
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     // Outside a server action/route handler (tests); the hint is harmless.
   }
 }
@@ -106,12 +108,14 @@ export async function changePasswordForSession(
 export async function signOutCurrentSession(): Promise<void> {
   try {
     await getAuth().api.signOut({ headers: await headers() });
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     // No session or already revoked: nothing to do.
   }
   try {
     (await cookies()).delete(MUST_CHANGE_COOKIE);
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     // Outside a server action/route handler.
   }
 }

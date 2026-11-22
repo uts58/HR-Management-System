@@ -116,7 +116,11 @@ jobs:
           --health-cmd "pg_isready -U hruser -d hr_web_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
+<<<<<<< HEAD
       # The DB name must end in _test or _it: QA's reset refuses anything else.
+=======
+      E2E_BACKEND: "1"
+>>>>>>> worktree-agent-a8d67a16decc1fd10
       DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
       # ONE canonical origin. playwright.config.ts derives baseURL and the
