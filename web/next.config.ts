@@ -23,7 +23,6 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
-<<<<<<< HEAD
   // Static assets don't pass through proxy.ts, so they miss Security's
   // headers there. Add nosniff here so it is set even when Next.js is
   // reached without Caddy. CSP and the other headers stay in proxy.ts
@@ -36,11 +35,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-=======
+
   // Next blocks /_next/hmr from 127.0.0.1 by default, so pages never hydrate
   // in local e2e runs against the dev server.
   allowedDevOrigins: ["127.0.0.1"],
->>>>>>> worktree-agent-a8d67a16decc1fd10
 
   turbopack: {
     root: projectRoot,
