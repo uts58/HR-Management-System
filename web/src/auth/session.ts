@@ -1,7 +1,7 @@
 import "server-only";
 
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 import { Role, type RequireOptions, type Session } from "@/contracts";
 import { getAuth } from "./config";
@@ -98,6 +98,8 @@ export const loadCurrentSession = cache(
     try {
       return await loadSessionFromHeaders(await headers());
     } catch (err) {
+      // Next's dynamic-render/redirect signals must propagate.
+      unstable_rethrow(err);
       logError("auth: getSession failed", err);
       return null;
     }
@@ -114,7 +116,8 @@ async function currentPath(): Promise<string | null> {
     const h = await headers();
     // Set by proxy.ts for every matched request.
     return h.get("x-hr-pathname");
-  } catch {
+  } catch (err) {
+    unstable_rethrow(err);
     return null;
   }
 }
