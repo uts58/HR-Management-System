@@ -256,7 +256,6 @@ Implemented by Backend in `web/src/server/performance/`. Types: `contracts/perfo
 ## Dropped
 
 - `Message` model and table: unused, dropped (director decision).
-- `routes/users.js`: never mounted.
 
 ---
 
@@ -269,4 +268,3 @@ The schema and its rationale are in `docs/data/schema-decisions.md`. In short: B
 - **Security:** Better Auth config per ADR-0004. Implement `AccountAdminApi` so it writes inside the caller's Prisma transaction (not through `auth.api`). Hashing is argon2id (director ruling). Add a `customRules` rate limit for `/sign-in/username` and decide storage (memory is fine for one container). `disableLogin` uses `users.disabledAt` (no admin plugin), enforced at sign-in (e.g. a `hooks.before` on `/sign-in/username` that gives the generic failure) and in `getSession()`. Force `/change-password` for `mustChangePassword` users. Keep the username plugin's default validator (it matches `USERNAME_PATTERN`). Proxy lives at `web/src/proxy.ts` (approved).
 - **Backend:** confirm `runAction`/`unstable_rethrow` naming. You own all of `web/src/lib/` (director ruling).
 - **Frontend:** import actions from `@/server/actions/<area>` and `@/auth/actions` (ADR-0002, revised). How the one-time credentials screen works (no reload, copy button).
-- **QA:** please confirm in `legacy-tests/` that `POST /hr/saveEmp` and `/hr/editEmp` actually fail (multipart body is never parsed), so the parity baseline is right.

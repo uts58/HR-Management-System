@@ -7,7 +7,6 @@
 
 | Layer | Tool | Where | Owner | What |
 |---|---|---|---|---|
-| Legacy characterisation | Playwright (HTTP + browser) | `legacy-tests/` | QA | Record what the legacy app actually does for each route in feature-map.md, including the bugs. This is the baseline for the parity checklist. |
 | Schemas | Vitest | `web/src/lib/validation/*.test.ts` | Backend | Valid/invalid cases for every field rule in contracts.md |
 | Services (unit) | Vitest, no DB | `web/src/server/**/*.test.ts` | Backend | `defineAction`, error mapping, pure logic |
 | Services (integration) | Vitest + **real Postgres** | `web/tests/integration/server/` | Backend | Business rules, role/ownership checks, error codes. Data is truncated between tests. Prisma is **not** mocked. |
@@ -15,7 +14,7 @@
 | Auth (integration) | Vitest + real Postgres | `web/tests/integration/auth/` | Security | Sign-in, argon2id-only hashes, disabled users, `AccountAdminApi` in transactions |
 | Authorization matrix | Vitest | `web/tests/authz/` | QA | Every exported server action × {anonymous, EMPLOYEE, HR_ADMIN, terminated employee} → expected code. Fails if an action has no row. |
 | Components | Vitest + Testing Library (jsdom) | `web/src/components/**` | Frontend | Only for components with logic (forms, tables with filters). No snapshot tests. |
-| E2E | Playwright | `web/tests/e2e/` | QA | One journey per row in feature-map.md, run per role, against the Docker image with a seeded DB |
+| E2E | Playwright | `web/tests/e2e/` | QA | One journey per row, run per role, against the Docker image with a seeded DB |
 
 Rules:
 

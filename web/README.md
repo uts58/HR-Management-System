@@ -1,8 +1,6 @@
-# HR Management System: new app (`web/`)
+# HR Management System: web app (`web/`)
 
-This is the Next.js rewrite of the legacy Express/EJS app at the repo root.
-The legacy app is a functional spec only and is deleted at launch; no legacy
-data is migrated. See
+This is the HR Management System web app. See
 [`docs/platform/deployment.md`](../docs/platform/deployment.md) for the
 deployment topology and the launch runbook.
 
@@ -27,7 +25,7 @@ deployment topology and the launch runbook.
 Prerequisites: Node 26 (`nvm use` in `web/`), npm, Docker.
 
 ```bash
-# 1. Start Postgres (creates hrdb, hr_web, hr_web_test on first run)
+# 1. Start Postgres (creates hr_web, hr_web_test on first run)
 docker compose -f compose.dev.yml up -d        # run from the repo root
 
 # 2. Install and configure
@@ -194,7 +192,7 @@ Platform reviews changes to `package.json` (see `.github/CODEOWNERS`).
 ```bash
 docker build -t hr-web ./web                         # runtime image
 docker build -t hr-web-migrate --target migrator ./web
-docker compose --profile web up -d --build           # from repo root: db + migrate + web on :3001
+docker compose up -d --build                         # from repo root: db + migrate + web on :3001
 ```
 
 Migrations run in the separate `migrator` image (`prisma migrate deploy`), not

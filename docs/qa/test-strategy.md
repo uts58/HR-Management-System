@@ -1,204 +1,56 @@
-# Test Strategy: HR Management System Rewrite (Next.js)
+# Test strategy
 
-Owner: QA Lead. Status: Phase 0.
-Related: [`feature-inventory.md`](./feature-inventory.md) (functional spec + known defects), [`../../legacy-tests/`](../../legacy-tests) (legacy E2E parity suite).
+Owner: QA Lead. Decisions behind this: [ADR-0008](../architecture/adr/0008-testing-strategy.md) and [ADR-0009](../architecture/adr/0009-legacy-parity-definition-of-done.md).
 
 ## 1. Goals
-1. **Parity:** every user-facing behaviour in the inventory works in `web/`, proven by the same E2E scenarios that pass on legacy.
-2. **Fix, don't port, the defects:** the known defects (BUG-xx, SEC-xx) are written as tests for the *correct* behaviour. They are expected to fail on legacy and must pass in `web/`.
-3. **Fast feedback:** most checks run in milliseconds (unit), real database behaviour is covered by integration tests, and E2E is kept to user journeys.
 
-## 2. Test pyramid for `web/`
+1. Every user-facing behaviour is proven by a test at the cheapest layer that can catch a regression.
+2. Business rules and authorization are covered by unit and integration tests, and E2E stays at user journeys.
+3. Fast feedback: unit tests run in seconds, integration tests use a real database, E2E runs against the built app.
 
-| Layer | Tool | Runs against | What belongs here | Rough count |
-|---|---|---|---|---|
-| Unit | Vitest | pure TS, no I/O | validation schemas (zod or similar), services with repositories mocked, authorization policy (`can(user, action, resource)`), date/leave rules, password hashing wrapper, formatting (status labels, `N/5`) | 150+ |
-| Integration | Vitest + real Postgres (Docker / Testcontainers) | Prisma + service layer + route handlers / server actions | persistence and constraints (FKs, unique usernames, cascade/block rules), transactions (employee + login creation), authz on every mutating endpoint, CSRF/verb rules, session lifecycle | 60-100 |
-| E2E | Playwright | built Next.js app + seeded Postgres | the user journeys from `legacy-tests`, ported; role enforcement through the UI | about 50 (the legacy count) |
+## 2. Layers
 
-### 2.1 Unit (Vitest)
-- Location: next to the code (`web/src/**/*.test.ts`) or `web/tests/unit`.
-- Must cover every validation rule in the inventory, including the rules legacy lacks:
-  - employee: required fields, email format, contact digits, department/position exist, DOB is a real date.
-  - leave: dates required and ISO, `end >= start`, type in the allowed list.
-  - appraisal: employee required, rating integer 1-5, `end >= start`.
-  - department/position: trimmed, non-empty, unique (case-insensitive), length limit.
-  - notice: title/body required, type in {General, Urgent, Holiday}.
-  - password: non-empty, minimum length, confirm matches, current is verified (BUG-05).
-- Authorization policy as a pure function with a table-driven test: role × action → allow/deny. This is the single source of truth that SEC-01/02 are closed.
-- No Prisma, no network, no Next runtime. Target < 10 s for the whole layer.
+| Layer       | Tool                          | Where                                   | Command                    |
+| ----------- | ----------------------------- | --------------------------------------- | -------------------------- |
+| Unit        | Vitest, no I/O                | `web/src/**/*.test.ts`                  | `npm test`                 |
+| Integration | Vitest + real Postgres        | `web/tests/integration`                 | `npm run test:integration` |
+| E2E         | Playwright (Chromium)         | `web/tests/e2e`                         | `npm run test:e2e`         |
 
-### 2.2 Integration (Vitest + real Postgres)
-- Location: `web/tests/integration`. Separate Vitest project/config (`vitest.integration.config.ts`), run with `--pool=forks` and one DB per worker (schema-per-worker or Testcontainers).
-- DB lifecycle: `prisma migrate deploy` once per run, then `TRUNCATE ... RESTART IDENTITY CASCADE` + fixture insert before each test file (same idea as `legacy-tests/fixtures/seed.sql`).
-- **Do not mock Prisma here.** These tests exist to catch what mocks hide: constraint violations, transaction rollback, case-insensitive lookups, ordering.
-- Must cover:
-  - Every mutating route handler / server action is called as anonymous (rejected), as employee (403 where HR-only), and as HR (succeeds). This is generated from the policy table so nothing is missed.
-  - Mutations reject GET and require a CSRF token / same-site protection (SEC-04/05). Login regenerates the session (SEC-06). Passwords are stored hashed (SEC-03): assert the DB column is not the plaintext.
-  - Employee create is atomic (employee + credentials) and returns a usable credential path (BUG-03). Usernames are unique (BUG-24).
-  - Department/position delete when in use is blocked (BUG-07); employee delete handles leave and appraisals per the product decision (BUG-08).
-  - Unknown ids give 404, not 500 (BUG-09/10).
-  - Leave decision accepts only Approved/Rejected (BUG-21) and sets the employee's unread flag. Viewing history clears it.
-  - Notice ordering is explicit (by created timestamp), and the timestamp is stored as a real timestamp (BUG-13).
+All commands run from `web/`.
 
-### 2.3 E2E (Playwright)
-- Location: `web/tests/e2e`, ported from `legacy-tests` (section 4).
-- Runs against `next build && next start` (not `next dev`) with a seeded Postgres. Chromium on every PR; Firefox and WebKit nightly.
-- Only user-visible assertions: labels, headings, button and link names, visible messages, table rows. Never DB rows or CSS classes.
-- Serial (one worker) with a DB reset in `globalSetup`, plus unique per-test data (`uid()`) so specs don't depend on each other. Parallel workers can come later if each worker gets its own DB.
+### 2.1 Unit
 
-### 2.4 Also required (non-functional)
-- **Accessibility:** `@axe-core/playwright` scan on each main page in E2E; zero serious/critical violations. Legacy fails this (unlabelled inputs, BUG-15), so there is no parity baseline. The new UI must pass on its own.
-- **Lint / type-check:** `tsc --noEmit` and ESLint as CI gates.
-- **Security:** `npm audit --omit=dev` (high+) gate. The Security lead owns deeper review; QA owns the regression tests in 2.2.
+- Validation schemas, authorization policy, error mapping, date and leave rules, formatting.
+- No Prisma, no network, no Next runtime.
 
-## 3. Coverage targets
+### 2.2 Integration
 
-| Scope | Target | Gate |
-|---|---|---|
-| `web/src/lib/validation/**`, `web/src/lib/auth/**` (policy, password, session) | 95% lines, 90% branches | CI fails below |
-| Services / server actions / route handlers (unit + integration combined) | 85% lines, 75% branches | CI fails below |
-| UI components | no numeric target; covered by E2E + a11y | none |
-| Feature inventory | 100% of features have at least one E2E test; 100% of BUG/SEC items marked E2E or integration have a test | parity checklist (section 5) |
+- Needs `DATABASE_URL` pointing at a throwaway database whose name ends in `_test` or `_it`. The reset helper refuses any other name.
+- Prisma is not mocked. These tests catch what mocks hide: constraints, transactions, case-insensitive lookups, ordering.
+- Every mutating action is checked as anonymous (rejected), as employee (forbidden where HR-only) and as HR (succeeds).
 
-Coverage is measured with Vitest's `v8` provider, merged across the unit and integration runs. Don't chase the number by unit-testing Prisma calls through mocks; integration tests are the right place for those.
+### 2.3 E2E
 
-## 4. Porting `legacy-tests` to `web/tests/e2e`
-
-The legacy suite was written to make this mostly mechanical:
-
-| Layer in legacy-tests | What changes when porting |
-|---|---|
-| `tests/*.spec.ts` (scenarios) | **Copy as is.** They only use page objects and user-visible text. |
-| `support/routes.ts` | Map each key to the Next.js route. |
-| `support/pages/*.ts` | Update locators only where the new UI differs. Prefer `getByRole` / `getByLabel`; delete the legacy CSS fallbacks in `field()` once the new UI has properly labelled inputs. Native `confirm()`/`alert()` handling lives in `Dialogs`; switch it to modal buttons / inline messages there, not in the specs. |
-| `support/fixtures.ts` | Login stays UI-driven for the auth specs. Other specs can switch to `storageState` from a setup project for speed. |
-| `fixtures/seed.sql` + `scripts/reset-db.mjs` | Replace with the new schema's equivalent (`web/prisma/seed-test.ts` or SQL). **Keep the same users, passwords and names** (`support/data.ts`), so the scenarios don't change. |
-| `support/defects.ts` | Run with `FIXED_DEFECTS=all`. Any test still failing is a parity or defect gap. Once green, delete `knownDefect()` calls from the ported copy. |
-
-Rules:
-1. A ported scenario may change *how* it finds something (locator) but not *what* it asserts. If the assertion itself must change (e.g. product decided a different message), record the decision in the inventory and link the PR.
-2. Text assertions use case-insensitive regexes on the meaningful words (`/saved successfully/i`), not legacy typos ("Succuessfully" is matched by `/saved succ?u?essfully/i` on purpose; the new UI should spell it correctly).
-3. New features or decisions (e.g. an employee viewing their own appraisals) get new specs in `web/tests/e2e`. Don't add them to `legacy-tests`.
-
-## 5. Parity process
-
-1. **Inventory is the contract.** Each feature in `feature-inventory.md` gets a row in the parity checklist (a GitHub project or table) with columns: feature, legacy test(s), web test(s), status (`not started` / `ported` / `green`), owner.
-2. **A feature is done** when its ported E2E tests pass in `web/` CI, its unit/integration tests exist per section 2, and any linked BUG/SEC item is green with `FIXED_DEFECTS=all`.
-3. **Legacy suite stays green against legacy** (with expected failures) until cut-over. When a legacy change fixes an open defect, its `test.fail` test starts "unexpectedly passing", and Playwright reports that as a failure. That is the signal to mark it `fixed` in `support/defects.ts` and in inventory section 11, in the same PR as the fix. The Security hardening went through this step: SEC-01..07, BUG-01..05, 07, 09, 10 and 21 are fixed, and BUG-15, 17 and 24 are partial.
-4. **Behaviour changes need sign-off.** Any deliberate deviation from legacy, other than fixing a listed defect, needs a product decision recorded in inventory section 13 before the test is changed.
-5. **Cut-over gate:** all checklist rows are green; the E2E suite is green on Chromium/Firefox/WebKit; coverage gates are met; zero open Critical/High defects; a11y scan is clean.
-
-## 6. CI layout (proposed)
-
-| Job | Trigger | Steps |
-|---|---|---|
-| `web-unit` | every PR touching `web/` | `vitest run --project unit --coverage` |
-| `web-integration` | every PR touching `web/` | Postgres service container → `prisma migrate deploy` → `vitest run --project integration --coverage` |
-| `web-e2e` | every PR touching `web/` | Postgres service → build → `next start` → reset/seed → `playwright test` (Chromium) |
-| `legacy-e2e` | PRs touching the legacy app or `legacy-tests/`; nightly | Postgres service → `npx prisma db push` → `npm run db:session-table` → `TRUST_PROXY=1 npm start` → `legacy-tests: npm test` |
-| `web-e2e-matrix` | nightly | E2E on Firefox + WebKit, a11y scan |
-
-## 7. Running the legacy suite locally
-
-Requirements: Node 22+, Docker (or any Postgres 16), and the legacy app's dependencies (`npm ci` at repo root). These steps target the hardened legacy app (merge `ab2c98d` and later).
+- Specs are one file per area under `web/tests/e2e`. Page objects live in `web/tests/support/pages/` and use roles, labels and visible text only.
+- Fixtures sign in through `POST /api/auth/sign-in/username`. The login form itself is covered in `auth.spec.ts`.
+- `web/tests/support/db/reset.ts` truncates every table except `_prisma_migrations`, runs `prisma/seed.ts`, then loads `qa-fixtures.sql`. It refuses databases not named `*_test` or `*_it`. `E2E_DB_RESET=0` skips the reset.
+- Specs are parallel-safe: created records get unique names (`uid()`), and a test that changes a user changes that user's own fixture account. Every fixture account uses the password `QaPass#2026`.
+- Each browser context sends its own `X-Forwarded-For`, so Better Auth's per-IP and per-username limits apply per test.
+- `@backend` specs run only when `E2E_BACKEND=1`. CI sets it.
+- `BETTER_AUTH_URL` must equal the browser origin, or Better Auth returns 403 on a mismatched Origin.
 
 ```bash
-# 1. Postgres on a spare port (the suite truncates this database)
-docker run -d --name hr-legacy-qa-db -e POSTGRES_DB=hrdb_qa -e POSTGRES_USER=hruser \
-  -e POSTGRES_PASSWORD=qa_pass -p 55432:5432 postgres:16-alpine
-export DATABASE_URL=postgresql://hruser:qa_pass@localhost:55432/hrdb_qa
-
-# 2. Legacy app (repo root)
-npm ci
-npx prisma db push
-npm run db:session-table                         # Postgres session store; the app exits without it
-# TRUST_PROXY=1 is required for the suite: each test context sends its own X-Forwarded-For,
-# so the login rate limit (20/IP, 10/username+IP per 15 min, in memory) applies per test.
-PORT=3100 SESSION_SECRET=dev TRUST_PROXY=1 npm start   # or let Playwright start it: START_LEGACY=1
-
-# 3. Suite
-cd legacy-tests
-npm ci
-npx playwright install chromium
-BASE_URL=http://localhost:3100 npm test          # globalSetup resets the DB from fixtures/seed.sql
-npm run report                                   # HTML report
-```
-
-Environment variables:
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `BASE_URL` | `http://localhost:3000` | app under test |
-| `DATABASE_URL` | (required unless `RESET_DB=0`) | DB to truncate and seed before the run |
-| `RESET_DB` | `1` | `0` skips the reset (runs will not be repeatable) |
-| `START_LEGACY` | unset | `1` makes Playwright start `node ../app.js` |
-| `FIXED_DEFECTS` | empty | extra comma list of defect IDs (or `all`) not expected to fail, on top of `support/defects.ts` |
-| `LEGACY_BASELINE` | unset | `unpatched` expects every known defect to fail (for running against pre-hardening commit `4f8c6bc`) |
-| `VARY_CLIENT_IP` | `1` | `0` stops sending a per-context `X-Forwarded-For` (the run will then trip the login rate limit) |
-
-Defect status: `legacy-tests/support/defects.ts` records each defect as open / fixed / partial, matching inventory section 11. Only **open** defects are expected failures. When a fix lands, flip the status in both places in the same PR.
-
-Repeatability: `fixtures/seed.sql` truncates every table (and the `legacy_session.session` table if present) and loads the `prisma/seed.js` data, plus QA-only users (`mary`, `temp`, `paula`, `olive`, `gone`) and an in-use department and position. Destructive tests therefore never touch shared data, and tests also create uniquely named records. Seeded passwords are plaintext; the hardened app upgrades each one to bcrypt on first login, so no hashing step is needed. The rate limiter's counters live in app memory and are **not** cleared by the DB reset. The per-context client IP is what keeps re-runs from accumulating against one bucket, so don't remove it without raising the limits instead (`LOGIN_RATE_LIMIT_IP` / `LOGIN_RATE_LIMIT_USER`, test environments only).
-
-## 8. Web E2E suite (`web/tests/e2e`, Phase 2)
-
-### Layout
-| Path | What |
-|---|---|
-| `web/tests/e2e/*.spec.ts` | One file per area: auth, navigation, forbidden, password, employees (with profile and email display), org, leave, notices, appraisals, dates |
-| `web/tests/support/fixtures.ts` | `test` with `hr`, `employee`, `app` (anonymous) and `as(user, { timezoneId })` fixtures; page objects bundled as `App` |
-| `web/tests/support/pages/` | Page objects. Roles, labels and visible text only (ADR-0008 rule 5) |
-| `web/tests/support/users.ts` | Every account the suite uses (Data's seed + QA fixtures) |
-| `web/tests/support/db/` | `reset.ts` + `qa-fixtures.sql` (test data, below) |
-
-### Two modes
-- **Untagged specs** must pass against both the stub UI (today) and the wired app. They cover:
-  - the real Better Auth sign-in API and the proxy;
-  - role-based navigation, the forced-change shell and `/forbidden`;
-  - client-side validation, including BUG-05/11/12;
-  - confirmation dialogs and calendar-date rendering.
-- **`@backend` specs** need real services, persistence and real page guards: CRUD journeys, toasts, role enforcement, terminate and reset password, the BUG-06 dashboard count, and "No email on file".
-  - They are **skipped** (reported as skipped, never as passed) unless `E2E_BACKEND=1`.
-  - Once Frontend replaces `app/_stubs`, CI sets `E2E_BACKEND=1` and the tag is only informational.
-
-### Test data
-1. `reset.ts` truncates every table in `public` except `_prisma_migrations`, runs Data's `prisma/seed.ts`, then loads `qa-fixtures.sql`. It refuses any database not named `*_test` or `*_it` (ADR-0008 rule 1a).
-2. QA fixtures use ids 102 and up:
-   - `nora.noemail`: placeholder login email, no contact email;
-   - `carl.contact`: placeholder login email, contact email present;
-   - one dedicated user per destructive journey: `terry.terminate`, `rita.reset`, `chad.changer`, `fran.forced`, `lena.leave`, `eric.edit`.
-
-   All use the password `QaPass#2026`, stored as argon2id.
-3. The reset runs **once per Playwright run**, from a worker-scoped auto fixture.
-   - A Postgres advisory lock serialises the workers, and a stamp in the `qa_e2e` schema records that this run has reset. The stamp lives outside `public`, so Prisma sees no drift.
-   - This is interim until Platform adds `globalSetup` (see needs below).
-   - `E2E_DB_RESET=0` skips the reset. Manual reset: `npx tsx tests/support/db/reset.ts`.
-4. Specs are parallel-safe. Created records get unique names (`uid()`), and any test that changes a user does it to that user's own fixture account.
-
-### Sign-in and rate limits
-- Fixtures sign in through `POST /api/auth/sign-in/username`, the same call the login form makes. The form itself is covered in `auth.spec.ts`.
-- Each browser context sends its own `X-Forwarded-For` (from 198.18.0.0/15). Better Auth's per-IP limit (50/60 s) and the per-username+IP failure limit (10/60 s) therefore apply per test.
-- While the stub UI is in place, fixtures also set the `hr-stub-persona` cookie to match the signed-in role. It is harmless once the stubs are deleted.
-
-### Running
-```bash
-# throwaway DB named *_test, migrated
 export DATABASE_URL=postgresql://user:pass@127.0.0.1:5432/hr_web_test
 cd web && npx prisma migrate deploy
-# The app: Platform's config starts `npm run dev` locally, or the standalone server in CI.
-# BETTER_AUTH_URL must equal the browser origin (see Platform needs).
-npm run test:e2e                         # stub UI: @backend specs skip
-E2E_BACKEND=1 npm run test:e2e           # after wiring
+E2E_BACKEND=1 npm run test:e2e
 ```
 
-### Needs from other leads
-- **Platform:**
-  1. Add `globalSetup` to `playwright.config.ts`, calling `resetDatabase()` from `tests/support/db/reset.ts`. The worker fixture then goes.
-  2. Align `BETTER_AUTH_URL` with the Playwright `baseURL` in CI: either `BETTER_AUTH_URL=http://127.0.0.1:3000`, or `PLAYWRIGHT_BASE_URL=http://localhost:3000`. Once the browser holds any cookie, Better Auth returns 403 for a mismatched Origin, so the wired login form would fail in CI.
-  3. Set `E2E_BACKEND=1` in `web-e2e` once the stubs are gone.
-- **Frontend:**
-  - No data-testids are needed so far.
-  - Keep the accessible names the suite relies on: form `aria-label`s, `Terminate <name>`, `Delete <name>`, `Approve leave for <name>`, the credential panel region names, and the toast texts.
-  - Delete `app/_stubs`, including the persona switcher.
-- **Backend/Frontend (minor UX):** cross-field rules (end ≥ start) only show after every other field is valid, because the Zod refine runs last. A `superRefine` with field paths would show all errors at once.
+## 3. Non-functional gates
+
+- ESLint (zero warnings), Prettier and `tsc --noEmit` run in CI.
+- Accessibility: no serious or critical violations on the main pages.
+- Security: `npm audit --omit=dev` at high severity.
+
+## 4. CI
+
+`.github/workflows/ci.yml` runs `web / lint, typecheck, unit tests`, `web / build`, `web / integration tests (Postgres)`, `web / e2e (Playwright)` and `web / docker build` on every pull request.

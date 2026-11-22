@@ -155,8 +155,8 @@ argon2id hash and clears `mustChangePassword`.
   `input: false`.
 - **Rate limits on `/sign-in/username`** (HTTP only; client IP =
   `X-Forwarded-For`, which Caddy overwrites, docs/platform/deployment.md):
-  - **per username + IP: 10 failures per 60 s** (legacy parity,
-    `login-limiter.ts`, enforced in the sign-in hooks). A success clears
+  - **per username + IP: 10 failures per 60 s**
+    (`login-limiter.ts`, enforced in the sign-in hooks). A success clears
     it. One person mistyping locks only themselves, not colleagues behind
     the same office NAT address, and failures from elsewhere don't lock
     the account for everyone.
