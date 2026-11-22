@@ -138,6 +138,14 @@ describe("sign-in (POST /api/auth/sign-in/username)", () => {
       expect((await signIn("jane", "wrong", ip)).status).toBe(401);
   });
 
+  it("backs off a username after 20 failures spread across many IPs", async () => {
+    await createUser({ username: "victim", password: "right-pass" });
+    for (let i = 0; i < 20; i++)
+      expect((await signIn("victim", "wrong", freshIp())).status).toBe(401);
+    const locked = await signIn("VICTIM", "right-pass", freshIp());
+    expect(locked.status).toBe(429);
+  });
+
   it("still caps all attempts per IP (50 per minute) across usernames", async () => {
     const ip = freshIp();
     const statuses: number[] = [];

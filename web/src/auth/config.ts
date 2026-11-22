@@ -15,7 +15,12 @@ import {
   PASSWORD_MIN_LENGTH,
   verifyPassword,
 } from "./password";
-import { LoginFailureLimiter, loginFailureLimiter } from "./login-limiter";
+import {
+  LoginFailureLimiter,
+  loginFailureLimiter,
+  UsernameBackoffLimiter,
+  usernameBackoffLimiter,
+} from "./login-limiter";
 
 function limiterKey(
   ctx: { headers?: Headers; context: { options: BetterAuthOptions } },
@@ -181,7 +186,12 @@ function createAuth() {
 
         if (ctx.request) {
           const key = limiterKey(ctx, body.username);
-          const retryAfter = loginFailureLimiter.retryAfterSeconds(key);
+          const retryAfter = Math.max(
+            loginFailureLimiter.retryAfterSeconds(key),
+            usernameBackoffLimiter.retryAfterSeconds(
+              UsernameBackoffLimiter.key(body.username),
+            ),
+          );
           if (retryAfter > 0) {
             throw new APIError(
               "TOO_MANY_REQUESTS",
@@ -218,14 +228,17 @@ function createAuth() {
             ?.username;
           if (ctx.request && typeof attempted === "string") {
             const key = limiterKey(ctx, attempted);
+            const userKey = UsernameBackoffLimiter.key(attempted);
             const returned = ctx.context.returned;
             if (newSession) {
               loginFailureLimiter.recordSuccess(key);
+              usernameBackoffLimiter.recordSuccess(userKey);
             } else if (
               returned instanceof APIError &&
               returned.status === "UNAUTHORIZED"
             ) {
               loginFailureLimiter.recordFailure(key);
+              usernameBackoffLimiter.recordFailure(userKey);
             }
           }
           if (!newSession) return;
