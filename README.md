@@ -8,6 +8,25 @@ data and the notice board.
 The app lives in [`web/`](web/). Deployment files (`docker-compose.yml`,
 `compose.dev.yml`, `compose.prod.yml`, `docker/`) are at the repo root.
 
+![Dashboard](docs/images/dashboard.png)
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/login.png" alt="Sign in"><br><sub>Sign in</sub></td>
+    <td width="50%"><img src="docs/images/employees.png" alt="Employees"><br><sub>Employees</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/leave-requests.png" alt="Pending leave requests"><br><sub>Pending leave requests</sub></td>
+    <td width="50%"><img src="docs/images/appraisals.png" alt="Appraisals"><br><sub>Appraisals</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/notices.png" alt="Notice board"><br><sub>Notice board</sub></td>
+    <td width="50%"><img src="docs/images/dashboard-dark.png" alt="Dashboard in dark mode"><br><sub>Dashboard in dark mode</sub></td>
+  </tr>
+</table>
+
 ## Stack
 
 Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 and shadcn/ui,
