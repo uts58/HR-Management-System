@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
-import { proxy } from "./proxy";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { config, proxy } from "./proxy";
 
 const SESSION = "better-auth.session_token=abc.def";
 
@@ -93,5 +94,26 @@ describe("proxy", () => {
     expect(res.headers.get("referrer-policy")).toBe(
       "strict-origin-when-cross-origin",
     );
+  });
+
+  it("runs on dotted dynamic routes but skips static assets", () => {
+    const matches = (url: string) =>
+      unstable_doesMiddlewareMatch({ config, url });
+    for (const url of [
+      "/",
+      "/employees/1.x",
+      "/employees/1.json",
+      "/notices/report.pdf",
+      "/favicon.icon",
+    ])
+      expect(matches(url), url).toBe(true);
+    for (const url of [
+      "/_next/static/chunks/app.js",
+      "/_next/image?url=%2Fimages%2Fa.png&w=64&q=75",
+      "/favicon.ico",
+      "/images/logo.png",
+      "/fonts/inter.woff2",
+    ])
+      expect(matches(url), url).toBe(false);
   });
 });
