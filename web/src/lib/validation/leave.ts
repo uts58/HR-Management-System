@@ -16,6 +16,7 @@ import {
   enumField,
   isoDateField,
   optionalText,
+  whenFieldsValid,
 } from "./common";
 
 export const LEAVE_REASON_MAX = 1000;
@@ -36,6 +37,8 @@ export const applyForLeaveSchema = z
   .refine((v) => v.endDate >= v.startDate, {
     error: "End date cannot be before the start date",
     path: ["endDate"],
+    // Runs even when other fields fail, so all errors show at once.
+    when: whenFieldsValid("startDate", "endDate"),
   }) satisfies z.ZodType<ApplyForLeaveInput>;
 
 export const decideLeaveRequestSchema = z.object({
