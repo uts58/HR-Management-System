@@ -116,6 +116,7 @@ jobs:
           --health-cmd "pg_isready -U hruser -d hr_web_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
+      E2E_BACKEND: "1"
       DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
