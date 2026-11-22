@@ -54,11 +54,52 @@ CREATE_ADMIN_PASSWORD='a-strong-password' npm run create-admin -- --username adm
 
 The command is idempotent and never prints the password.
 
-## Deploy
+## Running in production
 
-See [`docs/platform/deployment.md`](docs/platform/deployment.md) for the
-topology (Caddy, Next.js, Postgres), required environment variables, backups
-and the launch runbook. Copy `.env.example` to `.env` and fill it in first.
+Prerequisites: a Docker host with Compose, a domain whose DNS points at it,
+and ports 80 and 443 open (Caddy gets the TLS certificate automatically).
+
+1. Create `.env` in the repository root (`cp .env.example .env`) and set:
+
+   | Variable             | Value                                                              |
+   | -------------------- | ------------------------------------------------------------------ |
+   | `APP_DOMAIN`         | Your hostname, e.g. `hr.example.com` (production only)             |
+   | `DB_USER`, `DB_PASS` | Postgres superuser, used only by `db-init`                         |
+   | `WEB_DB_USER`        | App database role (default `hr_web_app`)                           |
+   | `WEB_DB_PASS`        | App role password, URL-safe: `openssl rand -hex 24`                |
+   | `WEB_DB_NAME`        | App database (default `hr_web`)                                    |
+   | `BETTER_AUTH_SECRET` | At least 32 characters: `openssl rand -base64 32`                  |
+   | `LOG_LEVEL`          | Optional: `fatal`, `error`, `warn`, `info` (default), `debug`, `trace` |
+
+   `BETTER_AUTH_URL` is set to `https://$APP_DOMAIN` by `compose.prod.yml`.
+   `DB_PASS` must also be URL-safe.
+
+2. First deploy:
+
+   ```bash
+   export COMPOSE_FILE=docker-compose.yml:compose.prod.yml
+   docker compose build
+   docker compose run --rm db-init
+   docker compose run --rm web-migrate
+   docker compose run --rm -e CREATE_ADMIN_PASSWORD='a-strong-password' web-migrate      node create-admin.mjs --username admin
+   docker compose up -d
+   curl -fsS https://$APP_DOMAIN/api/health
+   ```
+
+   `COMPOSE_FILE` makes every command include `compose.prod.yml`. `create-admin`
+   is idempotent and never prints the password.
+
+3. Update to a new version:
+
+   ```bash
+   git pull
+   docker compose build
+   docker compose run --rm web-migrate
+   docker compose up -d
+   ```
+
+Backups, rollback and the topology are in
+[`docs/platform/deployment.md`](docs/platform/deployment.md).
 
 ## Documentation
 

@@ -19,6 +19,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV SKIP_ENV_VALIDATION=1
 RUN npx prisma generate && npm run build
+RUN node_modules/.bin/esbuild scripts/create-admin.ts --bundle --platform=node --format=esm       --packages=external --tsconfig=scripts/tsconfig.cli.json       --outfile=/out/create-admin.mjs
 
 FROM base AS migrator
 ENV NODE_ENV=production \
@@ -27,6 +28,7 @@ RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs migrator
 COPY --from=deps --chown=migrator:nodejs /app/node_modules ./node_modules
 COPY --chown=migrator:nodejs package.json prisma7.config.ts ./
 COPY --chown=migrator:nodejs prisma ./prisma
+COPY --from=builder --chown=migrator:nodejs /out/create-admin.mjs ./create-admin.mjs
 USER migrator
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
 

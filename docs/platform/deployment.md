@@ -158,10 +158,10 @@ The app is a new product: it starts with an empty database.
 
 1. `docker compose run --rm db-init`, then `docker compose run --rm web-migrate`
    to create the `hr_web` schema.
-2. Create the first HR admin from a `web/` checkout with the full install,
-   pointed at `hr_web` (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`):
-   `CREATE_ADMIN_PASSWORD=... npm run create-admin -- --username <name>`.
-   It is idempotent and never prints the password.
+2. Create the first HR admin from the migrator image (no `web/` checkout
+   needed): `docker compose run --rm -e CREATE_ADMIN_PASSWORD=... web-migrate
+   node create-admin.mjs --username <name>`. It is idempotent and never
+   prints the password.
 3. `docker compose -f docker-compose.yml -f compose.prod.yml up -d`. Wait for
    `web` to report healthy.
 4. Smoke tests: log in as the new admin, add an employee, sign in as them,
@@ -173,12 +173,6 @@ The app is a new product: it starts with an empty database.
 1. Redeploy the previous release images. Migrations are backward-compatible,
    so only the image changes.
 2. Post-mortem before attempting again.
-
-### After launch
-
-- [ ] Turn on Dependabot alerts and security updates (repository settings,
-      Code security). `.github/dependabot.yml` opens weekly, grouped update
-      PRs for npm, docker and GitHub Actions.
 
 ## 4. Open questions
 
