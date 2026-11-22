@@ -34,16 +34,13 @@ export const changePassword = defineAction({
 });
 
 /**
- * End the current session.
- *
- * TODO(Backend PUBLIC role): switch to `role: "PUBLIC"` once defineAction
- * supports it, so a signed-out call succeeds quietly. With "ANY", a call
- * without a valid session returns UNAUTHENTICATED, which the UI can treat
- * as "already signed out".
+ * End the current session. PUBLIC (no session check): idempotent, so it
+ * returns ok even when already signed out or the session expired, and
+ * works while a password change is pending. It only ever ends the
+ * caller's own session (from the request cookie).
  */
 export const signOut = defineAction({
-  role: "ANY",
-  allowPendingPasswordChange: true,
+  role: "PUBLIC",
   schema: z.unknown(),
   handler: async () => {
     await signOutCurrentSession();

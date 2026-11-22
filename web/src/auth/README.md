@@ -80,9 +80,11 @@ import { changePassword, signOut } from "@/auth/actions";
   On success: argon2id hash written, `mustChangePassword` cleared, every
   **other** session of the user deleted (this one stays). Then redirect to
   `/dashboard` yourself.
-- `signOut`: deletes the session and clears the cookies. Then redirect to
-  `/login`. Until Backend adds `role: "PUBLIC"`, calling it without a valid
-  session returns `UNAUTHENTICATED`; treat that as signed out.
+- `signOut`: `role: "PUBLIC"`. Deletes the caller's own session (from the
+  request cookie) and clears the cookies. Always returns
+  `{ ok: true, data: undefined }`, also when already signed out, the
+  session expired or was revoked, or a password change is pending. Then
+  redirect to `/login`.
 
 ## Wiring Frontend's UI (after both branches merge)
 
@@ -195,9 +197,19 @@ headers, on normal responses and on the proxy's redirects:
 
 How the nonce works (Next 16 CSP guide): the proxy puts the CSP on the
 forwarded request too; Next.js reads the nonce from it and adds it to its
-own scripts. Hand-written inline scripts must read it with
-`getCspNonce()` from `@/auth/csp-nonce` (which also makes the page
-dynamic, as nonces require).
+own scripts.
+
+**Nonce request header: `x-nonce`** (constant `NONCE_HEADER` in
+`@/auth/security-headers`). The proxy sets it on every matched request and
+overwrites any client-sent value. Hand-written inline scripts read it in a
+Server Component, preferably with the helper:
+
+```ts
+import { getCspNonce } from "@/auth/csp-nonce"; // = (await headers()).get("x-nonce") ?? undefined
+const nonce = await getCspNonce();
+```
+
+Reading it also makes the page dynamic, as nonces require.
 
 - **Scripts are nonce-only.** Any `<script>` without the nonce is blocked.
 - **Styles allow `'unsafe-inline'`** (no nonce in `style-src`, since a
