@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const isCI = !!process.env.CI;
+const isDevServer = !isCI && !process.env.PLAYWRIGHT_BASE_URL;
 const origin = new URL(
   process.env.PLAYWRIGHT_BASE_URL ??
     process.env.BETTER_AUTH_URL ??
@@ -18,10 +19,12 @@ export default defineConfig({
   retries: isCI ? 2 : 0,
   workers: isCI ? 1 : undefined,
   reporter: isCI ? [["github"], ["html", { open: "never" }]] : "list",
+  ...(isDevServer ? { timeout: 90_000 } : {}),
   use: {
     baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    ...(isDevServer ? { navigationTimeout: 60_000 } : {}),
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: process.env.PLAYWRIGHT_BASE_URL
