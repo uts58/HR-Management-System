@@ -134,7 +134,7 @@ model Employee {
   employmentStatus EmploymentStatus @default(ACTIVE) @map("employment_status")
   terminatedAt     DateTime?        @map("terminated_at") @db.Timestamptz(3)
 
-  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user          User?
@@ -170,7 +170,7 @@ model LeaveRequest {
   decidedById    String?     @map("decided_by_id")
   decidedBy      User?       @relation("LeaveDecider", fields: [decidedById], references: [id], onDelete: SetNull)
 
-  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([employeeId, status])
@@ -189,7 +189,7 @@ model Notice {
   type  NoticeType @default(GENERAL)
 
   /// The publish time.
-  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([createdAt(sort: Desc)])
@@ -210,7 +210,7 @@ model Appraisal {
   /// 1 Poor .. 5 Excellent (CHECK constraint in SQL)
   rating       Int?      @db.SmallInt
 
-  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([employeeId])

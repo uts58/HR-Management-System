@@ -45,7 +45,7 @@ export interface LeaveRequest {
    * opened their leave history. Always true while PENDING.
    */
   seenByEmployee: boolean;
-  createdAt: UtcTimestamp | null;
+  createdAt: UtcTimestamp;
   decidedAt: UtcTimestamp | null;
 }
 

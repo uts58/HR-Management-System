@@ -13,7 +13,7 @@ export interface Notice {
   title: string;
   body: string;
   type: NoticeType;
-  createdAt: UtcTimestamp | null;
+  createdAt: UtcTimestamp;
 }
 
 export interface CreateNoticeInput {

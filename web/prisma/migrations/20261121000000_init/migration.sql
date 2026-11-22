@@ -56,7 +56,7 @@ CREATE TABLE "employees" (
     "position_id" INTEGER,
     "employment_status" "employment_status" NOT NULL DEFAULT 'ACTIVE',
     "terminated_at" TIMESTAMPTZ(3),
-    "created_at" TIMESTAMPTZ(3) DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "employees_pkey" PRIMARY KEY ("id")
@@ -74,7 +74,7 @@ CREATE TABLE "leave_requests" (
     "seen_by_employee" BOOLEAN NOT NULL DEFAULT true,
     "decided_at" TIMESTAMPTZ(3),
     "decided_by_id" TEXT,
-    "created_at" TIMESTAMPTZ(3) DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "leave_requests_pkey" PRIMARY KEY ("id")
@@ -86,7 +86,7 @@ CREATE TABLE "notices" (
     "title" TEXT NOT NULL,
     "body" TEXT NOT NULL,
     "type" "notice_type" NOT NULL DEFAULT 'GENERAL',
-    "created_at" TIMESTAMPTZ(3) DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "notices_pkey" PRIMARY KEY ("id")
@@ -100,7 +100,7 @@ CREATE TABLE "appraisals" (
     "project_start" DATE,
     "project_end" DATE,
     "rating" SMALLINT,
-    "created_at" TIMESTAMPTZ(3) DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "appraisals_pkey" PRIMARY KEY ("id")

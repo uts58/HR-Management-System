@@ -13,7 +13,7 @@ import {
   type NoticeService,
 } from "@/contracts/notice";
 import type { Prisma } from "@/generated/prisma/client";
-import { toIsoInstantOrNull } from "@/lib/dates";
+import { toIsoInstant } from "@/lib/dates";
 import { entityIdSchema } from "@/lib/validation/common";
 import { createNoticeSchema } from "@/lib/validation/notice";
 import { db } from "../db";
@@ -39,7 +39,7 @@ function toNotice(r: NoticeRow): Notice {
     title: r.title,
     body: r.body,
     type: r.type,
-    createdAt: toIsoInstantOrNull(r.createdAt),
+    createdAt: toIsoInstant(r.createdAt),
   };
 }
 

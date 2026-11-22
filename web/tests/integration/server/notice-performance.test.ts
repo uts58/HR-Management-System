@@ -19,9 +19,13 @@ describe("noticeService", () => {
   it("HR creates; everyone signed in sees recent notices newest first", async () => {
     const hr = (await makePerson("HR_ADMIN")).actor;
     const emp = (await makePerson("EMPLOYEE")).actor;
-    // A notice with no createdAt sorts as the oldest.
     await db.notice.create({
-      data: { title: "Legacy", body: "old", type: "GENERAL", createdAt: null },
+      data: {
+        title: "Legacy",
+        body: "old",
+        type: "GENERAL",
+        createdAt: new Date("2020-01-01T00:00:00Z"),
+      },
     });
     const first = await noticeService.createNotice(hr, {
       title: " Holiday ",
@@ -39,7 +43,6 @@ describe("noticeService", () => {
 
     const recent = await noticeService.listRecentNotices(emp);
     expect(recent.map((n) => n.title)).toEqual(["Urgent", "Holiday", "Legacy"]);
-    expect(recent[2]?.createdAt).toBeNull();
     expect(
       (await noticeService.listRecentNotices(emp, 1)).map((n) => n.title),
     ).toEqual(["Urgent"]);
@@ -124,7 +127,7 @@ describe("performanceService", () => {
     expect(a.createdAt).toMatch(ISO_Z);
   });
 
-  it("BUG-11: unknown or terminated employee is VALIDATION on employeeId", async () => {
+  it("unknown or terminated employee is VALIDATION on employeeId", async () => {
     const hr = (await makePerson("HR_ADMIN")).actor;
     const terminated = await makeEmployee({
       employmentStatus: "TERMINATED",
@@ -157,7 +160,7 @@ describe("performanceService", () => {
         projectStart: null,
         projectEnd: null,
         rating: 3,
-        createdAt: null,
+        createdAt: new Date("2020-01-01T00:00:00Z"),
       },
     });
     const target = await makeEmployee();
@@ -173,7 +176,6 @@ describe("performanceService", () => {
     expect(list[1]).toMatchObject({
       projectStart: null,
       projectEnd: null,
-      createdAt: null,
       employee: { status: "TERMINATED" },
     });
   });

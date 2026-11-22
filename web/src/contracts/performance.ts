@@ -32,7 +32,7 @@ export interface Appraisal {
   projectStart: IsoDate | null;
   projectEnd: IsoDate | null;
   rating: Rating | null;
-  createdAt: UtcTimestamp | null;
+  createdAt: UtcTimestamp;
 }
 
 export interface CreateAppraisalInput {

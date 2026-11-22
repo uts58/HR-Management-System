@@ -21,6 +21,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import {
   isoDateToUtcDate,
   toIsoDateOrNull,
+  toIsoInstant,
   toIsoInstantOrNull,
 } from "@/lib/dates";
 import {
@@ -66,7 +67,7 @@ function toLeaveRequest(r: LeaveRow): LeaveRequest {
     reason: r.reason,
     status: r.status,
     seenByEmployee: r.seenByEmployee,
-    createdAt: toIsoInstantOrNull(r.createdAt),
+    createdAt: toIsoInstant(r.createdAt),
     decidedAt: toIsoInstantOrNull(r.decidedAt),
   };
 }

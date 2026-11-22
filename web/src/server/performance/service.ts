@@ -2,7 +2,7 @@
  * Performance appraisals (contracts.md#performance). HR only; employees
  * cannot see appraisals.
  *
- * BUG-11: a missing employee is a VALIDATION error on `employeeId` (schema),
+ * A missing employee is a VALIDATION error on `employeeId` (schema),
  * and so is an unknown or terminated employee (service).
  */
 
@@ -20,7 +20,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import {
   isoDateToUtcDate,
   toIsoDateOrNull,
-  toIsoInstantOrNull,
+  toIsoInstant,
 } from "@/lib/dates";
 import { entityIdSchema } from "@/lib/validation/common";
 import { createAppraisalSchema } from "@/lib/validation/performance";
@@ -62,7 +62,7 @@ function toAppraisal(r: AppraisalRow): Appraisal {
     projectStart: toIsoDateOrNull(r.projectStart),
     projectEnd: toIsoDateOrNull(r.projectEnd),
     rating: toRating(r.rating),
-    createdAt: toIsoInstantOrNull(r.createdAt),
+    createdAt: toIsoInstant(r.createdAt),
   };
 }
 

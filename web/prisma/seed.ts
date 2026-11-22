@@ -166,7 +166,7 @@ async function main() {
       id: "seed-user-2",
       employeeId: 2,
       username: "john.doe",
-      name: "John Doe",
+      name: "John A Doe",
       email: "john.doe@example.com",
       role: "EMPLOYEE" as const,
       hash: empHash,

@@ -40,7 +40,7 @@ describe("leaveService", () => {
     });
   });
 
-  it("BUG-12: bad dates and OTHER are rejected before anything is stored", async () => {
+  it("bad dates and OTHER are rejected before anything is stored", async () => {
     const { emp } = await setup();
     for (const bad of [
       { ...request, startDate: "" },
@@ -119,7 +119,7 @@ describe("leaveService", () => {
     expect(await leaveService.markMyLeaveDecisionsSeen(emp)).toBe(0);
   });
 
-  it("orders rows with a null createdAt as the oldest; null dates pass through", async () => {
+  it("orders history by creation time; null dates pass through", async () => {
     const { hr, emp, empId } = await setup();
     const undated = await db.leaveRequest.create({
       data: {
@@ -127,7 +127,7 @@ describe("leaveService", () => {
         leaveType: "CASUAL",
         startDate: null,
         endDate: null,
-        createdAt: null,
+        createdAt: new Date("2020-01-01T00:00:00Z"),
         status: "PENDING",
       },
     });
@@ -138,7 +138,6 @@ describe("leaveService", () => {
     expect(mine[1]).toMatchObject({
       startDate: null,
       endDate: null,
-      createdAt: null,
       leaveType: "CASUAL",
     });
 
