@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { changePassword } from "@/auth/actions";
 import { DASHBOARD_PATH } from "@/auth/paths";
@@ -17,8 +18,16 @@ import {
  * Errors land on the right field: wrong current password → currentPassword,
  * mismatch → confirmPassword, policy → newPassword.
  */
-export function ChangePasswordForm({ forced }: { forced: boolean }) {
+export function ChangePasswordForm({
+  forced: forcedProp,
+}: {
+  forced: boolean;
+}) {
   const router = useRouter();
+  // The action clears mustChangePassword and the page re-renders with
+  // forced=false before onSuccess runs, so remember the value we started
+  // with: a forced change must still leave for the dashboard.
+  const [forced] = useState(forcedProp);
   return (
     <ActionForm
       aria-label="Change password"
