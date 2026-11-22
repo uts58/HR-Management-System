@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { describe, expect, it } from "vitest";
 import {
   ARGON2_OPTIONS,
@@ -6,8 +5,6 @@ import {
   generateTemporaryPassword,
   hashPassword,
   isArgon2idHash,
-  isBcryptHash,
-  needsRehash,
   TEMPORARY_PASSWORD_LENGTH,
   verifyPassword,
 } from "./password";
@@ -36,20 +33,14 @@ describe("verifyPassword", () => {
     expect(await verifyPassword({ hash, password: "s3cret-pasS" })).toBe(false);
   });
 
-  it.each(["2a", "2b", "2y"])("accepts legacy bcrypt $%s$", async (variant) => {
-    const b = await bcrypt.hash("legacy-pw", 4); // $2b$ from bcryptjs
-    const hash = `$${variant}$${b.slice(4)}`;
-    expect(isBcryptHash(hash)).toBe(true);
-    expect(await verifyPassword({ hash, password: "legacy-pw" })).toBe(true);
-    expect(await verifyPassword({ hash, password: "legacy-px" })).toBe(false);
-  });
-
-  it("verifies a known bcrypt vector (OpenBSD test suite, $2a$)", async () => {
+  it("rejects bcrypt hashes (argon2id only)", async () => {
+    // Known bcrypt vector (OpenBSD test suite) for the password "U*U".
     const hash = "$2a$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW";
-    expect(await verifyPassword({ hash, password: "U*U" })).toBe(true);
+    expect(await verifyPassword({ hash, password: "U*U" })).toBe(false);
   });
 
   it("never matches plain text, unknown formats or garbage, and never throws", async () => {
+    expect(isArgon2idHash(await hashPassword("x"))).toBe(true);
     for (const stored of [
       "legacy-pw",
       "",
@@ -61,25 +52,6 @@ describe("verifyPassword", () => {
         await verifyPassword({ hash: stored, password: "legacy-pw" }),
       ).toBe(false);
     }
-  });
-
-  it("refuses passwords over 72 bytes against bcrypt instead of truncating", async () => {
-    const long = "a".repeat(72);
-    const hash = await bcrypt.hash(long, 4);
-    expect(await verifyPassword({ hash, password: long })).toBe(true);
-    expect(await verifyPassword({ hash, password: `${long}EXTRA` })).toBe(
-      false,
-    );
-  });
-});
-
-describe("needsRehash", () => {
-  it("is true only for bcrypt", async () => {
-    expect(needsRehash(await bcrypt.hash("x", 4))).toBe(true);
-    const a = await hashPassword("x");
-    expect(isArgon2idHash(a)).toBe(true);
-    expect(needsRehash(a)).toBe(false);
-    expect(needsRehash("plain")).toBe(false);
   });
 });
 

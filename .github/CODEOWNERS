@@ -61,7 +61,6 @@
 
 # ---- Data ----------------------------------------------------------------
 /web/prisma/                    @hr/data
-/scripts/migrate-legacy/        @hr/data
 
 # ---- Security ------------------------------------------------------------
 /web/src/auth/                  @hr/security

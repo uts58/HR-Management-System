@@ -12,7 +12,6 @@ import {
   makeDepartment,
   makeEmployee,
   makePerson,
-  makePlaceholder,
   makePosition,
   makeUser,
   rejection,
@@ -165,7 +164,7 @@ describe("employeeService.createEmployee", () => {
 });
 
 describe("employeeService reads", () => {
-  it("lists ACTIVE by default with role; TERMINATED/ALL on request; never placeholders", async () => {
+  it("lists ACTIVE by default with role; TERMINATED/ALL on request", async () => {
     const { service, hr } = await setup();
     const gone = await makeEmployee({
       firstName: "Gone",
@@ -173,7 +172,6 @@ describe("employeeService reads", () => {
       employmentStatus: "TERMINATED",
       terminatedAt: new Date("2026-01-01T00:00:00Z"),
     });
-    await makePlaceholder();
 
     const active = await service.listEmployees(hr.actor);
     expect(active.map((e) => e.fullName)).toEqual(["Hr Admin", "Emp One"]);
@@ -195,7 +193,7 @@ describe("employeeService reads", () => {
     ).toHaveLength(3);
   });
 
-  it("pickers show ACTIVE non-placeholder employees by first name", async () => {
+  it("pickers show ACTIVE employees by first name", async () => {
     const { service, hr } = await setup();
     await makeEmployee({ firstName: "Aaron", lastName: "Z" });
     await makeEmployee({
@@ -203,7 +201,6 @@ describe("employeeService reads", () => {
       employmentStatus: "TERMINATED",
       terminatedAt: new Date(),
     });
-    await makePlaceholder();
     const options = await service.listEmployeeOptions(hr.actor);
     expect(options.map((o) => o.label)).toEqual([
       "Aaron Z",
@@ -221,20 +218,6 @@ describe("employeeService reads", () => {
       (await rejection(service.getEmployee(emp.actor, hr.employee.id))).code,
     ).toBe("NOT_FOUND");
     expect((await service.getMyProfile(emp.actor)).firstName).toBe("Emp");
-  });
-
-  it("placeholders are NOT_FOUND everywhere, even for HR", async () => {
-    const { service, hr, form } = await setup();
-    const ph = await makePlaceholder();
-    const calls = [
-      () => service.getEmployee(hr.actor, ph.id),
-      () => service.updateEmployee(hr.actor, ph.id, form as never),
-      () => service.terminateEmployee(hr.actor, ph.id),
-      () => service.resetEmployeePassword(hr.actor, ph.id),
-    ];
-    for (const call of calls) {
-      expect((await rejection(call())).code).toBe("NOT_FOUND");
-    }
   });
 
   it("an account without an employee record has no profile", async () => {

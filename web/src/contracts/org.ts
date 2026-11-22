@@ -9,10 +9,10 @@ import type { Actor, DepartmentId, PositionId } from "./common";
 export interface Department {
   id: DepartmentId;
   name: string;
-  /** ACTIVE, non-placeholder employees assigned. */
+  /** ACTIVE employees assigned. */
   employeeCount: number;
   /**
-   * All non-placeholder employees referencing it, TERMINATED included.
+   * All employees referencing it, TERMINATED included.
    * The UI disables Delete when > 0.
    */
   totalEmployeeCount: number;

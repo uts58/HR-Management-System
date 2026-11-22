@@ -129,7 +129,7 @@ describe("displayIsoDate", () => {
     expect(displayIsoDate(iso("1990-01-01"))).toBe("1990-01-01");
   });
 
-  it("shows a dash for missing (unparseable migrated) dates", () => {
+  it("shows a dash for missing dates", () => {
     expect(displayIsoDate(null)).toBe(EMPTY_DATE);
     expect(displayIsoDate(undefined)).toBe("—");
   });

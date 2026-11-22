@@ -41,8 +41,8 @@ export interface SessionUser {
   displayName: string;
   role: Role;
   /**
-   * true after HR creates the account or resets the password, and for
-   * migrated users who were still on a plain-text legacy password.
+   * true after HR creates the account or resets the password (the user
+   * holds an HR-issued temporary password).
    * While true, requireSession/requireRole send pages to /change-password
    * and make actions return FORBIDDEN, except changePassword and signOut.
    */
@@ -127,14 +127,13 @@ export interface CreateLoginAccountInput {
 
 /**
  * Better Auth `user.additionalFields` (Data schema; Security config).
- * ALL six are `input: false`: no Better Auth endpoint can set them from a
- * request. Only AccountAdminApi and the migration write them.
+ * ALL five are `input: false`: no Better Auth endpoint can set them from a
+ * request. Only AccountAdminApi (and the create-admin CLI) write them.
  */
 export interface AuthUserAdditionalFields {
   role: Role; // source of truth for authorization
   mustChangePassword: boolean;
   employeeId: EmployeeId | null; // unique, FK employee (Restrict)
-  legacyPersonId: string | null; // legacy person.id, migrated rows only
   /** DB column (timestamptz), not a read model. Set => no sign-in. */
   disabledAt: Date | null;
   emailIsPlaceholder: boolean; // true for @users.invalid
@@ -159,8 +158,7 @@ export interface AccountAdminApi {
 
   /**
    * New temporary password, mustChangePassword=true, all sessions revoked.
-   * Creates the credential account if it is missing (migrated users whose
-   * legacy password was empty have none).
+   * Throws ServiceError('NOT_FOUND') if the user or its credential is missing.
    */
   issueTemporaryPassword<Tx>(
     tx: Tx,

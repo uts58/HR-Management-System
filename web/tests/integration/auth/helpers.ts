@@ -4,7 +4,6 @@
  * a throwaway, migrated database: every test truncates the tables it uses.
  */
 import { randomUUID } from "node:crypto";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/auth/db";
 import { hashPassword } from "@/auth/password";
 import { handleAuthRequest } from "@/auth/route-handler";
@@ -45,11 +44,11 @@ export async function createEmployee(
   return e.id;
 }
 
-/** User with a known password stored as argon2id, bcrypt, or no credential at all. */
+/** User with a known argon2id password, or no credential at all. */
 export async function createUser(opts: {
   username: string;
   password?: string;
-  format?: "argon2id" | "bcrypt" | "none";
+  format?: "argon2id" | "none";
   role?: "HR_ADMIN" | "EMPLOYEE";
   employeeId?: number | null;
   mustChangePassword?: boolean;
@@ -78,10 +77,7 @@ export async function createUser(opts: {
         accountId: id,
         providerId: "credential",
         userId: id,
-        password:
-          format === "bcrypt"
-            ? await bcrypt.hash(pw, 10)
-            : await hashPassword(pw),
+        password: await hashPassword(pw),
       },
     });
   }

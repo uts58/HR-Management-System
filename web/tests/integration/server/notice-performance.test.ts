@@ -6,7 +6,6 @@ import {
   db,
   makeEmployee,
   makePerson,
-  makePlaceholder,
   rejection,
   resetDatabase,
 } from "./helpers";
@@ -20,7 +19,7 @@ describe("noticeService", () => {
   it("HR creates; everyone signed in sees recent notices newest first", async () => {
     const hr = (await makePerson("HR_ADMIN")).actor;
     const emp = (await makePerson("EMPLOYEE")).actor;
-    // A migrated notice has no createdAt and sorts as the oldest.
+    // A notice with no createdAt sorts as the oldest.
     await db.notice.create({
       data: { title: "Legacy", body: "old", type: "GENERAL", createdAt: null },
     });
@@ -116,7 +115,6 @@ describe("performanceService", () => {
         id: target.id,
         name: "Ada Lovelace",
         status: "ACTIVE",
-        isPlaceholder: false,
       },
       projectName: "Apollo",
       projectStart: "2026-01-01",
@@ -126,14 +124,13 @@ describe("performanceService", () => {
     expect(a.createdAt).toMatch(ISO_Z);
   });
 
-  it("BUG-11: unknown, terminated or placeholder employee is VALIDATION on employeeId", async () => {
+  it("BUG-11: unknown or terminated employee is VALIDATION on employeeId", async () => {
     const hr = (await makePerson("HR_ADMIN")).actor;
     const terminated = await makeEmployee({
       employmentStatus: "TERMINATED",
       terminatedAt: new Date(),
     });
-    const placeholder = await makePlaceholder();
-    for (const employeeId of [9999, terminated.id, placeholder.id]) {
+    for (const employeeId of [9999, terminated.id]) {
       const e = await rejection(
         performanceService.createAppraisal(hr, { ...valid, employeeId }),
       );
@@ -145,12 +142,17 @@ describe("performanceService", () => {
     expect(await db.appraisal.count()).toBe(0);
   });
 
-  it("lists placeholder history as 'Unknown employee #id', newest first, null dates kept", async () => {
+  it("lists terminated employees' history newest first, null dates kept", async () => {
     const hr = (await makePerson("HR_ADMIN")).actor;
-    const ph = await makePlaceholder();
+    const gone = await makeEmployee({
+      firstName: "Gone",
+      lastName: "Away",
+      employmentStatus: "TERMINATED",
+      terminatedAt: new Date(),
+    });
     await db.appraisal.create({
       data: {
-        employeeId: ph.id,
+        employeeId: gone.id,
         projectName: null,
         projectStart: null,
         projectEnd: null,
@@ -166,13 +168,13 @@ describe("performanceService", () => {
     const list = await performanceService.listAppraisals(hr);
     expect(list.map((a) => a.employee.name)).toEqual([
       "Test Person",
-      `Unknown employee #${ph.id}`,
+      "Gone Away",
     ]);
     expect(list[1]).toMatchObject({
       projectStart: null,
       projectEnd: null,
       createdAt: null,
-      employee: { isPlaceholder: true, status: "TERMINATED" },
+      employee: { status: "TERMINATED" },
     });
   });
 

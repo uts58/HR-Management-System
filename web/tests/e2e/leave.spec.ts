@@ -1,7 +1,7 @@
 import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 import { expectFieldError } from "../support/pages/common";
-import { fullName, placeholderEmployee, uid } from "../support/users";
+import { fullName, uid } from "../support/users";
 
 /** Feature map rows 24–29 (legacy /addLeave, saveLeave, viewLeave, displayLeave, assignLeave, viewLeavebyAdmin). */
 
@@ -39,9 +39,7 @@ test.describe("Apply for leave: validation", () => {
     );
   });
 
-  test("leave types match legacy and exclude the migration-only Other", async ({
-    employee,
-  }) => {
+  test("leave types match the legacy form", async ({ employee }) => {
     const options = await employee.leave
       .applyForm()
       .getByLabel("Leave type")
@@ -174,14 +172,5 @@ test.describe("Leave: journeys", { tag: BACKEND_TAG }, () => {
     const i1 = rows.findIndex((r) => r.includes(first));
     const i2 = rows.findIndex((r) => r.includes(second));
     expect(i1).toBeLessThan(i2);
-  });
-
-  test("history of a legacy orphan shows as an unknown employee", async ({
-    hr,
-  }) => {
-    await hr.page.goto("/leave/all");
-    await expect(hr.leave.row("QA placeholder history")).toContainText(
-      placeholderEmployee.name,
-    );
   });
 });

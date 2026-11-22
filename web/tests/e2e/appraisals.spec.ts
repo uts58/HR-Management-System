@@ -1,7 +1,7 @@
 import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 import { expectFieldError, expectToast } from "../support/pages/common";
-import { fullName, placeholderEmployee, uid } from "../support/users";
+import { fullName, uid } from "../support/users";
 
 /** Feature map rows 30–33 (legacy /addPerformance, savePerformance, viewPerformance, deletePerformance). */
 
@@ -128,18 +128,14 @@ test.describe("Appraisals: journeys", { tag: BACKEND_TAG }, () => {
     ).map((o) => o.trim());
     expect(options).toContain("John Doe");
     expect(options).not.toContain(fullName(users.mary));
-    expect(options.join("\n")).not.toContain("Unknown employee");
   });
 
-  test("appraisals of terminated and orphaned employees stay in the list", async ({
+  test("appraisals of terminated employees stay in the list", async ({
     hr,
   }) => {
     await hr.page.goto("/appraisals");
     await expect(hr.appraisals.row("Legacy API retirement")).toContainText(
       "Terminated",
-    );
-    await expect(hr.appraisals.row("QA placeholder project")).toContainText(
-      placeholderEmployee.name,
     );
   });
 });

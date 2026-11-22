@@ -24,9 +24,6 @@ export function requireOwnEmployeeId(actor: Actor): EmployeeId {
   return actor.employeeId;
 }
 
-/** Placeholder employees never appear in lists, pickers or counts. */
-export const NOT_PLACEHOLDER = { isPlaceholder: false } as const;
-
 /** "First Middle Last", middle omitted when empty. */
 export function fullName(e: {
   firstName: string;
@@ -52,27 +49,24 @@ export const employeeRefSelect = {
   firstName: true,
   lastName: true,
   employmentStatus: true,
-  isPlaceholder: true,
 } as const satisfies Prisma.EmployeeSelect;
 
 export type EmployeeRefRow = Prisma.EmployeeGetPayload<{
   select: typeof employeeRefSelect;
 }>;
 
-/** History reference; placeholders show "Unknown employee #<id>". */
+/** How leave and appraisal history refers to an employee. */
 export function toEmployeeRef(e: EmployeeRefRow): EmployeeRef {
   return {
     id: e.id,
-    name: e.isPlaceholder ? `Unknown employee #${e.id}` : shortName(e),
+    name: shortName(e),
     status: e.employmentStatus,
-    isPlaceholder: e.isPlaceholder,
   };
 }
 
 /**
- * History ordering by creation. Migrated rows have no createdAt, so they
- * count as the oldest: last when newest-first, first when oldest-first.
- * `id` breaks ties (migrated ids keep legacy order).
+ * History ordering by creation. A null createdAt counts as the oldest:
+ * last when newest-first, first when oldest-first. `id` breaks ties.
  */
 type CreationOrder = Array<
   | { createdAt: { sort: Prisma.SortOrder; nulls: Prisma.NullsOrder } }

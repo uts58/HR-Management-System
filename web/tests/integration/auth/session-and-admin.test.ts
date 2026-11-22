@@ -261,16 +261,8 @@ describe("changePassword", () => {
     const userId = await createUser({
       username: "jane",
       password: "old-pass-12",
-      format: "bcrypt",
     });
     const other = (await signIn("jane", "old-pass-12")).cookie;
-    // That sign-in already rehashed bcrypt -> argon2id; reset to bcrypt to
-    // exercise changePassword against a legacy hash too.
-    const bcryptjs = (await import("bcryptjs")).default;
-    await prisma.account.updateMany({
-      where: { userId },
-      data: { password: await bcryptjs.hash("old-pass-12", 10) },
-    });
     const mine = await signInAs("jane", "old-pass-12");
     expect(await prisma.session.count({ where: { userId } })).toBe(2);
 
@@ -435,17 +427,12 @@ describe("AccountAdminApi", () => {
     expect((await signIn("jane", "jane-pass-1")).status).toBe(401);
     expect((await signIn("jane", creds.temporaryPassword)).status).toBe(200);
 
-    const noCred = await createUser({ username: "migrated", format: "none" });
-    expect((await signIn("migrated", "anything-at-all")).status).toBe(401);
-    const c2 = await prisma.$transaction((tx) =>
-      accountAdmin.issueTemporaryPassword(tx, noCred),
-    );
-    expect(
-      await prisma.account.count({
-        where: { userId: noCred, providerId: "credential" },
-      }),
-    ).toBe(1);
-    expect((await signIn("migrated", c2.temporaryPassword)).status).toBe(200);
+    const noCred = await createUser({ username: "nocred", format: "none" });
+    await expect(
+      prisma.$transaction((tx) =>
+        accountAdmin.issueTemporaryPassword(tx, noCred),
+      ),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("updateDisplayName: renames the user (not the username), joins the caller's tx, NOT_FOUND/VALIDATION", async () => {

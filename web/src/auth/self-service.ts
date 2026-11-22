@@ -24,8 +24,8 @@ const WRONG_CURRENT = "Current password is incorrect";
  *
  * Input is expected to have passed changePasswordSchema already (lengths,
  * confirmation, differs from current). This re-checks the policy anyway,
- * plus what needs the database: the current password (argon2id or legacy
- * bcrypt) and "not equal to the username". Then, in one transaction: write
+ * plus what needs the database: the current password and "not equal to the
+ * username". Then, in one transaction: write
  * an argon2id hash (compare-and-swap on the old hash), clear
  * mustChangePassword, delete every other session of the user.
  */

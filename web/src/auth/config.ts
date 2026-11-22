@@ -15,7 +15,6 @@ import {
   PASSWORD_MIN_LENGTH,
   verifyPassword,
 } from "./password";
-import { rehashLegacyPassword } from "./rehash";
 import { LoginFailureLimiter, loginFailureLimiter } from "./login-limiter";
 
 function limiterKey(
@@ -140,12 +139,6 @@ function createAuth() {
           input: false,
         },
         employeeId: { type: "number", required: false, input: false },
-        legacyPersonId: {
-          type: "string",
-          required: false,
-          input: false,
-          returned: false,
-        },
         disabledAt: {
           type: "date",
           required: false,
@@ -261,12 +254,6 @@ function createAuth() {
             }
           }
           if (!newSession) return;
-          const password = (ctx.body as { password?: unknown } | undefined)
-            ?.password;
-          if (typeof password === "string") {
-            // Never fails the login (rehashLegacyPassword catches and logs).
-            await rehashLegacyPassword(newSession.user.id, password);
-          }
           const mustChange = (
             newSession.user as { mustChangePassword?: unknown }
           ).mustChangePassword;

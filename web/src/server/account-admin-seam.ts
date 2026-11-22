@@ -12,4 +12,4 @@
 
 import "server-only";
 
-export { accountAdmin } from "@/auth";
+export { accountAdmin, setInitialPassword } from "@/auth";

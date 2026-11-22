@@ -48,7 +48,7 @@ function NotRecorded() {
  * hydration render output the UTC fallback, then the text switches to local
  * time after mount, so there is no hydration mismatch. The element is a
  * semantic <time>; its `title` holds the full timestamp with the zone name.
- * Null (migrated rows) renders "—".
+ * Null renders "—".
  *
  * Never use this for calendar dates (DOB, leave and project dates): those
  * are `YYYY-MM-DD` values with no zone. Use <CalendarDate>.

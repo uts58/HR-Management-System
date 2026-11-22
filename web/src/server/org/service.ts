@@ -28,7 +28,7 @@ import {
   notFoundError,
   uniqueViolationToConflict,
 } from "../errors";
-import { NOT_PLACEHOLDER, assertRole } from "../shared";
+import { assertRole } from "../shared";
 
 type Kind = "department" | "position";
 
@@ -55,14 +55,14 @@ const UNIQUE_INDEX = {
   position: "positions_name_lower_key",
 } as const;
 
-/** employeeCount (ACTIVE) and totalEmployeeCount per id, placeholders excluded. */
+/** employeeCount (ACTIVE) and totalEmployeeCount per id. */
 async function countsBy(
   kind: Kind,
 ): Promise<Map<number, { active: number; total: number }>> {
   const field = FK_FIELD[kind];
   const rows = await db.employee.groupBy({
     by: [field, "employmentStatus"],
-    where: { ...NOT_PLACEHOLDER, [field]: { not: null } },
+    where: { [field]: { not: null } },
     _count: { _all: true },
   });
   const counts = new Map<number, { active: number; total: number }>();

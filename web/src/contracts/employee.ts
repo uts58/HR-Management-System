@@ -57,19 +57,9 @@ export type EmployeeStatusFilter = EmploymentStatus | "ALL";
  */
 export const USERNAME_PATTERN = "^[a-z0-9._]{3,30}$";
 
-// ─── Placeholder employees ──────────────────────────────────────────────────
-//
-// The migration links orphaned legacy leave/appraisal rows (whose employee
-// was hard-deleted in legacy) to placeholder employees: status TERMINATED,
-// no login account, flagged `isPlaceholder` in the database. Services treat
-// a placeholder as non-existent everywhere except history read models:
-// excluded from every list, count and picker; NOT_FOUND from
-// getEmployee/updateEmployee/terminateEmployee/resetEmployeePassword.
-// History rows show them as "Unknown employee #<id>".
-
 // ─── Read models ────────────────────────────────────────────────────────────
 
-/** Row on the HR "Manage Employees" table. Never a placeholder. */
+/** Row on the HR "Manage Employees" table. */
 export interface EmployeeListItem {
   id: EmployeeId;
   fullName: string; // "First Middle Last", middle omitted when empty
@@ -82,9 +72,7 @@ export interface EmployeeListItem {
 }
 
 /**
- * Full record. Optional fields are nullable because migrated legacy rows
- * may have them empty, even though create/update now require most of them.
- * Never a placeholder.
+ * Full record.
  */
 export interface EmployeeDetail {
   id: EmployeeId;
@@ -110,18 +98,14 @@ export interface EmployeeDetail {
   username: string | null; // login name, null when no account
   status: EmploymentStatus;
   terminatedAt: UtcTimestamp | null;
-  createdAt: UtcTimestamp | null; // null for migrated rows
+  createdAt: UtcTimestamp | null;
 }
 
-/**
- * How leave and appraisal history refers to an employee. For placeholders
- * `name` is "Unknown employee #<id>" and `isPlaceholder` is true.
- */
+/** How leave and appraisal history refers to an employee ("First Last"). */
 export interface EmployeeRef {
   id: EmployeeId;
   name: string;
   status: EmploymentStatus;
-  isPlaceholder: boolean;
 }
 
 export interface EmployeeFormOptions {
@@ -180,7 +164,7 @@ export interface EmployeeService {
   ): Promise<EmployeeListItem[]>;
 
   /**
-   * HR_ADMIN. ACTIVE, non-placeholder employees, {id, "First Last"} by first
+   * HR_ADMIN. ACTIVE employees, {id, "First Last"} by first
    * name, for pickers (appraisals).
    */
   listEmployeeOptions(actor: Actor): Promise<Option<EmployeeId>[]>;

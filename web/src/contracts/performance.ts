@@ -27,13 +27,12 @@ export const RATING_LABELS: Readonly<Record<Rating, string>> = {
 
 export interface Appraisal {
   id: AppraisalId;
-  /** "Unknown employee #<id>" for placeholder employees (legacy orphans). */
   employee: EmployeeRef;
-  projectName: string | null; // nullable for legacy rows
-  projectStart: IsoDate | null; // null when legacy text was unparseable
+  projectName: string | null;
+  projectStart: IsoDate | null;
   projectEnd: IsoDate | null;
   rating: Rating | null;
-  createdAt: UtcTimestamp | null; // null for migrated rows
+  createdAt: UtcTimestamp | null;
 }
 
 export interface CreateAppraisalInput {

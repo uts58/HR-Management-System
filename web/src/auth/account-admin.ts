@@ -11,7 +11,11 @@ import {
 import { Prisma } from "@/generated/prisma/client";
 import type { TxClient } from "./db";
 import { AuthServiceError } from "./errors";
-import { generateTemporaryPassword, hashPassword } from "./password";
+import {
+  checkPasswordPolicy,
+  generateTemporaryPassword,
+  hashPassword,
+} from "./password";
 
 /**
  * AccountAdminApi (contract): server-only helpers Backend's employee
@@ -151,23 +155,13 @@ async function issueTemporaryPassword<Tx>(
     where: { userId, providerId: "credential" },
     select: { id: true },
   });
-  if (credential) {
-    await tx.account.update({
-      where: { id: credential.id },
-      data: { password: passwordHash },
-    });
-  } else {
-    // Migrated users whose legacy password was empty have no credential row.
-    await tx.account.create({
-      data: {
-        id: randomUUID(),
-        accountId: userId,
-        providerId: "credential",
-        userId,
-        password: passwordHash,
-      },
-    });
+  if (!credential) {
+    throw new AuthServiceError("NOT_FOUND", "Login account has no password.");
   }
+  await tx.account.update({
+    where: { id: credential.id },
+    data: { password: passwordHash },
+  });
   await tx.user.update({
     where: { id: userId },
     data: { mustChangePassword: true },
@@ -236,6 +230,49 @@ async function updateDisplayName<Tx>(
   if (count === 0) {
     throw new AuthServiceError("NOT_FOUND", "Login account not found.");
   }
+}
+
+/**
+ * Replaces the user's password with one an operator chose (the create-admin
+ * CLI), inside the caller's transaction. Checks the password policy (rule 5)
+ * and clears mustChangePassword. Not part of AccountAdminApi: HR never sets
+ * someone else's password, they issue a temporary one.
+ */
+export async function setInitialPassword<Tx>(
+  txArg: Tx,
+  userId: UserId,
+  password: string,
+): Promise<void> {
+  const tx = asTx(txArg);
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    select: { username: true },
+  });
+  if (!user)
+    throw new AuthServiceError("NOT_FOUND", "Login account not found.");
+  const policy = checkPasswordPolicy({
+    newPassword: password,
+    confirmPassword: password,
+    username: user.username,
+  });
+  if (policy) {
+    throw new AuthServiceError(
+      "VALIDATION",
+      policy.newPassword?.join(" ") ?? "The password is not acceptable.",
+      { password: policy.newPassword ?? [] },
+    );
+  }
+  const { count } = await tx.account.updateMany({
+    where: { userId, providerId: "credential" },
+    data: { password: await hashPassword(password) },
+  });
+  if (count !== 1) {
+    throw new AuthServiceError("NOT_FOUND", "Login account has no password.");
+  }
+  await tx.user.update({
+    where: { id: userId },
+    data: { mustChangePassword: false },
+  });
 }
 
 export const accountAdmin: AccountAdminApi = {

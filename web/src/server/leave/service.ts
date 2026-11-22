@@ -6,8 +6,6 @@
  * - Decisions only from PENDING, with a conditional update so two HR users
  *   deciding at once can't both win: the loser gets CONFLICT.
  * - Reads have no side effects; marking decisions seen is its own call.
- * - Migrated rows may have null dates (shown as "—") and null createdAt
- *   (ordered as the oldest).
  */
 
 import "server-only";
@@ -46,7 +44,6 @@ export const ALREADY_DECIDED_MESSAGE =
 const leaveSelect = {
   id: true,
   leaveType: true,
-  legacyLeaveType: true,
   startDate: true,
   endDate: true,
   reason: true,
@@ -59,13 +56,11 @@ const leaveSelect = {
 
 type LeaveRow = Prisma.LeaveRequestGetPayload<{ select: typeof leaveSelect }>;
 
-/** `legacyLeaveType` is only shown to HR (contract rule 1). */
-function toLeaveRequest(r: LeaveRow, forHr: boolean): LeaveRequest {
+function toLeaveRequest(r: LeaveRow): LeaveRequest {
   return {
     id: r.id,
     employee: toEmployeeRef(r.employee),
     leaveType: r.leaveType,
-    legacyLeaveType: forHr ? r.legacyLeaveType : null,
     startDate: toIsoDateOrNull(r.startDate),
     endDate: toIsoDateOrNull(r.endDate),
     reason: r.reason,
@@ -100,7 +95,7 @@ export const leaveService: LeaveService = {
       },
       select: leaveSelect,
     });
-    return toLeaveRequest(row, false);
+    return toLeaveRequest(row);
   },
 
   async listMyLeaveRequests(actor) {
@@ -111,7 +106,7 @@ export const leaveService: LeaveService = {
       select: leaveSelect,
       orderBy: newestFirst(),
     });
-    return rows.map((r) => toLeaveRequest(r, false));
+    return rows.map((r) => toLeaveRequest(r));
   },
 
   async markMyLeaveDecisionsSeen(actor) {
@@ -137,7 +132,7 @@ export const leaveService: LeaveService = {
       select: leaveSelect,
       orderBy: oldestFirst(),
     });
-    return rows.map((r) => toLeaveRequest(r, true));
+    return rows.map((r) => toLeaveRequest(r));
   },
 
   async listAllLeaveRequests(actor) {
@@ -146,7 +141,7 @@ export const leaveService: LeaveService = {
       select: leaveSelect,
       orderBy: newestFirst(),
     });
-    return rows.map((r) => toLeaveRequest(r, true));
+    return rows.map((r) => toLeaveRequest(r));
   },
 
   async countPendingLeaveRequests(actor) {
@@ -181,7 +176,7 @@ export const leaveService: LeaveService = {
       });
       if (!row) throw notFoundError("This leave request was not found.");
       if (count === 0) throw conflictError(ALREADY_DECIDED_MESSAGE);
-      return toLeaveRequest(row, true);
+      return toLeaveRequest(row);
     });
   },
 };

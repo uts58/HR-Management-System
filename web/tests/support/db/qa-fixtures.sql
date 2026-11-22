@@ -1,23 +1,10 @@
 -- QA E2E fixtures, loaded AFTER Data's prisma/seed.ts by tests/support/db/reset.ts.
--- Ids 101+ so they never collide with the seed (ids 1-5).
--- {{QA_HASH}} is replaced at runtime with a bcrypt hash of QA_PASSWORD
--- (tests/support/users.ts). Better Auth's verify accepts bcrypt and rehashes
--- to argon2id on the first sign-in, like migrated legacy users.
+-- Ids 102+ so they never collide with the seed (ids 1-5).
+-- {{QA_HASH}} is replaced at runtime with an argon2id hash of QA_PASSWORD
+-- (tests/support/users.ts).
 -- Keep in sync with tests/support/users.ts.
 
 BEGIN;
-
--- Placeholder employee (legacy orphan, contracts.md Employee rule 6b):
--- TERMINATED, no login, is_placeholder. Must be hidden from every employee
--- list, count and picker, and shown as "Unknown employee #101" in history.
-INSERT INTO employees (id, first_name, last_name, employment_status, terminated_at, is_placeholder, created_at, updated_at)
-VALUES (101, 'Unknown', 'employee #101', 'TERMINATED', '2020-01-01T00:00:00Z', true, NULL, now());
-
-INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, reason, status, seen_by_employee, created_at, updated_at)
-VALUES (101, 'SICK', '2019-03-04', '2019-03-05', 'QA placeholder history', 'APPROVED', true, NULL, now());
-
-INSERT INTO appraisals (employee_id, project_name, project_start, project_end, rating, created_at, updated_at)
-VALUES (101, 'QA placeholder project', '2019-01-01', '2019-06-30', 2, NULL, now());
 
 -- Active employees with logins. department/position ids come from the seed (1-4).
 INSERT INTO employees (id, first_name, last_name, email, contact_no, country, home_town, gender, marital_status, date_of_birth, department_id, position_id, created_at, updated_at) VALUES

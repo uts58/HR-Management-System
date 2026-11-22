@@ -7,7 +7,7 @@
 import { z } from "zod";
 import type { LeaveRequestId } from "@/contracts/common";
 import {
-  REQUESTABLE_LEAVE_TYPES,
+  LEAVE_TYPES,
   type ApplyForLeaveInput,
   type LeaveDecision,
 } from "@/contracts/leave";
@@ -28,8 +28,7 @@ export const LEAVE_DECISIONS = [
 
 export const applyForLeaveSchema = z
   .object({
-    // OTHER is not in REQUESTABLE_LEAVE_TYPES: only migrated rows use it.
-    leaveType: enumField(REQUESTABLE_LEAVE_TYPES, "Select a leave type"),
+    leaveType: enumField(LEAVE_TYPES, "Select a leave type"),
     startDate: isoDateField("Start date"),
     endDate: isoDateField("End date"),
     reason: optionalText("Reason", LEAVE_REASON_MAX),

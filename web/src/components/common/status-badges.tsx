@@ -88,16 +88,10 @@ export function NoticeTypeBadge({ type }: { type: NoticeType }) {
 }
 
 /**
- * Employee name in leave/appraisal history. Placeholders (legacy orphans)
- * read "Unknown employee #N" in muted italics; terminated employees get a
- * "Terminated" marker (contracts.md Employee rules 6a/6b).
+ * Employee name in leave/appraisal history; terminated employees get a
+ * "Terminated" marker (contracts.md Employee rule 6a).
  */
 export function EmployeeRefName({ employee }: { employee: EmployeeRef }) {
-  if (employee.isPlaceholder) {
-    return (
-      <span className="text-muted-foreground italic">{employee.name}</span>
-    );
-  }
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <span>{employee.name}</span>

@@ -9,12 +9,12 @@
  *   raj.patel   / Employee#123    EMPLOYEE
  *   mary.jones  (employee TERMINATED, users.disabledAt set, so login is blocked)
  *
- * Passwords are bcrypt (cost 12), the same format the legacy migration produces (director decision),
- * stored on the credential `account` row. Security's Better Auth verify accepts bcrypt and rehashes to argon2id on login.
+ * Passwords are argon2id (@node-rs/argon2 defaults, the same parameters as src/auth/password.ts),
+ * stored on the credential `account` row.
  */
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcryptjs";
+import { hash as argon2Hash } from "@node-rs/argon2";
 import { PrismaClient, type Prisma } from "../src/generated/prisma/client";
 
 if (
@@ -148,8 +148,8 @@ async function main() {
   }
 
   // ---- Auth users + credential accounts -------------------------------------
-  const adminHash = await bcrypt.hash("Admin#12345", 12);
-  const empHash = await bcrypt.hash("Employee#123", 12);
+  const adminHash = await argon2Hash("Admin#12345");
+  const empHash = await argon2Hash("Employee#123");
   const users = [
     {
       id: "seed-user-1",

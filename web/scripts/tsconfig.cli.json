@@ -1,0 +1,12 @@
+{
+  // tsx config for CLI scripts (npm run create-admin). Same as the app, but
+  // maps `server-only` to an empty module: the real package throws outside a
+  // React Server Components build, and these scripts run in plain Node.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../src/*"],
+      "server-only": ["../vitest/server-only-stub.ts"]
+    }
+  }
+}

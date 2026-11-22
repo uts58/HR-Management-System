@@ -2,7 +2,6 @@ import "server-only";
 
 import { randomInt } from "node:crypto";
 import { hash as argon2Hash, verify as argon2Verify } from "@node-rs/argon2";
-import bcrypt from "bcryptjs";
 
 /**
  * Password hashing for Better Auth (`emailAndPassword.password`) and for
@@ -10,9 +9,7 @@ import bcrypt from "bcryptjs";
  *
  * New hashes: argon2id at the OWASP baseline (m = 19 MiB, t = 2, p = 1).
  * The @node-rs/argon2 default algorithm is argon2id; tests assert the
- * `$argon2id$` prefix.
- * Verify also accepts legacy bcrypt (`$2a$`/`$2b$`/`$2y$`) written by the
- * patched legacy app or the migration (ADR-0004 rule 7).
+ * `$argon2id$` prefix. Verify accepts argon2id only.
  */
 export const ARGON2_OPTIONS = {
   memoryCost: 19_456, // KiB = 19 MiB
@@ -23,12 +20,7 @@ export const ARGON2_OPTIONS = {
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 
-const BCRYPT_RE = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
 const ARGON2ID_PREFIX = "$argon2id$";
-
-export function isBcryptHash(stored: string): boolean {
-  return BCRYPT_RE.test(stored);
-}
 
 export function isArgon2idHash(stored: string): boolean {
   return stored.startsWith(ARGON2ID_PREFIX);
@@ -40,7 +32,7 @@ export function hashPassword(password: string): Promise<string> {
 }
 
 /**
- * true if `password` matches `hash` (argon2id or bcrypt). Unknown formats,
+ * true if `password` matches the argon2id `hash`. Other formats,
  * malformed hashes and plain text never match, and this never throws.
  */
 export async function verifyPassword({
@@ -52,21 +44,10 @@ export async function verifyPassword({
 }): Promise<boolean> {
   try {
     if (isArgon2idHash(hash)) return await argon2Verify(hash, password);
-    if (isBcryptHash(hash)) {
-      // bcrypt ignores bytes after 72. Our max length can exceed that, so
-      // refuse longer inputs for bcrypt hashes instead of truncating.
-      if (Buffer.byteLength(password, "utf8") > 72) return false;
-      return await bcrypt.compare(password, hash);
-    }
     return false;
   } catch {
     return false;
   }
-}
-
-/** A stored hash that should be replaced with argon2id after a successful login. */
-export function needsRehash(stored: string): boolean {
-  return isBcryptHash(stored);
 }
 
 // No look-alike characters (0/O, 1/l/I), so HR can read it out.

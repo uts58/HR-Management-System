@@ -3,7 +3,7 @@
  * cannot see appraisals (legacy parity).
  *
  * BUG-11: a missing employee is a VALIDATION error on `employeeId` (schema),
- * and so is an unknown, terminated or placeholder employee (service).
+ * and so is an unknown or terminated employee (service).
  */
 
 import "server-only";
@@ -27,7 +27,6 @@ import { createAppraisalSchema } from "@/lib/validation/performance";
 import { db } from "../db";
 import { fieldValidationError, notFoundError } from "../errors";
 import {
-  NOT_PLACEHOLDER,
   assertRole,
   employeeRefSelect,
   newestFirst,
@@ -87,7 +86,6 @@ export const performanceService: PerformanceService = {
         where: {
           id: input.employeeId,
           employmentStatus: "ACTIVE",
-          ...NOT_PLACEHOLDER,
         },
         select: { id: true },
       });

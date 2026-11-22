@@ -352,7 +352,7 @@ describe("applyForLeaveSchema (BUG-12)", () => {
     });
   });
 
-  it("rejects OTHER and unknown leave types for new requests", () => {
+  it("rejects unknown leave types for new requests", () => {
     for (const leaveType of ["OTHER", "Sick Leave", ""]) {
       expect(
         errorsOf(applyForLeaveSchema, { ...valid, leaveType }).leaveType,

@@ -19,7 +19,7 @@ export interface TestUser {
 }
 
 const SEED_EMP_PASSWORD = "Employee#123";
-/** Password of every QA fixture user (bcrypt in the fixture SQL). */
+/** Password of every QA fixture user (argon2id in the fixture SQL). */
 export const QA_PASSWORD = "QaPass#2026";
 
 const user = (u: TestUser) => u;
@@ -145,9 +145,6 @@ export const users = {
     lastName: "Edit",
   }),
 } as const;
-
-/** Placeholder employee (legacy orphan): TERMINATED, no login, isPlaceholder. */
-export const placeholderEmployee = { id: 101, name: "Unknown employee #101" };
 
 /** Seeded leave request whose calendar dates must render unchanged in every zone. */
 export const seededJohnLeave = {

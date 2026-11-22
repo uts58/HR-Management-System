@@ -6,29 +6,15 @@
 import type { Actor, IsoDate, LeaveRequestId, UtcTimestamp } from "./common";
 import type { EmployeeRef } from "./employee";
 
-/**
- * Leave types. Legacy stored the label text; the migration maps
- * "Sick Leave" -> SICK etc. and anything unrecognised -> OTHER.
- */
+/** Leave types. */
 export const LEAVE_TYPES = [
   "SICK",
   "ANNUAL",
   "CASUAL",
   "MATERNITY",
   "UNPAID",
-  "OTHER",
 ] as const;
 export type LeaveType = (typeof LEAVE_TYPES)[number];
-
-/** Types a new request may use. OTHER exists only on migrated rows. */
-export const REQUESTABLE_LEAVE_TYPES = [
-  "SICK",
-  "ANNUAL",
-  "CASUAL",
-  "MATERNITY",
-  "UNPAID",
-] as const satisfies readonly LeaveType[];
-export type RequestableLeaveType = (typeof REQUESTABLE_LEAVE_TYPES)[number];
 
 /** Display labels (same wording as the legacy form). */
 export const LEAVE_TYPE_LABELS: Readonly<Record<LeaveType, string>> = {
@@ -37,7 +23,6 @@ export const LEAVE_TYPE_LABELS: Readonly<Record<LeaveType, string>> = {
   CASUAL: "Casual Leave",
   MATERNITY: "Maternity Leave",
   UNPAID: "Unpaid Leave",
-  OTHER: "Other",
 };
 
 /** Legacy `empleave.status`: 0 = pending, 1 = approved, 2 = rejected. */
@@ -49,19 +34,9 @@ export type LeaveDecision = Exclude<LeaveStatus, "PENDING">;
 
 export interface LeaveRequest {
   id: LeaveRequestId;
-  /** "Unknown employee #<id>" for placeholder employees (legacy orphans). */
   employee: EmployeeRef;
   leaveType: LeaveType;
-  /**
-   * Original legacy text, read-only. Set only on migrated rows mapped to
-   * OTHER, and only returned to HR_ADMIN (null in an employee's own list).
-   * The UI shows it next to "Other".
-   */
-  legacyLeaveType: string | null;
-  /**
-   * null only on migrated rows whose legacy text could not be parsed
-   * (ADR-0007). The UI shows "—"; new requests always have both dates.
-   */
+  /** New requests always have both dates; the UI shows "—" for null. */
   startDate: IsoDate | null;
   endDate: IsoDate | null;
   reason: string | null;
@@ -71,12 +46,12 @@ export interface LeaveRequest {
    * opened their leave history. Always true while PENDING.
    */
   seenByEmployee: boolean;
-  createdAt: UtcTimestamp | null; // null for migrated rows
+  createdAt: UtcTimestamp | null;
   decidedAt: UtcTimestamp | null;
 }
 
 export interface ApplyForLeaveInput {
-  leaveType: RequestableLeaveType;
+  leaveType: LeaveType;
   startDate: IsoDate;
   endDate: IsoDate; // >= startDate
   reason?: string | null; // 0..1000

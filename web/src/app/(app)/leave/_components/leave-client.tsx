@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 
 import {
   LEAVE_TYPE_LABELS,
-  REQUESTABLE_LEAVE_TYPES,
+  LEAVE_TYPES,
   type LeaveDecision,
 } from "@/contracts";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
@@ -27,7 +27,7 @@ import {
 
 /**
  * Leave request form (feature map rows 24–25). Fields = ApplyForLeaveInput.
- * Types come from REQUESTABLE_LEAVE_TYPES (no OTHER). Past dates are allowed.
+ * Types come from LEAVE_TYPES. Past dates are allowed.
  */
 export function ApplyLeaveForm() {
   const router = useRouter();
@@ -46,7 +46,7 @@ export function ApplyLeaveForm() {
         required
         defaultValue="SICK"
         className="sm:max-w-xs"
-        options={REQUESTABLE_LEAVE_TYPES.map((t) => ({
+        options={LEAVE_TYPES.map((t) => ({
           value: t,
           label: LEAVE_TYPE_LABELS[t],
         }))}

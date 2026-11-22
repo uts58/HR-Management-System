@@ -18,7 +18,7 @@
 
 import type { IsoDate, UtcTimestamp } from "@/contracts/common";
 
-/** Shown wherever a calendar date is missing (unparseable migrated rows). */
+/** Shown wherever a calendar date is missing. */
 export const EMPTY_DATE = "—";
 
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -142,7 +142,7 @@ export function toIsoInstant(instant: Date): UtcTimestamp {
   return instant.toISOString() as UtcTimestamp;
 }
 
-/** Nullable variant (migrated rows have no createdAt). */
+/** Nullable variant. */
 export function toIsoInstantOrNull(
   instant: Date | null | undefined,
 ): UtcTimestamp | null {

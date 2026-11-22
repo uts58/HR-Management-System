@@ -2,13 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { IsoDate } from "@/contracts/common";
 import type { ApplyForLeaveInput } from "@/contracts/leave";
 import { leaveService } from "@/server/leave/service";
-import {
-  db,
-  makePerson,
-  makePlaceholder,
-  rejection,
-  resetDatabase,
-} from "./helpers";
+import { db, makePerson, rejection, resetDatabase } from "./helpers";
 
 beforeEach(resetDatabase);
 afterAll(() => db.$disconnect());
@@ -43,7 +37,6 @@ describe("leaveService", () => {
       status: "PENDING",
       seenByEmployee: true,
       decidedAt: null,
-      legacyLeaveType: null,
     });
   });
 
@@ -126,13 +119,12 @@ describe("leaveService", () => {
     expect(await leaveService.markMyLeaveDecisionsSeen(emp)).toBe(0);
   });
 
-  it("orders history with migrated rows (null createdAt) as the oldest; null dates pass through", async () => {
+  it("orders rows with a null createdAt as the oldest; null dates pass through", async () => {
     const { hr, emp, empId } = await setup();
-    const migrated = await db.leaveRequest.create({
+    const undated = await db.leaveRequest.create({
       data: {
         employeeId: empId,
-        leaveType: "OTHER",
-        legacyLeaveType: "Bereavement",
+        leaveType: "CASUAL",
         startDate: null,
         endDate: null,
         createdAt: null,
@@ -142,37 +134,20 @@ describe("leaveService", () => {
     const fresh = await leaveService.applyForLeave(emp, request);
 
     const mine = await leaveService.listMyLeaveRequests(emp);
-    expect(mine.map((r) => r.id)).toEqual([fresh.id, migrated.id]);
+    expect(mine.map((r) => r.id)).toEqual([fresh.id, undated.id]);
     expect(mine[1]).toMatchObject({
       startDate: null,
       endDate: null,
       createdAt: null,
-      leaveType: "OTHER",
-      legacyLeaveType: null, // hidden from the employee
+      leaveType: "CASUAL",
     });
 
     const all = await leaveService.listAllLeaveRequests(hr);
-    expect(all.map((r) => r.id)).toEqual([fresh.id, migrated.id]);
-    expect(all[1]?.legacyLeaveType).toBe("Bereavement"); // shown to HR
+    expect(all.map((r) => r.id)).toEqual([fresh.id, undated.id]);
 
     const queue = await leaveService.listPendingLeaveRequests(hr);
-    expect(queue.map((r) => r.id)).toEqual([migrated.id, fresh.id]);
+    expect(queue.map((r) => r.id)).toEqual([undated.id, fresh.id]);
     expect(await leaveService.countPendingLeaveRequests(hr)).toBe(2);
-  });
-
-  it("placeholder history shows 'Unknown employee #id'", async () => {
-    const { hr } = await setup();
-    const ph = await makePlaceholder();
-    await db.leaveRequest.create({
-      data: { employeeId: ph.id, leaveType: "SICK", status: "APPROVED" },
-    });
-    const [row] = await leaveService.listAllLeaveRequests(hr);
-    expect(row?.employee).toEqual({
-      id: ph.id,
-      name: `Unknown employee #${ph.id}`,
-      status: "TERMINATED",
-      isPlaceholder: true,
-    });
   });
 
   it("role gates: employees can't see the queue; HR has no 'my leave'", async () => {

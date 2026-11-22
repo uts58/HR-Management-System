@@ -4,7 +4,7 @@ import { expect, test, users } from "../support/fixtures";
 import { ChangePasswordPage } from "../support/pages/auth";
 import { expectFieldError, expectToast } from "../support/pages/common";
 import type { EmployeeInput } from "../support/pages/employees";
-import { fullName, placeholderEmployee, uid } from "../support/users";
+import { fullName, uid } from "../support/users";
 
 /** Feature map rows 7–14 (legacy /hr/*Employee*, /hr/viewDetails, /hr/viewProfile) + reset password. */
 
@@ -130,23 +130,6 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await hr.employees.filter("All");
     await expect(hr.employees.row(fullName(users.mary))).toBeVisible();
     await expect(hr.employees.row("John A Doe")).toBeVisible();
-  });
-
-  test("placeholder employees (legacy orphans) never appear in employee lists", async ({
-    hr,
-  }) => {
-    for (const filter of ["", "?status=TERMINATED", "?status=ALL"]) {
-      await hr.page.goto(`/employees${filter}`);
-      await expect(hr.page.getByText(placeholderEmployee.name)).toHaveCount(0);
-      await expect(
-        hr.page.getByRole("link", { name: /Unknown employee/ }),
-      ).toHaveCount(0);
-    }
-    const res = await hr.page.goto(`/employees/${placeholderEmployee.id}`);
-    expect(res?.status()).toBeLessThan(500);
-    await expect(hr.page.getByRole("heading", { level: 1 })).toHaveText(
-      "Page not found",
-    );
   });
 
   test("HR views an employee's details", async ({ hr }) => {

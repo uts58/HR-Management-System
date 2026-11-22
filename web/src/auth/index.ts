@@ -24,7 +24,7 @@ export type {
 
 export { getSession, requireRole, requireSession };
 export { AuthError, isAuthError } from "./errors";
-export { accountAdmin } from "./account-admin";
+export { accountAdmin, setInitialPassword } from "./account-admin";
 
 // Compile-time check that the exports match the contract.
 const _authApi: AuthApi = { getSession, requireSession, requireRole };

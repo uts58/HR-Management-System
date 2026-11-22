@@ -1,8 +1,6 @@
 /**
  * Employees (contracts.md#employee).
  *
- * - Placeholder employees (migrated orphans) are invisible: excluded from
- *   every list, picker and count, NOT_FOUND from get/update/terminate/reset.
  * - Login accounts are written only through AccountAdminApi (ADR-0004 rule
  *   10), passed the transaction client so employee + account changes commit
  *   together. Production gets it from ../account-admin-seam.
@@ -44,7 +42,7 @@ import {
   uniqueViolationToConflict,
   validationError,
 } from "../errors";
-import { NOT_PLACEHOLDER, assertRole, fullName, shortName } from "../shared";
+import { assertRole, fullName, shortName } from "../shared";
 
 export const MESSAGES = {
   notFound: "Employee not found.",
@@ -164,7 +162,7 @@ function slug(s: string): string {
 /**
  * Default username `first.last` (contract): lower-case, ASCII-folded,
  * invalid characters dropped, at most 27 chars, short ones padded
- * (`al` -> `al.user`, as in Data's migration).
+ * (`al` -> `al.user`).
  */
 export function usernameBase(firstName: string, lastName: string): string {
   let base = [slug(firstName), slug(lastName)].filter(Boolean).join(".");
@@ -198,7 +196,7 @@ export function createEmployeeService(
 ): EmployeeService {
   async function findVisibleDetail(id: number): Promise<DetailRow> {
     const row = await db.employee.findFirst({
-      where: { id, ...NOT_PLACEHOLDER },
+      where: { id },
       select: detailSelect,
     });
     if (!row) throw notFoundError(MESSAGES.notFound);
@@ -211,7 +209,6 @@ export function createEmployeeService(
       const { status } = listEmployeesFilterSchema.parse(filter ?? {});
       const rows = await db.employee.findMany({
         where: {
-          ...NOT_PLACEHOLDER,
           ...(status === "ALL" ? {} : { employmentStatus: status }),
         },
         select: {
@@ -243,7 +240,7 @@ export function createEmployeeService(
     async listEmployeeOptions(actor) {
       assertRole(actor, Role.HR_ADMIN);
       const rows = await db.employee.findMany({
-        where: { ...NOT_PLACEHOLDER, employmentStatus: "ACTIVE" },
+        where: { employmentStatus: "ACTIVE" },
         select: { id: true, firstName: true, lastName: true },
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
       });
@@ -338,7 +335,7 @@ export function createEmployeeService(
       const input = updateEmployeeSchema.parse(raw);
       return db.$transaction(async (tx) => {
         const current = await tx.employee.findFirst({
-          where: { id, ...NOT_PLACEHOLDER },
+          where: { id },
           select: {
             employmentStatus: true,
             firstName: true,
@@ -353,7 +350,7 @@ export function createEmployeeService(
         await assertOrgRefs(tx, input.departmentId, input.positionId);
         // Conditional on ACTIVE, so a termination committed meanwhile wins.
         const { count } = await tx.employee.updateMany({
-          where: { id, employmentStatus: "ACTIVE", ...NOT_PLACEHOLDER },
+          where: { id, employmentStatus: "ACTIVE" },
           data: toEmployeeData(input),
         });
         if (count === 0) throw conflictError(MESSAGES.terminatedEdit);
@@ -379,7 +376,7 @@ export function createEmployeeService(
         await tx.$executeRaw`SELECT 1 FROM pg_advisory_xact_lock(${TERMINATION_LOCK_KEY}::bigint)`;
 
         const target = await tx.employee.findFirst({
-          where: { id, ...NOT_PLACEHOLDER },
+          where: { id },
           select: {
             employmentStatus: true,
             user: { select: { id: true, role: true } },
@@ -395,7 +392,6 @@ export function createEmployeeService(
           const otherActiveAdmins = await tx.employee.count({
             where: {
               id: { not: id },
-              ...NOT_PLACEHOLDER,
               employmentStatus: "ACTIVE",
               user: { role: Role.HR_ADMIN, disabledAt: null },
             },
@@ -434,7 +430,7 @@ export function createEmployeeService(
       const id = entityIdSchema.parse(rawId);
       return db.$transaction(async (tx) => {
         const target = await tx.employee.findFirst({
-          where: { id, ...NOT_PLACEHOLDER },
+          where: { id },
           select: { employmentStatus: true, user: { select: { id: true } } },
         });
         if (!target) throw notFoundError(MESSAGES.notFound);

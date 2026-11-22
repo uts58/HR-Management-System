@@ -9,7 +9,6 @@ import {
   makeDepartment,
   makeEmployee,
   makePerson,
-  makePlaceholder,
   makePosition,
   rejection,
   resetDatabase,
@@ -25,7 +24,7 @@ async function actors() {
 }
 
 describe("orgService", () => {
-  it("creates and lists departments with active/total counts, placeholders excluded", async () => {
+  it("creates and lists departments with active/total counts", async () => {
     const { hr } = await actors();
     const d = await orgService.createDepartment(hr, { name: "  Finance " });
     expect(d).toEqual({
@@ -37,12 +36,6 @@ describe("orgService", () => {
     await makeEmployee({ departmentId: d.id });
     await makeEmployee({
       departmentId: d.id,
-      employmentStatus: "TERMINATED",
-      terminatedAt: new Date(),
-    });
-    await makeEmployee({
-      departmentId: d.id,
-      isPlaceholder: true,
       employmentStatus: "TERMINATED",
       terminatedAt: new Date(),
     });
@@ -98,19 +91,6 @@ describe("orgService", () => {
     expect(
       (await rejection(orgService.deleteDepartment(hr, d.id))).message,
     ).toBe("2 employees are assigned to this department. Reassign them first.");
-  });
-
-  it("blocks a delete referenced only by a placeholder (FK is Restrict)", async () => {
-    const { hr } = await actors();
-    const p = await makePosition("Legacy");
-    const ph = await makePlaceholder();
-    await db.employee.update({
-      where: { id: ph.id },
-      data: { positionId: p.id },
-    });
-    expect((await rejection(orgService.deletePosition(hr, p.id))).code).toBe(
-      "CONFLICT",
-    );
   });
 
   it("the real P2003 from a racing delete is recognised", async () => {

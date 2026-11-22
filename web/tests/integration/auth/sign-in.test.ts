@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { accountAdmin } from "@/auth";
-import { isArgon2idHash, isBcryptHash, verifyPassword } from "@/auth/password";
+import { isArgon2idHash } from "@/auth/password";
 import { loadSessionFromHeaders } from "@/auth/session";
 import {
   cookieHeaders,
@@ -45,7 +45,6 @@ describe("sign-in (POST /api/auth/sign-in/username)", () => {
     });
     // Internal fields never reach the browser.
     expect(r.body.user).not.toHaveProperty("disabledAt");
-    expect(r.body.user).not.toHaveProperty("legacyPersonId");
   });
 
   it("rejects a wrong password and an unknown user with the same 401 and message", async () => {
@@ -80,27 +79,19 @@ describe("sign-in (POST /api/auth/sign-in/username)", () => {
     expect(r.body.message).toBe(GENERIC);
   });
 
-  it("rehashes a legacy bcrypt password to argon2id on successful sign-in only", async () => {
-    const userId = await createUser({
-      username: "legacy",
-      password: "old-pass-1",
-      format: "bcrypt",
+  it("stores argon2id and never accepts a bcrypt hash", async () => {
+    const userId = await createUser({ username: "jane", password: "pass-123" });
+    expect(isArgon2idHash((await credentialHash(userId))!)).toBe(true);
+
+    // Known bcrypt vector (OpenBSD test suite) for the password "U*U".
+    await prisma.account.updateMany({
+      where: { userId },
+      data: {
+        password:
+          "$2a$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW",
+      },
     });
-    const before = await credentialHash(userId);
-    expect(isBcryptHash(before!)).toBe(true);
-
-    expect((await signIn("legacy", "not-it")).status).toBe(401);
-    expect(await credentialHash(userId)).toBe(before); // untouched after a failure
-
-    expect((await signIn("legacy", "old-pass-1")).status).toBe(200);
-    const after = await credentialHash(userId);
-    expect(isArgon2idHash(after!)).toBe(true);
-    expect(await verifyPassword({ hash: after!, password: "old-pass-1" })).toBe(
-      true,
-    );
-
-    // And the new hash keeps working.
-    expect((await signIn("legacy", "old-pass-1")).status).toBe(200);
+    expect((await signIn("jane", "U*U")).status).toBe(401);
   });
 
   it("does not offer self sign-up or email sign-in", async () => {

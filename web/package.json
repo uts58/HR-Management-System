@@ -23,6 +23,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "create-admin": "tsx --tsconfig scripts/tsconfig.cli.json scripts/create-admin.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -31,7 +32,6 @@
     "@node-rs/argon2": "2.2.2",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
-    "bcryptjs": "3.0.3",
     "better-auth": "1.7.25",
     "class-variance-authority": "0.7.1",
     "cn": "0.5.2",

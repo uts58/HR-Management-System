@@ -57,9 +57,19 @@ export async function makeUser(
   username = `user${randomUUID().slice(0, 8)}`,
   extra: Partial<Prisma.UserUncheckedCreateInput> = {},
 ) {
+  const id = randomUUID();
   return db.user.create({
     data: {
-      id: randomUUID(),
+      id,
+      // Every real account has a credential row (the hash is irrelevant here).
+      accounts: {
+        create: {
+          id: randomUUID(),
+          accountId: id,
+          providerId: "credential",
+          password: "unused",
+        },
+      },
       name: username,
       email: `${username}@users.invalid`,
       emailIsPlaceholder: true,
@@ -80,19 +90,6 @@ export async function makePerson(
   const user = await makeUser(employee.id, role);
   const actor: Actor = { userId: user.id, employeeId: employee.id, role };
   return { employee, user, actor };
-}
-
-/** A migrated orphan placeholder (TERMINATED, no account). */
-export async function makePlaceholder(id?: number) {
-  return makeEmployee({
-    ...(id ? { id } : {}),
-    firstName: "Unknown",
-    lastName: "Employee",
-    isPlaceholder: true,
-    employmentStatus: "TERMINATED",
-    terminatedAt: new Date("2020-01-01T00:00:00Z"),
-    createdAt: null,
-  });
 }
 
 /**

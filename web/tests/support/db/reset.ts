@@ -18,7 +18,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import bcrypt from "bcryptjs";
+import { hash as argon2Hash } from "@node-rs/argon2";
 import pg from "pg";
 
 import { DATABASE_URL, DB_RESET } from "../env";
@@ -52,7 +52,8 @@ function runDataSeed() {
 }
 
 async function loadQaFixtures(client: pg.Client) {
-  const hash = await bcrypt.hash(QA_PASSWORD, 10);
+  // @node-rs/argon2 defaults: argon2id, the same parameters as the app.
+  const hash = await argon2Hash(QA_PASSWORD);
   const sql = readFileSync(path.join(__dirname, "qa-fixtures.sql"), "utf8")
     .split("{{QA_HASH}}")
     .join(hash);
