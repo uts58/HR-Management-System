@@ -149,7 +149,7 @@ describe("defineAction pipeline", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it("cross-field rule errors land on the right field (BUG-12)", async () => {
+  it("cross-field rule errors land on the right field", async () => {
     const auth = fakeAuth(employeeSession);
     const action = createDefineAction({ auth })({
       role: Role.EMPLOYEE,

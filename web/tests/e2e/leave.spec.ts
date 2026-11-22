@@ -11,7 +11,7 @@ test.describe("Apply for leave: validation", () => {
     await employee.leave.openApply();
   });
 
-  test("an end date before the start date is rejected (legacy BUG-12)", async ({
+  test("an end date before the start date is rejected", async ({
     employee,
   }) => {
     await employee.leave.fillApply({
@@ -124,7 +124,7 @@ test.describe("Leave: journeys", { tag: BACKEND_TAG }, () => {
     await lena.leave.expectStatus(reason, "Rejected");
   });
 
-  test("HR dashboard shows the pending count and links to the queue (legacy BUG-06)", async ({
+  test("HR dashboard shows the pending count and links to the queue", async ({
     as,
     hr,
   }) => {

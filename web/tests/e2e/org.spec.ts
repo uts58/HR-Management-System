@@ -82,9 +82,7 @@ for (const kind of kinds) {
         await expect(p.row(name)).toHaveCount(0);
       });
 
-      test("one that employees use cannot be deleted (legacy BUG-07)", async ({
-        hr,
-      }) => {
+      test("one that employees use cannot be deleted", async ({ hr }) => {
         const p = kind.page(hr);
         await hr.page.goto("/dashboard");
         await p.open();

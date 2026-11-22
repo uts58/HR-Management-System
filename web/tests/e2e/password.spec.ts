@@ -12,9 +12,7 @@ test.describe("Change password: validation", () => {
     await employee.password.expectNormal();
   });
 
-  test("an empty new password is rejected (legacy BUG-05)", async ({
-    employee,
-  }) => {
+  test("an empty new password is rejected", async ({ employee }) => {
     await employee.password.change(users.john.password, "", "");
     await employee.password.expectError("next", "New password is required");
   });

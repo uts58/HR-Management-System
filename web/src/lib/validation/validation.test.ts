@@ -273,7 +273,7 @@ describe("org schemas", () => {
   });
 });
 
-describe("applyForLeaveSchema (BUG-12)", () => {
+describe("applyForLeaveSchema", () => {
   const valid = {
     leaveType: "SICK",
     startDate: "2026-11-20",
@@ -414,7 +414,7 @@ describe("createNoticeSchema", () => {
   });
 });
 
-describe("createAppraisalSchema (BUG-11)", () => {
+describe("createAppraisalSchema", () => {
   const valid = {
     employeeId: "5",
     projectName: " Apollo ",
@@ -512,7 +512,7 @@ describe("auth form schemas", () => {
     expect(changePasswordSchema.parse(validChange)).toEqual(validChange);
   });
 
-  it("rejects an empty new password (BUG-05)", () => {
+  it("rejects an empty new password", () => {
     expect(
       errorsOf(changePasswordSchema, {
         ...validChange,
