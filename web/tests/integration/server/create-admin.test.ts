@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
+import { buildSync } from "esbuild";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { isArgon2idHash, verifyPassword } from "@/auth/password";
 import { createHrAdmin } from "@/server/employee/create-admin";
@@ -111,7 +112,16 @@ describe("npm run create-admin (CLI)", () => {
   const run = promisify(execFile);
   const tsx = path.join(webDir, "node_modules", "tsx", "dist", "cli.mjs");
 
-  function cli(args: string[], extraEnv: Record<string, string> = {}) {
+  function cli(
+    args: string[],
+    extraEnv: Record<string, string> = {},
+    entry: string[] = [
+      tsx,
+      "--tsconfig",
+      "scripts/tsconfig.cli.json",
+      "scripts/create-admin.ts",
+    ],
+  ) {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       BETTER_AUTH_SECRET:
@@ -121,17 +131,10 @@ describe("npm run create-admin (CLI)", () => {
     };
     delete env.SKIP_ENV_VALIDATION;
     delete env.VITEST;
-    return run(
-      process.execPath,
-      [
-        tsx,
-        "--tsconfig",
-        "scripts/tsconfig.cli.json",
-        "scripts/create-admin.ts",
-        ...args,
-      ],
-      { cwd: webDir, env },
-    ).then(
+    return run(process.execPath, [...entry, ...args], {
+      cwd: webDir,
+      env,
+    }).then(
       (r) => ({ code: 0, ...r }),
       (e: { code: number; stdout: string; stderr: string }) => e,
     );
@@ -169,5 +172,33 @@ describe("npm run create-admin (CLI)", () => {
     const ok = await cli(["--username", "ops", "--password", PASSWORD]);
     expect(ok.code).toBe(0);
     expect(ok.stdout + ok.stderr).not.toContain(PASSWORD);
+  });
+
+  it("runs as the bundled create-admin.mjs shipped in the migrator image", async () => {
+    const outfile = path.join(
+      webDir,
+      "node_modules",
+      ".cache",
+      "create-admin-test",
+      "create-admin.mjs",
+    );
+    buildSync({
+      entryPoints: [path.join(webDir, "scripts/create-admin.ts")],
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      packages: "external",
+      tsconfig: path.join(webDir, "scripts/tsconfig.cli.json"),
+      outfile,
+    });
+    const r = await cli(
+      ["--username", "bundled"],
+      { CREATE_ADMIN_PASSWORD: PASSWORD },
+      [outfile],
+    );
+    expect(r.stderr).toBe("");
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('created HR admin "bundled"');
+    expect((await credentialOf("bundled")).user.role).toBe("HR_ADMIN");
   });
 });

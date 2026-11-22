@@ -81,7 +81,8 @@ and ports 80 and 443 open (Caddy gets the TLS certificate automatically).
    docker compose build
    docker compose run --rm db-init
    docker compose run --rm web-migrate
-   docker compose run --rm -e CREATE_ADMIN_PASSWORD='a-strong-password' web-migrate      node create-admin.mjs --username admin
+   docker compose run --rm -e CREATE_ADMIN_PASSWORD='a-strong-password' web-migrate \
+        node create-admin.mjs --username admin
    docker compose up -d
    curl -fsS https://$APP_DOMAIN/api/health
    ```

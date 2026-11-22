@@ -19,7 +19,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV SKIP_ENV_VALIDATION=1
 RUN npx prisma generate && npm run build
-RUN node_modules/.bin/esbuild scripts/create-admin.ts --bundle --platform=node --format=esm       --packages=external --tsconfig=scripts/tsconfig.cli.json       --outfile=/out/create-admin.mjs
+RUN node_modules/.bin/esbuild scripts/create-admin.ts --bundle --platform=node --format=esm \
+      --packages=external --tsconfig=scripts/tsconfig.cli.json \
+      --outfile=/out/create-admin.mjs
 
 FROM base AS migrator
 ENV NODE_ENV=production \

@@ -7,7 +7,7 @@ import {
   setInitialPassword as defaultSetInitialPassword,
 } from "../account-admin-seam";
 import { db } from "../db";
-import { conflictError } from "../errors";
+import { conflictError } from "../errors-core";
 import { fullName } from "../shared";
 
 export interface CreateHrAdminInput {

@@ -4,7 +4,7 @@ import type { Role } from "@/contracts/auth";
 import type { Actor, EmployeeId } from "@/contracts/common";
 import type { EmployeeRef } from "@/contracts/employee";
 import type { Prisma } from "@/generated/prisma/client";
-import { forbiddenError } from "./errors";
+import { forbiddenError } from "./errors-core";
 
 export function assertRole(actor: Actor, ...roles: Role[]): void {
   if (!roles.includes(actor.role)) throw forbiddenError();

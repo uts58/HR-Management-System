@@ -1,0 +1,291 @@
+import "server-only";
+
+import { ZodError, z } from "zod";
+import type { AuthErrorShape, AuthFailure } from "@/contracts/auth";
+import type {
+  ActionResult,
+  AppError,
+  FieldErrors,
+  ServiceErrorShape,
+} from "@/contracts/common";
+
+export type ServiceErrorCode = ServiceErrorShape["code"];
+
+const DEFAULT_MESSAGES: Record<ServiceErrorCode, string> = {
+  VALIDATION: "Please correct the highlighted fields.",
+  FORBIDDEN: "You do not have permission to do that.",
+  NOT_FOUND: "The requested record was not found.",
+  CONFLICT: "This change conflicts with the current state of the record.",
+};
+
+export const INTERNAL_ERROR_MESSAGE = "Something went wrong. Please try again.";
+const UNAUTHENTICATED_MESSAGE = "Your session has ended. Please sign in again.";
+
+export class ServiceError extends Error implements ServiceErrorShape {
+  override readonly name = "ServiceError" as const;
+  readonly code: ServiceErrorCode;
+  readonly fieldErrors?: FieldErrors;
+
+  constructor(
+    code: ServiceErrorCode,
+    message: string = DEFAULT_MESSAGES[code],
+    fieldErrors?: FieldErrors,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.code = code;
+    if (fieldErrors) this.fieldErrors = fieldErrors;
+  }
+}
+
+export function notFoundError(message?: string): ServiceError {
+  return new ServiceError("NOT_FOUND", message);
+}
+
+export function forbiddenError(message?: string): ServiceError {
+  return new ServiceError("FORBIDDEN", message);
+}
+
+export function conflictError(
+  message: string,
+  field?: string,
+  options?: { cause?: unknown },
+): ServiceError {
+  return new ServiceError(
+    "CONFLICT",
+    message,
+    field ? { [field]: [message] } : undefined,
+    options,
+  );
+}
+
+export function validationError(
+  fieldErrors: FieldErrors,
+  message: string = DEFAULT_MESSAGES.VALIDATION,
+): ServiceError {
+  return new ServiceError("VALIDATION", message, fieldErrors);
+}
+
+export function fieldValidationError(
+  field: string,
+  message: string,
+): ServiceError {
+  return validationError({ [field]: [message] });
+}
+
+const SERVICE_CODES = new Set<string>(Object.keys(DEFAULT_MESSAGES));
+
+export function isServiceError(e: unknown): e is ServiceErrorShape {
+  if (e instanceof ServiceError) return true;
+  return (
+    e instanceof Error &&
+    e.name === "ServiceError" &&
+    SERVICE_CODES.has((e as { code?: unknown }).code as string)
+  );
+}
+
+const AUTH_CODES = new Set<AuthFailure>(["UNAUTHENTICATED", "FORBIDDEN"]);
+
+export function isAuthError(e: unknown): e is AuthErrorShape {
+  return (
+    e instanceof Error &&
+    e.name === "AuthError" &&
+    AUTH_CODES.has((e as { code?: unknown }).code as AuthFailure)
+  );
+}
+
+interface PrismaKnownErrorLike {
+  name: "PrismaClientKnownRequestError";
+  code: string;
+  message: string;
+  meta?: Record<string, unknown>;
+}
+
+export function isPrismaKnownError(
+  e: unknown,
+  code?: string,
+): e is PrismaKnownErrorLike {
+  if (!(e instanceof Error) || e.name !== "PrismaClientKnownRequestError") {
+    return false;
+  }
+  const actual = (e as { code?: unknown }).code;
+  return typeof actual === "string" && (code === undefined || actual === code);
+}
+
+export function isForeignKeyViolation(e: unknown): boolean {
+  return isPrismaKnownError(e, "P2003");
+}
+
+export interface UniqueViolation {
+  constraint?: string;
+  fields?: string[];
+}
+
+const unquote = (s: string) => s.trim().replace(/^"|"$/g, "");
+
+export function getUniqueViolation(e: unknown): UniqueViolation | null {
+  if (!isPrismaKnownError(e, "P2002")) return null;
+  const meta = e.meta ?? {};
+  const result: UniqueViolation = {};
+
+  const cause = (meta.driverAdapterError as { cause?: unknown } | undefined)
+    ?.cause as
+    | {
+        constraint?: { index?: unknown; fields?: unknown };
+        originalMessage?: unknown;
+      }
+    | undefined;
+
+  const index = cause?.constraint?.index;
+  if (typeof index === "string") result.constraint = index;
+  const fields = cause?.constraint?.fields;
+  if (Array.isArray(fields)) result.fields = fields.map(String).map(unquote);
+
+  if (!result.constraint && typeof cause?.originalMessage === "string") {
+    const m = /unique constraint "([^"]+)"/i.exec(cause.originalMessage);
+    if (m?.[1]) result.constraint = m[1];
+  }
+
+  const target = meta.target;
+  if (typeof target === "string") {
+    if (!result.constraint) result.constraint = target;
+  } else if (Array.isArray(target) && !result.fields) {
+    result.fields = target.map(String).map(unquote);
+  }
+  return result;
+}
+
+export interface UniqueConstraintRule {
+  field: string;
+  message: string;
+}
+
+export const KNOWN_UNIQUE_CONSTRAINTS = {
+  departments_name_lower_key: {
+    field: "name",
+    message: "A department with this name already exists",
+  },
+  positions_name_lower_key: {
+    field: "name",
+    message: "A position with this name already exists",
+  },
+  users_username_key: {
+    field: "username",
+    message: "This username is already taken",
+  },
+} as const satisfies Record<string, UniqueConstraintRule>;
+
+export type KnownUniqueConstraint = keyof typeof KNOWN_UNIQUE_CONSTRAINTS;
+
+export function uniqueViolationToConflict(
+  e: unknown,
+  only?: readonly KnownUniqueConstraint[],
+): ServiceError | null {
+  const violation = getUniqueViolation(e);
+  if (!violation) return null;
+  const names =
+    only ?? (Object.keys(KNOWN_UNIQUE_CONSTRAINTS) as KnownUniqueConstraint[]);
+
+  const byName = names.find((n) => n === violation.constraint);
+  if (byName) {
+    const rule = KNOWN_UNIQUE_CONSTRAINTS[byName];
+    return conflictError(rule.message, rule.field, { cause: e });
+  }
+  return null;
+}
+
+function zodFieldErrors(e: ZodError): {
+  fieldErrors: FieldErrors;
+  formErrors: string[];
+} {
+  const flat = z.flattenError(e);
+  const fieldErrors: FieldErrors = {};
+  for (const [k, v] of Object.entries(flat.fieldErrors) as [
+    string,
+    string[] | undefined,
+  ][]) {
+    if (v && v.length > 0) fieldErrors[k] = v;
+  }
+  return { fieldErrors, formErrors: flat.formErrors };
+}
+
+export type ErrorLogger = (entry: Record<string, unknown>) => void;
+
+export const defaultErrorLogger: ErrorLogger = (entry) => {
+  console.error(JSON.stringify(entry));
+};
+
+function describeError(e: unknown): Record<string, unknown> {
+  if (e instanceof Error) {
+    const code: unknown = (e as { code?: unknown }).code;
+    return {
+      name: e.name,
+      message: e.message,
+      ...(typeof code === "string" ? { code } : {}),
+      stack: e.stack,
+    };
+  }
+  return { thrown: typeof e };
+}
+
+export function toAppError(
+  e: unknown,
+  log: ErrorLogger = defaultErrorLogger,
+): AppError {
+  if (e instanceof ZodError) {
+    const { fieldErrors, formErrors } = zodFieldErrors(e);
+    return {
+      code: "VALIDATION",
+      message: formErrors[0] ?? DEFAULT_MESSAGES.VALIDATION,
+      fieldErrors,
+    };
+  }
+
+  if (isServiceError(e)) {
+    return {
+      code: e.code,
+      message: e.message,
+      ...(e.fieldErrors ? { fieldErrors: e.fieldErrors } : {}),
+    };
+  }
+
+  if (isAuthError(e)) {
+    return {
+      code: e.code,
+      message:
+        e.code === "UNAUTHENTICATED"
+          ? UNAUTHENTICATED_MESSAGE
+          : DEFAULT_MESSAGES.FORBIDDEN,
+    };
+  }
+
+  if (isPrismaKnownError(e, "P2002")) {
+    const known = uniqueViolationToConflict(e);
+    if (known) return toAppError(known, log);
+    return {
+      code: "CONFLICT",
+      message: "A record with these details already exists.",
+    };
+  }
+
+  if (isPrismaKnownError(e, "P2025")) {
+    return { code: "NOT_FOUND", message: DEFAULT_MESSAGES.NOT_FOUND };
+  }
+
+  const requestId = crypto.randomUUID();
+  log({
+    level: "error",
+    time: new Date().toISOString(),
+    msg: "Unhandled error in server action",
+    requestId,
+    error: describeError(e),
+  });
+  return { code: "INTERNAL", message: INTERNAL_ERROR_MESSAGE };
+}
+
+export function toActionResult(
+  e: unknown,
+  log?: ErrorLogger,
+): ActionResult<never> {
+  return { ok: false, error: toAppError(e, log) };
+}
