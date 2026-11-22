@@ -116,10 +116,7 @@ export function ActionForm<T>({
     if (state.ok) {
       if (resetOnSuccess) formRef.current?.reset();
       onSuccessRef.current?.(state.data);
-      const message = successMessageRef.current;
-      // Keyed by text: repeating the same action refreshes one toast
-      // instead of stacking identical copies.
-      if (message) toast.success(message, { id: message });
+      if (successMessageRef.current) toast.success(successMessageRef.current);
       return;
     }
     const firstInvalid = formRef.current?.querySelector<HTMLElement>(

@@ -107,8 +107,7 @@ export function ConfirmActionDialog<T>({
                   setOpen(false);
                   setError(null);
                   onSuccess?.(result.data);
-                  if (successMessage)
-                    toast.success(successMessage, { id: successMessage });
+                  if (successMessage) toast.success(successMessage);
                 } else {
                   setError(result.error.message);
                 }
