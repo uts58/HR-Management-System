@@ -1,13 +1,11 @@
 # Local development database only. Apps run on the host:
 #
 #   docker compose -f compose.dev.yml up -d
-#   cd web && npm run dev          # new app  -> http://localhost:3000
-#   npm start                      # legacy   -> http://localhost:3000 (run one at a time, or set PORT)
+#   cd web && npm run dev          # app      -> http://localhost:3000
 #
 # Created on first start (fresh volume):
-#   hrdb         legacy app, as superuser hruser/changeme (matches root .env.example)
-#   hr_web       new app, as role hr_web_app/changeme_web (matches web/.env.example)
-#   hr_web_test  new app integration tests, same role
+#   hr_web       app, as role hr_web_app/changeme_web (matches web/.env.example)
+#   hr_web_test  integration tests, same role
 # The hr_web_app role is NOSUPERUSER and owns only hr_web and hr_web_test.
 # In dev it also has CREATEDB, which `prisma migrate dev` needs for its
 # shadow database.
@@ -24,7 +22,7 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: hrdb
+      POSTGRES_DB: postgres
       POSTGRES_USER: hruser
       POSTGRES_PASSWORD: changeme
       TZ: UTC
@@ -33,14 +31,13 @@ services:
       WEB_DB_PASS: changeme_web
       WEB_DB_NAMES: "hr_web hr_web_test"
       WEB_DB_CREATEDB: "1"
-      LEGACY_DB_NAME: hrdb
     ports:
       - "127.0.0.1:${DEV_DB_PORT:-5432}:5432"
     volumes:
       - dev_db_data:/var/lib/postgresql/data
       - ./docker/postgres/create-web-dbs.sh:/docker-entrypoint-initdb.d/10-create-web-dbs.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hruser -d hrdb"]
+      test: ["CMD-SHELL", "pg_isready -U hruser -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 10

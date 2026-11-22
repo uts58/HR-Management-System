@@ -1,4 +1,4 @@
-# Directory ownership for the legacy -> Next.js migration (ADR-0002).
+# Directory ownership (ADR-0002).
 #
 # NOTE: the @hr/* handles are PLACEHOLDERS. GitHub ignores CODEOWNERS entries
 # that are not real users or teams with write access, so code-owner review
@@ -12,21 +12,6 @@
 
 # Default: Platform reviews anything not claimed below.
 *                               @hr/platform
-
-# ---- Legacy app: frozen except security patches (Security) ---------------
-/app.js                         @hr/security
-/bin/                           @hr/security
-/lib/                           @hr/security
-/routes/                        @hr/security
-/views/                         @hr/security
-/public/js/                     @hr/security
-/package.json                   @hr/security
-/package-lock.json              @hr/security
-/prisma/                        @hr/data
-/legacy-tests/                  @hr/qa
-# Legacy container wiring: Security + Platform co-own
-/Dockerfile                     @hr/security @hr/platform
-/.dockerignore                  @hr/security @hr/platform
 
 # ---- Platform / DevOps ---------------------------------------------------
 /.github/                       @hr/platform

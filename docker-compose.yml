@@ -1,85 +1,50 @@
-# Production-like stack.
+# Production-like stack:
+#   docker compose up -d --build
 #
-#   Legacy app only (unchanged default):
-#     docker compose up -d
-#   Legacy app + new web app (profile "web"):
-#     docker compose --profile web up -d --build
-#
-# Both apps share one Postgres server but use SEPARATE databases AND roles:
-#   legacy -> db ${DB_NAME:-hrdb}       as ${DB_USER:-hruser} (unchanged legacy credentials)
-#   web    -> db ${WEB_DB_NAME:-hr_web} as ${WEB_DB_USER:-hr_web_app}, a
-#             NOSUPERUSER role that owns only hr_web. db-init creates it and
-#             revokes PUBLIC CONNECT on both databases.
-# The web profile needs WEB_DB_PASS and BETTER_AUTH_SECRET (see .env.example).
-# Use URL-safe passwords, e.g. `openssl rand -hex 24`, because they are
-# embedded in DATABASE_URL.
+# One Postgres server and one database (${WEB_DB_NAME:-hr_web}) owned by a
+# NOSUPERUSER role (${WEB_DB_USER:-hr_web_app}). db-init creates the role and
+# database; the superuser credentials (DB_USER / DB_PASS) are used only there.
+# Needs DB_PASS, WEB_DB_PASS and BETTER_AUTH_SECRET (see .env.example). Use
+# URL-safe passwords, e.g. `openssl rand -hex 24`, because they are embedded
+# in DATABASE_URL.
 # Web containers run with TZ=UTC. There is no company time zone: timestamps
 # are stored in UTC and rendered in each viewer's browser zone.
 #
 # Production: add compose.prod.yml (Caddy TLS proxy, no published app/db ports).
 #
-# Start order for the web profile:
-#   db (healthy) -> db-init (exits 0) -> web-migrate (exits 0) -> web
+# Start order: db (healthy) -> db-init (exits 0) -> web-migrate (exits 0) -> web
 # For local development with `npm run dev` use compose.dev.yml instead.
 
 services:
-  # ---------------------------------------------------------------- legacy
-  app:
-    build:
-      context: .
-      target: release
-    image: hr-management-system:latest
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://${DB_USER:-hruser}:${DB_PASS}@db:5432/${DB_NAME:-hrdb}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      COOKIE_SECURE: ${COOKIE_SECURE:-auto}
-      TRUST_PROXY: ${TRUST_PROXY:-}
-      SESSION_TABLE_AUTO_CREATE: ${SESSION_TABLE_AUTO_CREATE:-false}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-    read_only: true
-    tmpfs:
-      - /tmp
-
-  # ---------------------------------------------------------------- shared
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB:       ${DB_NAME:-hrdb}
+      POSTGRES_DB:       postgres
       POSTGRES_USER:     ${DB_USER:-hruser}
       POSTGRES_PASSWORD: ${DB_PASS:?DB_PASS must be set}
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hruser} -d ${DB_NAME:-hrdb}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hruser} -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     restart: unless-stopped
 
-  # ---------------------------------------------------------------- new app
-  # Creates or updates the web role and database. Idempotent, and safe on the
-  # existing legacy volume, where initdb scripts never run. This is the only
-  # web-profile service that uses the superuser credentials.
+  # Creates or updates the web role and database. Idempotent, and safe on an
+  # existing volume, where initdb scripts never run.
   db-init:
     image: postgres:16-alpine
-    profiles: ["web"]
     environment:
       PGHOST: db
       PGUSER: ${DB_USER:-hruser}
       PGPASSWORD: ${DB_PASS}
-      PGDATABASE: ${DB_NAME:-hrdb}
+      PGDATABASE: postgres
       WEB_DB_USER: ${WEB_DB_USER:-hr_web_app}
       WEB_DB_PASS: ${WEB_DB_PASS:-}
       WEB_DB_NAMES: ${WEB_DB_NAME:-hr_web}
       WEB_DB_CREATEDB: "0"
-      LEGACY_DB_NAME: ${DB_NAME:-hrdb}
     volumes:
       - ./docker/postgres/create-web-dbs.sh:/scripts/create-web-dbs.sh:ro
     command: ["sh", "/scripts/create-web-dbs.sh"]
@@ -94,7 +59,6 @@ services:
       context: ./web
       target: migrator
     image: hr-web-migrate:latest
-    profiles: ["web"]
     environment:
       DATABASE_URL: postgresql://${WEB_DB_USER:-hr_web_app}:${WEB_DB_PASS:-}@db:5432/${WEB_DB_NAME:-hr_web}
       TZ: UTC
@@ -108,14 +72,11 @@ services:
       context: ./web
       target: runner
     image: hr-web:latest
-    profiles: ["web"]
     ports:
       - "127.0.0.1:${WEB_PORT:-3001}:3000"
     environment:
       DATABASE_URL: postgresql://${WEB_DB_USER:-hr_web_app}:${WEB_DB_PASS:-}@db:5432/${WEB_DB_NAME:-hr_web}
-      # These are not marked required (`:?`) here, so the legacy-only
-      # `docker compose up` keeps working without them. The app refuses to
-      # boot if they are missing or invalid (src/env.ts).
+      # The app refuses to boot if these are missing or invalid (src/env.ts).
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
       # Fixed, not configurable: server-side dates are always UTC (also set

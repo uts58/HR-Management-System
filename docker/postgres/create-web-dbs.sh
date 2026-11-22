@@ -4,7 +4,7 @@
 # ways:
 #   - as a /docker-entrypoint-initdb.d script (fresh volumes, compose.dev.yml)
 #   - by the `db-init` one-shot service in docker-compose.yml. This also
-#     works on existing legacy volumes, where initdb scripts never re-run.
+#     works on existing volumes, where initdb scripts never re-run.
 #
 # Must connect as a role allowed to create roles and databases (the
 # Postgres superuser from POSTGRES_USER / PGUSER).
@@ -15,8 +15,6 @@
 #   WEB_DB_NAMES     space-separated databases owned by that role (default hr_web)
 #   WEB_DB_CREATEDB  1 = grant CREATEDB (dev only: `prisma migrate dev` needs
 #                    it for its shadow database). Default 0.
-#   LEGACY_DB_NAME   optional: revoke PUBLIC CONNECT on the legacy database
-#                    so the web role cannot connect to it at all.
 #
 # The web role is NOSUPERUSER NOCREATEROLE. It owns only its own databases,
 # so on PG15+ it also owns their `public` schema via pg_database_owner.
@@ -37,7 +35,7 @@ is_safe_ident() {
   esac
 }
 
-for ident in "$WEB_DB_USER" $WEB_DB_NAMES ${LEGACY_DB_NAME:-}; do
+for ident in "$WEB_DB_USER" $WEB_DB_NAMES; do
   is_safe_ident "$ident" || { echo "Refusing unsafe identifier: $ident" >&2; exit 1; }
 done
 
@@ -71,8 +69,3 @@ for db in $WEB_DB_NAMES; do
   psql_q -c "REVOKE ALL ON DATABASE \"$db\" FROM PUBLIC"
 done
 
-# --- keep the web role out of the legacy database ----------------------------
-if [ -n "${LEGACY_DB_NAME:-}" ]; then
-  echo "Revoking PUBLIC CONNECT on legacy database $LEGACY_DB_NAME"
-  psql_q -c "REVOKE CONNECT ON DATABASE \"$LEGACY_DB_NAME\" FROM PUBLIC"
-fi

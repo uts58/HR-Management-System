@@ -3,12 +3,8 @@
 # Forwarded headers: no `trusted_proxies` is configured, so Caddy DISCARDS
 # any client-supplied X-Forwarded-For / X-Forwarded-Proto / X-Forwarded-Host
 # and sets them itself. X-Forwarded-For becomes exactly one entry: the
-# client's TCP peer address. The apps therefore trust exactly one hop
-# (legacy: TRUST_PROXY=1). Do not add `trusted_proxies` unless another proxy
-# or CDN sits in front of Caddy, and if you do, raise the hop count to match.
-#
-# UPSTREAM selects the active app: app:3000 (legacy, default) before
-# cutover, web:3000 after. Changing it is the cutover switch (runbook step 7).
+# client's TCP peer address. Do not add `trusted_proxies` unless another
+# proxy or CDN sits in front of Caddy.
 
 {$APP_DOMAIN} {
 	encode zstd gzip
@@ -20,7 +16,7 @@
 		-Server
 	}
 
-	# No active health check here: the legacy app has no /api/health. Add
-	# `health_uri /api/health` once UPSTREAM is web:3000.
-	reverse_proxy {$UPSTREAM:app:3000}
+	reverse_proxy web:3000 {
+		health_uri /api/health
+	}
 }
