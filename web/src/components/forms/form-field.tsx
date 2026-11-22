@@ -40,7 +40,7 @@ interface FormFieldProps {
 
 /**
  * Label + control + hint + error, wired for assistive tech: the label's
- * `for` matches the control id (legacy BUG-15), and the hint and error are
+ * `for` matches the control id, and the hint and error are
  * referenced from `aria-describedby`. Optional fields say "(optional)";
  * required ones carry the native `required` attribute.
  */

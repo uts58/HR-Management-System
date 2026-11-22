@@ -1,5 +1,5 @@
 /**
- * Accounts available to E2E tests. The first block comes from Data's
+ * Accounts available to E2E tests. The first block comes from
  * prisma/seed.ts; the QA block is added by tests/support/db/qa-fixtures.sql.
  * Keep both files in sync with this list.
  *
@@ -25,7 +25,7 @@ export const QA_PASSWORD = "QaPass#2026";
 const user = (u: TestUser) => u;
 
 export const users = {
-  // ---- Data's seed (prisma/seed.ts) ----
+  // ---- Seed data (prisma/seed.ts) ----
   admin: user({
     username: "admin",
     password: "Admin#12345",

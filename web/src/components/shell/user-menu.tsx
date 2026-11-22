@@ -43,7 +43,7 @@ const initials = (name: string) =>
  * Sign out. `restricted` (mustChangePassword) leaves only Sign out, since
  * nothing else is reachable until the password is changed.
  *
- * `signOutAction` is Security's `signOut` server action (AuthActions),
+ * `signOutAction` is the `signOut` server action (AuthActions),
  * passed down from the layout. Whatever it returns (including
  * UNAUTHENTICATED for an already-expired session), the user ends up on
  * /login.

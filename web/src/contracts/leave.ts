@@ -1,5 +1,5 @@
 /**
- * Leave domain contract. Implemented by Backend in web/src/server/leave/.
+ * Leave domain contract. Implemented in web/src/server/leave/.
  * Business rules: docs/architecture/contracts.md#leave
  */
 
@@ -16,7 +16,7 @@ export const LEAVE_TYPES = [
 ] as const;
 export type LeaveType = (typeof LEAVE_TYPES)[number];
 
-/** Display labels (same wording as the legacy form). */
+/** Display labels. */
 export const LEAVE_TYPE_LABELS: Readonly<Record<LeaveType, string>> = {
   SICK: "Sick Leave",
   ANNUAL: "Annual Leave",
@@ -25,7 +25,6 @@ export const LEAVE_TYPE_LABELS: Readonly<Record<LeaveType, string>> = {
   UNPAID: "Unpaid Leave",
 };
 
-/** Legacy `empleave.status`: 0 = pending, 1 = approved, 2 = rejected. */
 export const LEAVE_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
 export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
 
@@ -42,7 +41,7 @@ export interface LeaveRequest {
   reason: string | null;
   status: LeaveStatus;
   /**
-   * Legacy `read`. false when HR has decided and the employee has not yet
+   * false when HR has decided and the employee has not yet
    * opened their leave history. Always true while PENDING.
    */
   seenByEmployee: boolean;
@@ -59,7 +58,7 @@ export interface ApplyForLeaveInput {
 
 export interface LeaveService {
   /**
-   * EMPLOYEE (legacy parity; HR leave is out of scope until after cutover).
+   * EMPLOYEE.
    * Creates a PENDING request for actor.employeeId.
    * Throws VALIDATION (incl. OTHER); FORBIDDEN if the account has no
    * employee record.
@@ -71,8 +70,7 @@ export interface LeaveService {
 
   /**
    * EMPLOYEE. Marks the actor's decided-but-unseen requests as seen.
-   * The leave-history page calls this once after it renders (legacy did it
-   * inside the GET handler). Returns how many rows changed.
+   * The leave-history page calls this once after it renders. Returns how many rows changed.
    */
   markMyLeaveDecisionsSeen(actor: Actor): Promise<number>;
 

@@ -1,6 +1,6 @@
 /**
- * Appraisal input schemas (contracts.md#performance). Fixes legacy BUG-11:
- * the employee is required and reported on field `employeeId` instead of
+ * Appraisal input schemas (contracts.md#performance). The
+ * employee is required and reported on field `employeeId` instead of
  * failing silently. The service also checks the employee exists, is ACTIVE
  * and is not a placeholder (VALIDATION on `employeeId`).
  */

@@ -94,7 +94,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     async ({}, provide, testInfo) => {
       testInfo.skip(
         testInfo.tags.includes(BACKEND_TAG) && !BACKEND,
-        "Needs the real services and UI wiring: run with E2E_BACKEND=1 once app/_stubs is replaced.",
+        "Needs the real services and UI wiring: run with E2E_BACKEND=1.",
       );
       await provide();
     },

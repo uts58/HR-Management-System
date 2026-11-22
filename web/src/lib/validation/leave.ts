@@ -1,5 +1,5 @@
 /**
- * Leave input schemas (contracts.md#leave). Fixes legacy BUG-12: dates are
+ * Leave input schemas (contracts.md#leave). Dates are
  * required, must be real `YYYY-MM-DD` dates, and the range must not end
  * before it starts. Past dates are allowed (sick leave logged afterwards).
  */

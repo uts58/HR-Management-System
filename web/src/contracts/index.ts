@@ -1,5 +1,5 @@
 /**
- * Barrel for the service and auth contracts. Owner: Tech Lead.
+ * Barrel for the service and auth contracts.
  * Changes go through a PR reviewed by the Tech Lead plus the implementing lead.
  * See docs/architecture/contracts.md.
  */

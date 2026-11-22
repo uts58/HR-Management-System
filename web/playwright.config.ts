@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E tests live in tests/e2e (owned by QA).
+// E2E tests live in tests/e2e.
 // Locally Playwright starts `npm run dev`. In CI it runs the standalone
 // production server (`node .next/standalone/server.js`, the same entrypoint
 // as the Docker image). Run `npm run build` first. scripts/prepare-standalone.mjs
@@ -26,7 +26,7 @@ const port = origin.port || (origin.protocol === "https:" ? "443" : "80");
 export default defineConfig({
   testDir: "./tests/e2e",
   outputDir: "./test-results",
-  // Resets the E2E database once per run (QA's tests/support/db/reset.ts).
+  // Resets the E2E database once per run (tests/support/db/reset.ts).
   globalSetup: "./playwright.global-setup.ts",
   fullyParallel: true,
   forbidOnly: isCI,

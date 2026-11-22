@@ -12,7 +12,7 @@ export const metadata: Metadata = {
  * 403 page for signed-in users who open a page their role can't use
  * (e.g. an employee opening /employees). Lives inside the shell so the
  * user keeps their own navigation. requireRole(..., { onFail: "redirect" })
- * sends wrong-role page loads here (Security's ruling). A redirect target
+ * sends wrong-role page loads here. A redirect target
  * can't set HTTP 403; the page answers 200.
  */
 export default async function ForbiddenPage() {

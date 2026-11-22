@@ -10,7 +10,7 @@ import { EmployeeForm } from "../_components/employee-form";
 
 export const metadata: Metadata = { title: "Add employee" };
 
-/** Feature map rows 8–9 (legacy /hr/addEmployee, /hr/saveEmp). HR only. */
+/** HR only. */
 export default async function NewEmployeePage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

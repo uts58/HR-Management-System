@@ -36,7 +36,7 @@ const FILTERS: { value: EmployeeStatusFilter; label: string }[] = [
   { value: "ALL", label: "All" },
 ];
 
-/** Feature map row 7 (legacy /hr/viewEmployee). HR only. */
+/** HR only. */
 export default async function EmployeesPage({
   searchParams,
 }: PageProps<"/employees">) {

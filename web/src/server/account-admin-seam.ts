@@ -1,5 +1,5 @@
 /**
- * The single seam between Backend services and Security's AccountAdminApi
+ * The single seam between services and AccountAdminApi
  * (ADR-0004 rule 10: auth tables are written only through web/src/auth).
  *
  * The employee service passes its Prisma transaction client as `tx`, so

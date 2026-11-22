@@ -3,9 +3,7 @@ import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 
 /**
- * Feature map rows 1–3 (legacy GET /, POST /actAdmin, GET /logout).
- * The API block talks to Better Auth's real endpoint (Security, on main).
- * The form block needs the login form wired to signInWithUsername.
+ * The API block talks to Better Auth's real endpoint; the form block drives the login form.
  */
 
 test.describe("Sign-in API (Better Auth)", () => {

@@ -1,7 +1,7 @@
 /**
  * Leave requests (contracts.md#leave).
  *
- * - Only EMPLOYEE applies (legacy parity); the employee id always comes from
+ * - Only EMPLOYEE applies; the employee id always comes from
  *   the actor, never from input.
  * - Decisions only from PENDING, with a conditional update so two HR users
  *   deciding at once can't both win: the loser gets CONFLICT.

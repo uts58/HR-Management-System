@@ -1,7 +1,6 @@
-// Playwright globalSetup (Platform). Resets the E2E database once, before any
-// worker starts, using QA's reset code in tests/support/db/reset.ts:
-// TRUNCATE, then Data's seed, then the QA fixtures. It refuses databases not
-// named *_test or *_it.
+// Playwright globalSetup. Resets the E2E database once, before any worker
+// starts, using tests/support/db/reset.ts: TRUNCATE, then the seed, then the
+// QA fixtures. It refuses databases not named *_test or *_it.
 //
 // It goes through ensureDatabaseReset(), which calls resetDatabase() and
 // records a per-run stamp. E2E_RUN_ID is set here, and workers inherit it,

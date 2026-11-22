@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // Per-request CSP nonce from proxy.ts (Security). Reading it makes every
+  // Per-request CSP nonce from proxy.ts. Reading it makes every
   // page dynamic, which nonces require.
   const nonce = await getCspNonce();
   return (

@@ -1,11 +1,10 @@
 /**
- * Notice domain contract. Implemented by Backend in web/src/server/notice/.
+ * Notice domain contract. Implemented in web/src/server/notice/.
  * Business rules: docs/architecture/contracts.md#notice
  */
 
 import type { Actor, NoticeId, UtcTimestamp } from "./common";
 
-/** Legacy `notice.type`: 0 = general, 1 = urgent, 2 = holiday. */
 export const NOTICE_TYPES = ["GENERAL", "URGENT", "HOLIDAY"] as const;
 export type NoticeType = (typeof NOTICE_TYPES)[number];
 
@@ -14,7 +13,6 @@ export interface Notice {
   title: string;
   body: string;
   type: NoticeType;
-  /** Legacy `date` was a locale string; migrated values are parsed or null. */
   createdAt: UtcTimestamp | null;
 }
 
@@ -24,12 +22,11 @@ export interface CreateNoticeInput {
   type: NoticeType; // default GENERAL in the form
 }
 
-/** Default number of notices on the dashboard (legacy showed 5). */
+/** Default number of notices on the dashboard. */
 export const RECENT_NOTICE_LIMIT = 5;
 
 export interface NoticeService {
   // No anonymous access: notices are internal and live behind login.
-  // Legacy showed them on the public login page (intentional change).
 
   /**
    * Any signed-in role. Dashboard list, newest first, at most `limit`

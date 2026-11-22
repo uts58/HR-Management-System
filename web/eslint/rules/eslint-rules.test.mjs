@@ -1,4 +1,4 @@
-// Tests for Platform-owned lint tooling: the local server-actions rule and
+// Tests for the lint tooling: the local server-actions rule and
 // the import-boundary configuration in eslint.config.mjs.
 import path from "node:path";
 import { ESLint, RuleTester } from "eslint";

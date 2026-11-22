@@ -1,6 +1,6 @@
 /**
  * Performance appraisals (contracts.md#performance). HR only; employees
- * cannot see appraisals (legacy parity).
+ * cannot see appraisals.
  *
  * BUG-11: a missing employee is a VALIDATION error on `employeeId` (schema),
  * and so is an unknown or terminated employee (service).

@@ -1,7 +1,7 @@
 /**
  * Date helpers. Client-safe: no env, no time zones.
  *
- * Ruling (director, 2026-11-18; supersedes ADR-0007 as written):
+ * Date rules (supersede ADR-0007 as written):
  * - There is no company time zone.
  * - Calendar dates (`IsoDate`, `YYYY-MM-DD`: date of birth, leave and project
  *   ranges) are never converted between zones. They travel as `YYYY-MM-DD`,
@@ -10,7 +10,7 @@
  *   is represented as UTC midnight and read with UTC getters.
  * - Instants (createdAt, decidedAt, terminatedAt) are stored in UTC and sent
  *   to the client as ISO-8601 strings ending in `Z`. The client renders them
- *   in the viewer's own zone (Frontend's component); nothing here formats
+ *   in the viewer's own zone; nothing here formats
  *   them for display.
  * - Server-side "today" checks use the UTC date with a one-day tolerance,
  *   and only where contracts.md requires one (date of birth before today).

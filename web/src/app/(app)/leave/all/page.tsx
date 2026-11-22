@@ -26,7 +26,7 @@ import { LeaveTypeText } from "../_components/leave-type-text";
 
 export const metadata: Metadata = { title: "All leave" };
 
-/** Feature map row 29 (legacy /viewLeavebyAdmin). HR only. Newest first. */
+/** HR only. Newest first. */
 export default async function AllLeavePage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

@@ -44,7 +44,7 @@ class FakeAuthError extends Error {
 }
 
 /**
- * Fake of Security's requireRole/requireSession: `session` null means
+ * Fake of requireRole/requireSession: `session` null means
  * signed out; role mismatch and pending password change mean FORBIDDEN.
  */
 function fakeAuth(session: Session | null) {

@@ -1,8 +1,7 @@
 /**
- * E2E run modes (QA). Read once; every spec and fixture uses these flags.
+ * E2E run modes. Read once; every spec and fixture uses these flags.
  *
- * E2E_BACKEND=1   The app is wired to the real services (Frontend replaced
- *                 app/_stubs). Specs tagged @backend run. Without it they
+ * E2E_BACKEND=1   The app is wired to the real services. Specs tagged @backend run. Without it they
  *                 are SKIPPED (reported as skipped, never as passed).
  * E2E_DB_RESET=0  Don't truncate and re-seed the database before the run
  *                 (e.g. when PLAYWRIGHT_BASE_URL points at a shared deployment).

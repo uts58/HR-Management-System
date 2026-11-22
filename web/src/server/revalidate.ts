@@ -1,6 +1,6 @@
 /**
  * Cache invalidation after a mutation. The server actions live in
- * server/<domain>/actions.ts and don't know Frontend's route paths, so they
+ * server/<domain>/actions.ts and don't know the route paths, so they
  * revalidate the whole app layout. Every page here is per-user and dynamic,
  * so this only refreshes the client router cache; it costs nothing extra.
  * If Frontend wants narrower paths, this is the single place to change.

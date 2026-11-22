@@ -29,7 +29,7 @@ import {
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-/** Feature map row 4 (legacy /home). HR and employee variants. */
+/** HR and employee variants. */
 export default async function DashboardPage() {
   const session = await requireSession({ onFail: "redirect" });
   const actor = toActor(session);

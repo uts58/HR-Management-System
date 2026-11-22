@@ -216,10 +216,8 @@ export interface UniqueConstraintRule {
 }
 
 /**
- * Unique constraints services must report on a field (ADR-0006: "services
- * handle the known ones"). Names come from Data's init migration:
- * the `lower(name)` indexes are hand-written, so their violation names no
- * column and is identified by constraint name only.
+ * Unique constraints services must report on a field. The `lower(name)` indexes are hand-written, so
+ * their violation names no column and is identified by constraint name only.
  */
 export const KNOWN_UNIQUE_CONSTRAINTS = {
   departments_name_lower_key: {

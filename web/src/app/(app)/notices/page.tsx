@@ -22,7 +22,7 @@ import { DeleteNoticeButton, NoticeForm } from "./notice-client";
 
 export const metadata: Metadata = { title: "Notices" };
 
-/** Feature map rows 21–23 (legacy /addNotice). HR only. */
+/** HR only. */
 export default async function NoticesPage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

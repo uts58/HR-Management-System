@@ -1,7 +1,7 @@
 /**
  * Departments and positions (contracts.md#org).
  *
- * - Names are unique case-insensitively via Data's hand-written
+ * - Names are unique case-insensitively via hand-written
  *   `lower(name)` indexes. The service checks first (same `lower()` the
  *   index uses) and also maps the index's P2002 from the insert (a race) to
  *   the same CONFLICT on `name`.

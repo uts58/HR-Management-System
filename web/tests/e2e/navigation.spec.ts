@@ -3,7 +3,7 @@ import { expect, test, users } from "../support/fixtures";
 import { ChangePasswordPage } from "../support/pages/auth";
 
 /**
- * Role-based navigation (feature map "Navigation", replaces views/menu.ejs).
+ * Role-based navigation.
  * Hiding links is convenience only; forbidden.spec.ts checks enforcement.
  */
 

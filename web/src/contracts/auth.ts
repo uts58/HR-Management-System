@@ -1,5 +1,5 @@
 /**
- * Auth API contract. Implemented by Security in web/src/auth/ on top of
+ * Auth API contract. Implemented in web/src/auth/ on top of
  * Better Auth (Prisma adapter, database-backed sessions, username plugin,
  * nextCookies plugin). See ADR-0004.
  *
@@ -17,7 +17,7 @@ import type { ActionResult, EmployeeId, UserId } from "./common";
 // ─── Roles ──────────────────────────────────────────────────────────────────
 
 /**
- * Legacy `person.access`: 1 = HR admin, 0 = employee. Stored in our own
+ * HR_ADMIN or EMPLOYEE. Stored in our own
  * `role` column, which is the source of truth (Better Auth's admin-plugin
  * role/banned fields are not used).
  * Modelled as a const object so it can be used as a value (`Role.HR_ADMIN`)
@@ -103,7 +103,7 @@ export interface AuthApi {
   ): Promise<Session>;
 }
 
-// ─── Account administration (Security implements, Backend calls) ────────────
+// ─── Account administration ────────────
 
 /** Shown once to HR after create / password reset. Never stored in plain text. */
 export interface IssuedCredentials {
@@ -126,7 +126,7 @@ export interface CreateLoginAccountInput {
 }
 
 /**
- * Better Auth `user.additionalFields` (Data schema; Security config).
+ * Better Auth `user.additionalFields` (schema and auth config).
  * ALL five are `input: false`: no Better Auth endpoint can set them from a
  * request. Only AccountAdminApi (and the create-admin CLI) write them.
  */
@@ -200,7 +200,7 @@ export interface ChangePasswordInput {
  */
 export interface AuthClientApi {
   /**
-   * Username match is case-insensitive (legacy parity; the username plugin
+   * Username match is case-insensitive (the username plugin
    * lower-cases). Failure message is always the generic "Invalid username
    * or password" (no user enumeration), also for disabled users; a
    * rate-limited attempt returns "Too many attempts, try again shortly".

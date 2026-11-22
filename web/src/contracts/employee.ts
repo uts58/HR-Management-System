@@ -1,5 +1,5 @@
 /**
- * Employee domain contract. Implemented by Backend in web/src/server/employee/.
+ * Employee domain contract. Implemented in web/src/server/employee/.
  * Business rules: docs/architecture/contracts.md#employee
  */
 
@@ -14,20 +14,14 @@ import type {
 } from "./common";
 import type { IssuedCredentials, Role } from "./auth";
 
-// ─── Enumerations (legacy values in comments) ───────────────────────────────
+// ─── Enumerations ───────────────────────────────
 
-/** Legacy `employee.gender`: 1 = male, 0 = female. */
 export const GENDERS = ["MALE", "FEMALE"] as const;
 export type Gender = (typeof GENDERS)[number];
 
-/**
- * Legacy `employee.maritalStatus`: 'single' | 'married' | 'divorced'
- * ('0' = not chosen, migrated as null).
- */
 export const MARITAL_STATUSES = ["SINGLE", "MARRIED", "DIVORCED"] as const;
 export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
 
-/** Legacy country dropdown, values stored verbatim. */
 export const COUNTRIES = [
   "Bangladesh",
   "Nepal",
@@ -81,7 +75,7 @@ export interface EmployeeDetail {
   lastName: string;
   department: Option<DepartmentId> | null;
   position: Option<PositionId> | null;
-  /** string, not Country: legacy data may hold other values. */
+  /** string, not Country: stored values are not restricted to the list. */
   country: string | null;
   homeTown: string | null;
   contactNo: string | null;
@@ -119,8 +113,7 @@ export interface EmployeeFormOptions {
 // ─── Inputs ─────────────────────────────────────────────────────────────────
 
 /**
- * Create input. The employee id is NOT an input: the database assigns it
- * (legacy computed max(id)+1 in the browser).
+ * Create input. The employee id is NOT an input: the database assigns it.
  */
 export interface CreateEmployeeInput {
   firstName: string; // 1..100, trimmed
@@ -198,9 +191,8 @@ export interface EmployeeService {
   ): Promise<CreateEmployeeResult>;
 
   /**
-   * HR_ADMIN. Updates profile fields. Does NOT change the username
-   * (legacy renamed the login to the new first name). If the name changes
-   * and the employee has an account, calls
+   * HR_ADMIN. Updates profile fields. Does NOT change the username.
+   * If the name changes and the employee has an account, calls
    * AccountAdminApi.updateDisplayName in the same transaction so the
    * user's display name follows.
    * Throws NOT_FOUND (incl. placeholder), VALIDATION; CONFLICT if TERMINATED.
@@ -212,7 +204,7 @@ export interface EmployeeService {
   ): Promise<EmployeeDetail>;
 
   /**
-   * HR_ADMIN. Soft delete (replaces legacy hard delete). In one transaction:
+   * HR_ADMIN. Soft delete. In one transaction:
    * status=TERMINATED, terminatedAt=now, login disabled (users.disabledAt,
    * via AccountAdminApi.disableLogin) and all sessions revoked, and the
    * employee's PENDING leave requests set to REJECTED. Leave and appraisal

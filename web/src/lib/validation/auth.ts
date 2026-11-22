@@ -1,6 +1,5 @@
 /**
- * Auth form schemas (contracts.md#auth). Security owns the auth flows and
- * may tighten the password policy; these are the shared form shapes.
+ * Auth form schemas (contracts.md#auth). Shared form shapes.
  *
  * Passwords are never trimmed or lower-cased.
  *
@@ -10,7 +9,7 @@
  * - `changePasswordSchema` encodes the policy rules that need no database:
  *   8..128 characters, confirmation matches, differs from the current
  *   password. "Not equal to the username" and "current password correct"
- *   are checked by Security's changePassword action.
+ *   are checked by the changePassword action.
  */
 
 import { z } from "zod";

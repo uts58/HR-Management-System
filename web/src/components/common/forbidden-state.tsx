@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * "You don't have access" body (403). Used by the /forbidden page and by any
- * page that renders it in place when requireRole fails (Security decides
- * which, director ruling). Deliberately says nothing about whether the
+ * page that renders it in place when requireRole fails. Deliberately says nothing about whether the
  * record exists.
  */
 export function ForbiddenState({

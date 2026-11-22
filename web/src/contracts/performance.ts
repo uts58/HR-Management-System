@@ -1,6 +1,6 @@
 /**
  * Performance appraisal contract.
- * Implemented by Backend in web/src/server/performance/.
+ * Implemented in web/src/server/performance/.
  * Business rules: docs/architecture/contracts.md#performance
  */
 
@@ -13,7 +13,7 @@ import type {
 } from "./common";
 import type { EmployeeRef } from "./employee";
 
-/** Legacy rating select, 1..5. */
+/** Rating, 1..5. */
 export const RATINGS = [1, 2, 3, 4, 5] as const;
 export type Rating = (typeof RATINGS)[number];
 

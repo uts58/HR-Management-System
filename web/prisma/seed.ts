@@ -195,7 +195,7 @@ async function main() {
       mustChangePassword: false,
       disabledAt: null,
     },
-    // Terminated: terminateEmployee sets users.disabled_at, which blocks login (director ruling 5).
+    // Terminated: terminateEmployee sets users.disabled_at, which blocks login.
     {
       id: "seed-user-5",
       employeeId: 5,

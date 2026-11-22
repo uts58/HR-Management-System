@@ -11,7 +11,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 /**
- * Sign-in form. Calls Security's `signInWithUsername` from the browser
+ * Sign-in form. Calls `signInWithUsername` from the browser
  * (POST /api/auth/sign-in/username, deliberately not a server action, so
  * Better Auth's rate limiter applies). The failure message is always
  * generic, or the rate-limit message.

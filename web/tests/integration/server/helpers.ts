@@ -1,6 +1,5 @@
 /**
- * Backend service integration-test helpers (real Postgres, ADR-0008).
- * Owner: Backend, inside QA's tests/integration/ (director ruling).
+ * Service integration-test helpers (real Postgres, ADR-0008).
  *
  * Needs DATABASE_URL pointing at a throwaway, migrated database whose name
  * ends in `_test` or `_it`; anything else is refused, because every test
@@ -50,7 +49,7 @@ export async function makeEmployee(
   });
 }
 
-/** A users row linked to an employee, as Security's code would create it. */
+/** A users row linked to an employee. */
 export async function makeUser(
   employeeId: number | null,
   role: "HR_ADMIN" | "EMPLOYEE",
@@ -93,7 +92,7 @@ export async function makePerson(
 }
 
 /**
- * Security's real AccountAdminApi, wrapped to record calls. It writes
+ * The real AccountAdminApi, wrapped to record calls. It writes
  * through the caller's transaction client. `failOn` makes one method throw
  * after the real call, to prove the employee change rolls back with it.
  */

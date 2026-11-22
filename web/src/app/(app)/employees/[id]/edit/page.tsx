@@ -13,7 +13,7 @@ import { EmployeeForm } from "../../_components/employee-form";
 
 export const metadata: Metadata = { title: "Edit employee" };
 
-/** Feature map rows 11–12 (legacy /hr/editEmployee, /hr/editEmp). HR only. */
+/** HR only. */
 export default async function EditEmployeePage({
   params,
 }: PageProps<"/employees/[id]/edit">) {

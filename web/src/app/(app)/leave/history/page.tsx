@@ -29,7 +29,7 @@ import { LeaveTypeText } from "../_components/leave-type-text";
 
 export const metadata: Metadata = { title: "Leave history" };
 
-/** Feature map row 26 (legacy /viewLeave). EMPLOYEE only. */
+/** EMPLOYEE only. */
 export default async function LeaveHistoryPage() {
   const session = await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
   const requests = await leaveService.listMyLeaveRequests(toActor(session));

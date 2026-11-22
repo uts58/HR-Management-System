@@ -116,7 +116,7 @@ jobs:
           --health-cmd "pg_isready -U hruser -d hr_web_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      # The DB name must end in _test or _it: QA's reset refuses anything else.
+      # The DB name must end in _test or _it: the E2E reset refuses anything else.
       DATABASE_URL: postgresql://hruser:ci_password@localhost:5432/hr_web_test
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
       # ONE canonical origin. playwright.config.ts derives baseURL and the
@@ -244,7 +244,7 @@ jobs:
           node-version-file: web/.nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-      # Installs Security's hardening deps (helmet, csrf-sync, connect-pg-simple,
+      # Installs the hardening deps (helmet, csrf-sync, connect-pg-simple,
       # @node-rs/bcrypt, ...). Native prebuilt binaries are fetched for linux-x64.
       - run: npm ci
       - name: node --check on legacy server code
@@ -262,7 +262,7 @@ jobs:
           node -e "for (const m of ['./lib/auth','./lib/password','./lib/session','./lib/prisma']) require(m); console.log('modules ok')"
 
   # -------------------------------------------------------------------------
-  # QA's parity suite (legacy-tests/) against the hardened legacy app.
+  # The parity suite (legacy-tests/) against the hardened legacy app.
   # See docs/qa/test-strategy.md sections 6 and 7. Known open defects are
   # `test.fail` (expected failures), so a green run means 57 pass and
   # 3 fail as expected. A defect that starts passing fails the run on purpose.

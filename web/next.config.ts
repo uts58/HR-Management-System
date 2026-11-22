@@ -1,9 +1,8 @@
 import path from "node:path";
 import type { NextConfig } from "next";
 
-// web/ sits inside the legacy repo, which has its own package-lock.json at
-// the root. Pin the project root so Next does not treat the repo root as a
-// workspace root.
+// web/ sits inside a repo whose root has its own package-lock.json. Pin the
+// project root so Next does not treat the repo root as a workspace root.
 const projectRoot = path.resolve(__dirname);
 
 const nextConfig: NextConfig = {
@@ -11,7 +10,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: projectRoot,
 
-  // OFF by director ruling: nearly every page is per-user (session-scoped HR
+  // OFF: nearly every page is per-user (session-scoped HR
   // data), so caching by default would cost more than it gains. Opt in per
   // route with care. create-next-app 16.4 enables this (and
   // partialPrefetching, which depends on it) by default.
@@ -23,10 +22,10 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
-  // Static assets don't pass through proxy.ts, so they miss Security's
+  // Static assets don't pass through proxy.ts, so they miss its
   // headers there. Add nosniff here so it is set even when Next.js is
   // reached without Caddy. CSP and the other headers stay in proxy.ts
-  // (Security) and the Caddyfile. Don't duplicate them here.
+  // and the Caddyfile. Don't duplicate them here.
   async headers() {
     return [
       {

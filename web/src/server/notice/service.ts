@@ -1,6 +1,6 @@
 /**
  * Notices (contracts.md#notice). Behind login: every function needs an
- * actor; there is no anonymous access (director ruling).
+ * actor; there is no anonymous access.
  */
 
 import "server-only";

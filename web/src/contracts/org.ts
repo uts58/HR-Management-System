@@ -1,6 +1,6 @@
 /**
  * Org domain contract: departments and positions.
- * Implemented by Backend in web/src/server/org/.
+ * Implemented in web/src/server/org/.
  * Business rules: docs/architecture/contracts.md#org
  */
 
@@ -27,8 +27,8 @@ export interface Position {
 
 /**
  * Name: trimmed, 1..100 chars, unique case-insensitive within its table.
- * Uniqueness is enforced by a hand-written unique index on lower(name)
- * (Data); services map that unique violation to CONFLICT on field `name`.
+ * Uniqueness is enforced by a hand-written unique index on lower(name);
+ * services map that unique violation to CONFLICT on field `name`.
  */
 export interface CreateDepartmentInput {
   name: string;
@@ -39,7 +39,7 @@ export interface CreatePositionInput {
 }
 
 export interface OrgService {
-  /** HR_ADMIN. Ordered by id ascending (legacy parity). */
+  /** HR_ADMIN. Ordered by id ascending. */
   listDepartments(actor: Actor): Promise<Department[]>;
 
   /**
@@ -53,8 +53,7 @@ export interface OrgService {
 
   /**
    * HR_ADMIN. Throws NOT_FOUND; CONFLICT when any employee references it,
-   * TERMINATED ones included (their history keeps the reference). Legacy
-   * deleted anyway and left employees pointing at a missing department.
+   * TERMINATED ones included (their history keeps the reference).
    */
   deleteDepartment(actor: Actor, id: DepartmentId): Promise<void>;
 

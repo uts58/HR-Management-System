@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * Failed-login limiter keyed on (client IP, username), on top of Better
- * Auth's per-IP limit. Matches the patched legacy app: 10 failures per
+ * Auth's per-IP limit. Allows 10 failures per
  * username per IP in 60 s. Keying on the pair means:
  * - one person mistyping their password locks only themselves, not the
  *   colleagues behind the same office NAT address;

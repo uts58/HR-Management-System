@@ -10,7 +10,7 @@ import { AppraisalForm } from "../appraisal-client";
 
 export const metadata: Metadata = { title: "Add appraisal" };
 
-/** Feature map rows 30–31 (legacy /addPerformance). HR only. */
+/** HR only. */
 export default async function NewAppraisalPage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

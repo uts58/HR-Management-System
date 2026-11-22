@@ -28,7 +28,7 @@ const serverSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
 
-  // Postgres connection string for the NEW app database (not the legacy one).
+  // Postgres connection string.
   DATABASE_URL: z.url().refine((v) => /^postgres(ql)?:\/\//.test(v), {
     message: "DATABASE_URL must be a postgres:// or postgresql:// URL",
   }),

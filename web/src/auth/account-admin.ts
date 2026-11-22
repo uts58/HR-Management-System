@@ -18,7 +18,7 @@ import {
 } from "./password";
 
 /**
- * AccountAdminApi (contract): server-only helpers Backend's employee
+ * AccountAdminApi (contract): server-only helpers the employee
  * service calls inside its own transaction. They write Better Auth's tables
  * directly with the caller's `tx` (auth.api can't join an outside
  * transaction), using the same argon2id hash as the Better Auth config.

@@ -1,6 +1,5 @@
 /**
- * Fixtures for the auth integration tests (Security). Self-contained so
- * they don't depend on QA's shared fixtures. Needs DATABASE_URL pointing at
+ * Fixtures for the auth integration tests. Self-contained: does not use the shared E2E fixtures. Needs DATABASE_URL pointing at
  * a throwaway, migrated database: every test truncates the tables it uses.
  */
 import { randomUUID } from "node:crypto";

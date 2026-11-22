@@ -1,7 +1,6 @@
 /**
- * E2E database reset (QA): TRUNCATE every app table, run Data's
- * prisma/seed.ts, then load qa-fixtures.sql on top (ADR-0008 rule 3:
- * "seed data for E2E comes from one fixture module, built on Data's seed").
+ * E2E database reset: TRUNCATE every app table, run
+ * prisma/seed.ts, then load qa-fixtures.sql on top.
  *
  * Two entry points:
  *  - `ensureDatabaseReset()`: called by the worker fixture in
@@ -9,7 +8,7 @@
  *    several workers: an advisory lock serialises workers and a stamp row
  *    (keyed by the runner's process id, shared by all workers of a run)
  *    records that this run already reset.
- *    TODO(Platform): replace with `globalSetup` in playwright.config.ts.
+ *    playwright.global-setup.ts calls it first, so workers normally skip the reset.
  *  - CLI: `npx tsx tests/support/db/reset.ts` (always resets).
  *
  * Uses `pg` directly: E2E code may not import the Prisma client (ADR-0002).

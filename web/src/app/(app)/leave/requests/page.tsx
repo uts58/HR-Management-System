@@ -26,7 +26,7 @@ import { LeaveTypeText } from "../_components/leave-type-text";
 
 export const metadata: Metadata = { title: "Pending leave requests" };
 
-/** Feature map rows 27–28 (legacy /displayLeave). HR only. Oldest first. */
+/** HR only. Oldest first. */
 export default async function PendingLeavePage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

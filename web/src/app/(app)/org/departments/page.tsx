@@ -7,7 +7,7 @@ import { OrgUnitPage } from "../_components/org-unit-page";
 
 export const metadata: Metadata = { title: "Departments" };
 
-/** Feature map rows 15–17 (legacy /hr/addDep). HR only. */
+/** HR only. */
 export default async function DepartmentsPage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

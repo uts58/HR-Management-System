@@ -1,5 +1,5 @@
 /**
- * The single seam between `server/` and Security's `@/auth` module.
+ * The single seam between `server/` and the `@/auth` module.
  *
  * `defineAction` needs `requireRole` and `requireSession` with the
  * signatures in `web/src/contracts/auth.ts` (`AuthApi`):

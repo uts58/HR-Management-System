@@ -21,7 +21,7 @@ import {
 
 export const metadata: Metadata = { title: "Employee details" };
 
-/** Feature map rows 10, 13 and reset password (legacy /hr/viewDetails). HR only. */
+/** HR only. */
 export default async function EmployeeDetailPage({
   params,
 }: PageProps<"/employees/[id]">) {

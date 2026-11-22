@@ -14,7 +14,7 @@ import type { Role } from "./auth";
 
 // ─── Identifiers ────────────────────────────────────────────────────────────
 
-/** Employee primary key. Legacy `employee.id` (Int) is kept by the migration. */
+/** Employee primary key. */
 export type EmployeeId = number;
 
 /** Login account primary key. Opaque string (Better Auth user id). */
@@ -76,7 +76,7 @@ export type ActionResult<T = void> =
   { ok: true; data: T } | { ok: false; error: AppError };
 
 /**
- * Shape of the error class services throw (Backend implements it in
+ * Shape of the error class services throw (implemented in
  * web/src/server/errors.ts as
  * `class ServiceError extends Error implements ServiceErrorShape`).
  */
