@@ -126,6 +126,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     const closers: (() => Promise<void>)[] = [];
     await provide(async (user, options) => {
       const s = await openApp(browser, baseURL!, user, options);
+      // A fresh page is about:blank; land on the app so journeys can use it.
+      await s.app.page.goto("/");
       closers.push(s.close);
       return s.app;
     });

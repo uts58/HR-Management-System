@@ -18,7 +18,7 @@ export function row(page: Page, text: string | RegExp): Locator {
 /** Success toast (sonner, ADR-0006 rule 4). */
 export async function expectToast(page: Page, text: string | RegExp) {
   await expect(
-    page.locator("[data-sonner-toaster]").getByText(text),
+    page.locator("[data-sonner-toaster]").getByText(text).last(),
   ).toBeVisible();
 }
 

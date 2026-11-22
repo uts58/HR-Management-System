@@ -110,7 +110,7 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await hr.employees.openList();
     const admin = hr.employees.row(fullName(users.admin));
     await expect(admin).toContainText("HR admin"); // legacy hid employee id 1
-    const john = hr.employees.row("John Doe");
+    const john = hr.employees.row("John A Doe");
     await expect(john).toContainText("Software Engineer");
     await expect(john).toContainText("Engineering");
     await expect(john).toContainText("john.doe@example.com");
@@ -126,10 +126,10 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await expect(hr.employees.row(fullName(users.mary))).toContainText(
       "Terminated",
     );
-    await expect(hr.employees.row("John Doe")).toHaveCount(0);
+    await expect(hr.employees.row("John A Doe")).toHaveCount(0);
     await hr.employees.filter("All");
     await expect(hr.employees.row(fullName(users.mary))).toBeVisible();
-    await expect(hr.employees.row("John Doe")).toBeVisible();
+    await expect(hr.employees.row("John A Doe")).toBeVisible();
   });
 
   test("placeholder employees (legacy orphans) never appear in employee lists", async ({
@@ -151,7 +151,7 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
 
   test("HR views an employee's details", async ({ hr }) => {
     await hr.page.goto("/employees");
-    await hr.employees.openDetails("John Doe");
+    await hr.employees.openDetails("John A Doe", "John Doe");
     const d = (label: string) => hr.employees.detail(label);
     await expect(d("Full name")).toHaveText("John A Doe");
     await expect(d("Employee ID")).toHaveText(String(users.john.employeeId));
