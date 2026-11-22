@@ -2,6 +2,9 @@ import { CalendarPlusIcon, HistoryIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
+import { leaveService } from "@/server/leave/service";
 import { CalendarDateRange } from "@/components/calendar-date";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
@@ -21,7 +24,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listMyLeaveRequestsStub } from "../../../_stubs/services";
 import { MarkLeaveDecisionsSeen } from "../_components/leave-client";
 import { LeaveTypeText } from "../_components/leave-type-text";
 
@@ -29,9 +31,8 @@ export const metadata: Metadata = { title: "Leave history" };
 
 /** Feature map row 26 (legacy /viewLeave). EMPLOYEE only. */
 export default async function LeaveHistoryPage() {
-  // TODO(Security): await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
-  // TODO(Backend): leaveService.listMyLeaveRequests(actor)
-  const requests = await listMyLeaveRequestsStub();
+  const session = await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
+  const requests = await leaveService.listMyLeaveRequests(toActor(session));
   const unseen = requests.filter(
     (r) => r.status !== "PENDING" && !r.seenByEmployee,
   ).length;

@@ -44,7 +44,9 @@ const initials = (name: string) =>
  * nothing else is reachable until the password is changed.
  *
  * `signOutAction` is Security's `signOut` server action (AuthActions),
- * passed down from the layout. Until it exists the item just goes to /login.
+ * passed down from the layout. Whatever it returns (including
+ * UNAUTHENTICATED for an already-expired session), the user ends up on
+ * /login.
  */
 export function UserMenu({
   user,
@@ -53,7 +55,7 @@ export function UserMenu({
 }: {
   user: Pick<SessionUser, "displayName" | "username" | "role">;
   restricted?: boolean;
-  signOutAction?: () => Promise<void>;
+  signOutAction?: () => Promise<unknown>;
 }) {
   const router = useRouter();
   const [theme, setTheme] = useTheme();
@@ -133,12 +135,12 @@ export function UserMenu({
           disabled={signingOut}
           onClick={() =>
             startSignOut(async () => {
-              if (signOutAction) {
-                await signOutAction();
+              try {
+                await signOutAction?.();
+              } finally {
+                router.replace("/login");
+                router.refresh();
               }
-              // TODO(Security): signOut() should redirect itself; drop this
-              // fallback once it is wired.
-              router.push("/login");
             })
           }
         >

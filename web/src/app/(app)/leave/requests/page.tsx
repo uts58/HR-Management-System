@@ -18,7 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listPendingLeaveRequestsStub } from "../../../_stubs/services";
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
+import { leaveService } from "@/server/leave/service";
 import { DecideLeaveButtons } from "../_components/leave-client";
 import { LeaveTypeText } from "../_components/leave-type-text";
 
@@ -26,9 +28,9 @@ export const metadata: Metadata = { title: "Pending leave requests" };
 
 /** Feature map rows 27–28 (legacy /displayLeave). HR only. Oldest first. */
 export default async function PendingLeavePage() {
-  // TODO(Security): await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  // TODO(Backend): leaveService.listPendingLeaveRequests(actor)
-  const requests = await listPendingLeaveRequestsStub();
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const requests = await leaveService.listPendingLeaveRequests(actor);
 
   return (
     <>

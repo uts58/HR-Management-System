@@ -15,16 +15,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listNoticesStub } from "../../_stubs/services";
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
+import { noticeService } from "@/server/notice/service";
 import { DeleteNoticeButton, NoticeForm } from "./notice-client";
 
 export const metadata: Metadata = { title: "Notices" };
 
 /** Feature map rows 21–23 (legacy /addNotice). HR only. */
 export default async function NoticesPage() {
-  // TODO(Security): await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  // TODO(Backend): noticeService.listNotices(actor)
-  const notices = await listNoticesStub();
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const notices = await noticeService.listNotices(actor);
 
   return (
     <>

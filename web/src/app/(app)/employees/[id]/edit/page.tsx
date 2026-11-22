@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
 
 import { PageHeader } from "@/components/common/page-header";
 import { NotFoundState } from "@/components/common/not-found-state";
 import { Card, CardContent } from "@/components/ui/card";
+import { employeeService } from "@/server/employee/service";
+import { idOrNotFound, orNotFound } from "@/server/page";
 
-import {
-  getEmployeeFormOptionsStub,
-  getEmployeeStub,
-} from "../../../../_stubs/services";
 import { EmployeeForm } from "../../_components/employee-form";
-import { parseId } from "../../_components/parse-id";
 
 export const metadata: Metadata = { title: "Edit employee" };
 
@@ -18,16 +17,13 @@ export const metadata: Metadata = { title: "Edit employee" };
 export default async function EditEmployeePage({
   params,
 }: PageProps<"/employees/[id]/edit">) {
-  // TODO(Security): await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  const id = parseId((await params).id);
-  if (id === null) notFound();
-  // TODO(Backend): employeeService.getEmployee(actor, id) and
-  // employeeService.getEmployeeFormOptions(actor); NOT_FOUND → notFound()
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const id = idOrNotFound((await params).id);
   const [employee, options] = await Promise.all([
-    getEmployeeStub(id),
-    getEmployeeFormOptionsStub(),
+    orNotFound(employeeService.getEmployee(actor, id)),
+    employeeService.getEmployeeFormOptions(actor),
   ]);
-  if (!employee) notFound();
 
   const name = `${employee.firstName} ${employee.lastName}`;
 

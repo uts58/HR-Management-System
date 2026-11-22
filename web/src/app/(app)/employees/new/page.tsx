@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
 import { PageHeader } from "@/components/common/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { employeeService } from "@/server/employee/service";
 
-import { getEmployeeFormOptionsStub } from "../../../_stubs/services";
 import { EmployeeForm } from "../_components/employee-form";
 
 export const metadata: Metadata = { title: "Add employee" };
 
 /** Feature map rows 8–9 (legacy /hr/addEmployee, /hr/saveEmp). HR only. */
 export default async function NewEmployeePage() {
-  // TODO(Security): await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  // TODO(Backend): employeeService.getEmployeeFormOptions(actor)
-  const options = await getEmployeeFormOptionsStub();
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const options = await employeeService.getEmployeeFormOptions(actor);
 
   return (
     <>

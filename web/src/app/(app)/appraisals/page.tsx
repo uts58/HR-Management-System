@@ -18,16 +18,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listAppraisalsStub } from "../../_stubs/services";
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
+import { performanceService } from "@/server/performance/service";
 import { DeleteAppraisalButton } from "./appraisal-client";
 
 export const metadata: Metadata = { title: "Appraisals" };
 
 /** Feature map rows 32–33 (legacy /viewPerformance). HR only. */
 export default async function AppraisalsPage() {
-  // TODO(Security): await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  // TODO(Backend): performanceService.listAppraisals(actor)
-  const appraisals = await listAppraisalsStub();
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const appraisals = await performanceService.listAppraisals(actor);
 
   return (
     <>

@@ -24,7 +24,7 @@ export function AppShell({
 }: {
   user: Pick<SessionUser, "displayName" | "username" | "role">;
   restricted?: boolean;
-  signOutAction?: () => Promise<void>;
+  signOutAction?: () => Promise<unknown>;
   /** Optional slot at the start of the header's right side. */
   headerExtra?: ReactNode;
   children: ReactNode;

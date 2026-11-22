@@ -3,7 +3,7 @@
 import { Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { NOTICE_TYPES, type Notice } from "@/contracts";
+import { NOTICE_TYPES } from "@/contracts";
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { NOTICE_TYPE_LABELS } from "@/components/common/labels";
 import { ActionForm, SubmitButton } from "@/components/forms/action-form";
@@ -13,11 +13,7 @@ import {
   TextField,
 } from "@/components/forms/form-field";
 import { createNoticeSchema } from "@/lib/validation";
-
-import { stubCommand, stubFormAction } from "../../_stubs/actions";
-
-// TODO(wire): import createNotice from @/server/actions.
-const createNoticeAction = stubFormAction<Notice>("createNotice");
+import { createNotice, deleteNotice } from "@/server/actions/notice";
 
 /** Post a notice (feature map row 22). Fields = CreateNoticeInput. */
 export function NoticeForm() {
@@ -25,7 +21,7 @@ export function NoticeForm() {
   return (
     <ActionForm
       aria-label="Post a notice"
-      action={createNoticeAction}
+      action={createNotice}
       schema={createNoticeSchema}
       successMessage="Notice posted."
       resetOnSuccess
@@ -81,11 +77,7 @@ export function DeleteNoticeButton({
       pendingLabel="Deleting…"
       destructive
       successMessage="Notice deleted."
-      onConfirm={() => {
-        void id;
-        // TODO(wire): import deleteNotice from @/server/actions.
-        return stubCommand("deleteNotice");
-      }}
+      onConfirm={() => deleteNotice({ id })}
       onSuccess={() => router.refresh()}
     />
   );

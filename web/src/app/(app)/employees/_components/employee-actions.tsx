@@ -10,13 +10,12 @@ import { CredentialsPanel } from "@/components/common/credentials-panel";
 import { Button } from "@/components/ui/button";
 
 import {
-  resetEmployeePasswordStub,
-  stubCommand,
-} from "../../../_stubs/actions";
+  resetEmployeePassword,
+  terminateEmployee,
+} from "@/server/actions/employee";
 
 /**
  * Terminate (soft delete) with confirmation (feature map row 13).
- * TODO(wire): import terminateEmployee from @/server/actions.
  */
 export function TerminateEmployeeButton({
   employeeId,
@@ -51,10 +50,7 @@ export function TerminateEmployeeButton({
       pendingLabel="Terminating…"
       destructive
       successMessage={`${name} was terminated.`}
-      onConfirm={() => {
-        void employeeId;
-        return stubCommand("terminateEmployee");
-      }}
+      onConfirm={() => terminateEmployee({ id: employeeId })}
       onSuccess={() => router.refresh()}
     />
   );
@@ -63,7 +59,6 @@ export function TerminateEmployeeButton({
 /**
  * Reset password (feature map, [NEW] approved). Shows the one-time
  * temporary password after confirmation.
- * TODO(wire): import resetEmployeePassword from @/server/actions.
  */
 export function ResetPasswordButton({
   employeeId,
@@ -103,7 +98,7 @@ export function ResetPasswordButton({
       description="A new temporary password is generated and shown once. Their current password stops working, all their sessions are signed out, and they must choose a new password at next sign-in."
       confirmLabel="Reset password"
       pendingLabel="Resetting…"
-      onConfirm={() => resetEmployeePasswordStub(employeeId)}
+      onConfirm={() => resetEmployeePassword({ id: employeeId })}
       onSuccess={setCredentials}
     />
   );

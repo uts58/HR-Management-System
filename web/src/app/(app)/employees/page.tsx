@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cn } from "cn";
 
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
 import type { EmployeeStatusFilter } from "@/contracts";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
@@ -11,6 +13,8 @@ import {
   RoleBadge,
 } from "@/components/common/status-badges";
 import { LocalTime } from "@/components/local-time";
+import { listEmployeesFilterSchema } from "@/lib/validation";
+import { employeeService } from "@/server/employee/service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -22,8 +26,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listEmployeesStub } from "../../_stubs/services";
-import { getSessionStub } from "../../_stubs/session";
 import { TerminateEmployeeButton } from "./_components/employee-actions";
 
 export const metadata: Metadata = { title: "Employees" };
@@ -34,18 +36,17 @@ const FILTERS: { value: EmployeeStatusFilter; label: string }[] = [
   { value: "ALL", label: "All" },
 ];
 
-const parseStatus = (value: unknown): EmployeeStatusFilter =>
-  FILTERS.find((f) => f.value === value)?.value ?? "ACTIVE";
-
 /** Feature map row 7 (legacy /hr/viewEmployee). HR only. */
 export default async function EmployeesPage({
   searchParams,
 }: PageProps<"/employees">) {
-  // TODO(Security): const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  const session = await getSessionStub();
-  const status = parseStatus((await searchParams).status);
-  // TODO(Backend): employeeService.listEmployees(actor, { status })
-  const employees = await listEmployeesStub({ status });
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  // Unknown or missing ?status= falls back to ACTIVE (never an error).
+  const { status } = listEmployeesFilterSchema.parse({
+    status: (await searchParams).status,
+  });
+  const employees = await employeeService.listEmployees(actor, { status });
 
   return (
     <>

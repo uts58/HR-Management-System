@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import {
   RATINGS,
   RATING_LABELS,
-  type Appraisal,
   type EmployeeId,
   type Option,
 } from "@/contracts";
@@ -16,11 +15,7 @@ import { ActionForm, SubmitButton } from "@/components/forms/action-form";
 import { SelectField, TextField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { createAppraisalSchema } from "@/lib/validation";
-
-import { stubCommand, stubFormAction } from "../../_stubs/actions";
-
-// TODO(wire): import createAppraisal from @/server/actions.
-const createAppraisalAction = stubFormAction<Appraisal>("createAppraisal");
+import { createAppraisal, deleteAppraisal } from "@/server/actions/performance";
 
 /** Add appraisal (feature map rows 30–31). Fields = CreateAppraisalInput. */
 export function AppraisalForm({
@@ -31,7 +26,7 @@ export function AppraisalForm({
   return (
     <ActionForm
       aria-label="Add appraisal"
-      action={createAppraisalAction}
+      action={createAppraisal}
       schema={createAppraisalSchema}
       successMessage="Appraisal saved."
       resetOnSuccess
@@ -110,11 +105,7 @@ export function DeleteAppraisalButton({
       pendingLabel="Deleting…"
       destructive
       successMessage="Appraisal deleted."
-      onConfirm={() => {
-        void id;
-        // TODO(wire): import deleteAppraisal({ id }) from @/server/actions.
-        return stubCommand("deleteAppraisal");
-      }}
+      onConfirm={() => deleteAppraisal({ id })}
       onSuccess={() => router.refresh()}
     />
   );

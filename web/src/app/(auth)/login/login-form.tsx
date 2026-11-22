@@ -1,20 +1,23 @@
 "use client";
 
 import { CircleAlertIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
+import { signInWithUsername } from "@/auth/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 /**
- * Sign-in form UI. PLACEHOLDER SUBMIT: Security wires it to
- * `signInWithUsername` from "@/auth/client" (a browser call to
- * /api/auth/sign-in/username, deliberately not a server action, so Better
- * Auth's rate limiter applies). The failure message is always generic.
+ * Sign-in form. Calls Security's `signInWithUsername` from the browser
+ * (POST /api/auth/sign-in/username, deliberately not a server action, so
+ * Better Auth's rate limiter applies). The failure message is always
+ * generic, or the rate-limit message.
  */
 export function LoginForm({ callbackUrl }: { callbackUrl: string | null }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const alertRef = useRef<HTMLDivElement>(null);
@@ -31,17 +34,13 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string | null }) {
           password: String(form.get("password") ?? ""),
         };
         startTransition(async () => {
-          // TODO(Security): replace this placeholder with
-          //   const result = await signInWithUsername(input);
-          //   if (result.ok) router.replace(result.data.redirectTo);
-          //   else setError(result.error.message);
-          // and pass callbackUrl through (same-origin only).
-          void input;
-          void callbackUrl;
-          await new Promise((resolve) => setTimeout(resolve, 300));
-          setError(
-            "Sign-in is not connected yet (placeholder until Security wires the form).",
-          );
+          const result = await signInWithUsername(input, callbackUrl);
+          if (result.ok) {
+            router.replace(result.data.redirectTo);
+            router.refresh();
+            return;
+          }
+          setError(result.error.message);
           requestAnimationFrame(() => alertRef.current?.focus());
         });
       }}

@@ -19,16 +19,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listAllLeaveRequestsStub } from "../../../_stubs/services";
+import { Role, requireRole } from "@/auth";
+import { toActor } from "@/server/action";
+import { leaveService } from "@/server/leave/service";
 import { LeaveTypeText } from "../_components/leave-type-text";
 
 export const metadata: Metadata = { title: "All leave" };
 
 /** Feature map row 29 (legacy /viewLeavebyAdmin). HR only. Newest first. */
 export default async function AllLeavePage() {
-  // TODO(Security): await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
-  // TODO(Backend): leaveService.listAllLeaveRequests(actor)
-  const requests = await listAllLeaveRequestsStub();
+  const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
+  const actor = toActor(session);
+  const requests = await leaveService.listAllLeaveRequests(actor);
 
   return (
     <>

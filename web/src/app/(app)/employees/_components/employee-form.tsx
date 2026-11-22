@@ -25,14 +25,9 @@ import {
   createEmployeeSchema,
   updateEmployeeActionSchema,
 } from "@/lib/validation";
+import { createEmployee, updateEmployee } from "@/server/actions/employee";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-
-import { createEmployeeStub, stubFormAction } from "../../../_stubs/actions";
-
-// TODO(wire): import the real actions from @/server/actions
-// (createEmployee / updateEmployee via defineAction).
-const updateEmployeeStub = stubFormAction<EmployeeDetail>("updateEmployee");
 
 /**
  * Add / edit employee (feature map rows 8–9, 11–12). Field names equal the
@@ -258,7 +253,7 @@ export function EmployeeForm({
     <ActionForm
       key={formKey}
       aria-label="Add employee"
-      action={createEmployeeStub}
+      action={createEmployee}
       schema={createEmployeeSchema}
       onSuccess={setCreated}
     >
@@ -267,7 +262,7 @@ export function EmployeeForm({
   ) : (
     <ActionForm
       aria-label="Edit employee"
-      action={updateEmployeeStub}
+      action={updateEmployee}
       schema={updateEmployeeActionSchema}
       successMessage="Employee details saved."
     >
