@@ -54,8 +54,7 @@ test.describe("Apply for leave: validation", () => {
 });
 
 test.describe("Leave: journeys", { tag: BACKEND_TAG }, () => {
-  // These journeys share Lena's decision notifications (the approve test
-  // counts "reviewed (1)"), so they must not interleave across workers.
+  // Shares Lena's decision notifications, so must not interleave across workers.
   test.describe.configure({ mode: "serial" });
 
   const lenaName = fullName(users.lena);

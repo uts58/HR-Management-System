@@ -50,7 +50,7 @@ export interface EmployeeDetail {
   firstName: string;
   middleName: string | null;
   lastName: string;
-  fullName: string; // "First Middle Last", middle omitted when empty
+  fullName: string;
   department: Option<DepartmentId> | null;
   position: Option<PositionId> | null;
   country: string | null;
