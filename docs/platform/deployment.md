@@ -73,7 +73,10 @@ derives `BETTER_AUTH_URL` from `APP_DOMAIN`.
   came from the CDN.
 - Never publish `app` or `web` ports directly in production. A client that
   reaches the app without going through Caddy can set any
-  `X-Forwarded-For` it likes.
+  `X-Forwarded-For` it likes. The new app trusts `X-Forwarded-For`
+  unconditionally (`ipAddressHeaders` in `web/src/auth/config.ts`), so its
+  login rate limits are only sound behind Caddy. The base
+  `docker-compose.yml` therefore publishes `web` on `127.0.0.1` only.
 
 **Database roles:**
 

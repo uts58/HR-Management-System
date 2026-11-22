@@ -110,7 +110,7 @@ services:
     image: hr-web:latest
     profiles: ["web"]
     ports:
-      - "${WEB_PORT:-3001}:3000"
+      - "127.0.0.1:${WEB_PORT:-3001}:3000"
     environment:
       DATABASE_URL: postgresql://${WEB_DB_USER:-hr_web_app}:${WEB_DB_PASS:-}@db:5432/${WEB_DB_NAME:-hr_web}
       # These are not marked required (`:?`) here, so the legacy-only
