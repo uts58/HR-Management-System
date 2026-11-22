@@ -23,6 +23,19 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  // Static assets don't pass through proxy.ts, so they miss Security's
+  // headers there. Add nosniff here so it is set even when Next.js is
+  // reached without Caddy. CSP and the other headers stay in proxy.ts
+  // (Security) and the Caddyfile. Don't duplicate them here.
+  async headers() {
+    return [
+      {
+        source: "/_next/static/:path*",
+        headers: [{ key: "X-Content-Type-Options", value: "nosniff" }],
+      },
+    ];
+  },
+
   turbopack: {
     root: projectRoot,
     rules: {
