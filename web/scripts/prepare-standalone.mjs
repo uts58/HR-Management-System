@@ -1,7 +1,3 @@
-// Copies public/ and .next/static into .next/standalone, as the Next.js
-// `output: "standalone"` docs require, so that
-// `node .next/standalone/server.js` serves static assets. The Dockerfile
-// does the same with COPY.
 import { cpSync, existsSync } from "node:fs";
 
 const standalone = ".next/standalone";

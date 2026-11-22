@@ -20,7 +20,6 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
-  /** Extra path prefixes that should also highlight this item. */
   match?: string[];
 }
 
@@ -36,11 +35,6 @@ const dashboard: NavGroup = {
   ],
 };
 
-/**
- * Navigation per role, from docs/architecture/feature-map.md ("Navigation").
- * Hiding a link is convenience only; pages and actions enforce access.
- * Profile, Change password and Sign out live in the user menu.
- */
 export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   HR_ADMIN: [
     dashboard,
@@ -107,10 +101,8 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   ],
 };
 
-/** Is `item` the current page? Exact match, or one of its `match` prefixes. */
 export function isActive(item: NavItem, pathname: string, all: NavItem[]) {
   if (pathname === item.href) return true;
-  // A more specific item (e.g. /employees/new) wins over a prefix match.
   if (all.some((other) => other !== item && other.href === pathname)) {
     return false;
   }

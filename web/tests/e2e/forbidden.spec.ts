@@ -1,12 +1,6 @@
 import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 
-/**
- * Authorization through the UI (legacy SEC-01/SEC-02: legacy only checked
- * "logged in"). Page guards redirect a wrong role to /forbidden (ADR-0004).
- * Server actions are covered by the authorization matrix (web/tests/authz).
- */
-
 const FORBIDDEN_HEADING = "You don't have access to this page";
 
 const HR_ONLY_PAGES = [

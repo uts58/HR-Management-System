@@ -16,7 +16,6 @@ import {
 import { DeleteOrgUnitButton, OrgUnitForm } from "./org-unit-client";
 import { ORG_UNIT_COPY, type OrgUnitKind } from "./org-unit-copy";
 
-/** Shared body of /org/departments and /org/positions (form + list). */
 export function OrgUnitPage({
   kind,
   rows,

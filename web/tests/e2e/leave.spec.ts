@@ -3,8 +3,6 @@ import { expect, test, users } from "../support/fixtures";
 import { expectFieldError } from "../support/pages/common";
 import { fullName, uid } from "../support/users";
 
-/** Feature map rows 24–29 (legacy /addLeave, saveLeave, viewLeave, displayLeave, assignLeave, viewLeavebyAdmin). */
-
 test.describe("Apply for leave: validation", () => {
   test.beforeEach(async ({ employee }) => {
     await employee.page.goto("/dashboard");
@@ -85,7 +83,6 @@ test.describe("Leave: journeys", { tag: BACKEND_TAG }, () => {
     await hr.leave.openAll();
     await hr.leave.expectStatus(reason, "Approved");
 
-    // Dashboard notification, then "New" in history; seen once viewed.
     await lena.dashboard.goto();
     await expect(lena.dashboard.leaveNotification()).toHaveText(
       /Your leave request has been reviewed \(1\)/,

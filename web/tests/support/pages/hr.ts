@@ -8,7 +8,6 @@ import {
   Shell,
 } from "./common";
 
-/** /org/departments and /org/positions share one page shape. */
 export class OrgUnitPage {
   readonly dialog: ConfirmDialog;
   constructor(
@@ -109,7 +108,6 @@ export class LeavePages {
   applyForm = (): Locator =>
     this.page.getByRole("form", { name: "Apply for leave" });
 
-  // ---- Employee ----
   async openApply() {
     await new Shell(this.page).go("Apply for leave");
     await expectHeading(this.page, "Apply for leave");
@@ -149,7 +147,6 @@ export class LeavePages {
     await expectHeading(this.page, "My leave history");
   }
 
-  // ---- HR ----
   async openPending() {
     await new Shell(this.page).go("Pending requests");
     await expectHeading(this.page, "Pending leave requests");
@@ -252,7 +249,6 @@ export class DashboardPage {
     await expectHeading(this.page, /^Welcome, /);
   }
 
-  /** "Recent notices" card. */
   notices(): Locator {
     return this.page
       .getByRole("heading", { name: "Recent notices" })
@@ -263,7 +259,6 @@ export class DashboardPage {
     return this.notices().locator("summary", { hasText: title });
   }
 
-  /** HR: "Pending leave requests (N)"; employee: "Your leave request has been reviewed (N)". */
   leaveNotification(): Locator {
     return this.page.getByRole("main").getByRole("link", {
       name: /Pending leave requests \(\d+\)|Your leave request has been reviewed \(\d+\)/,

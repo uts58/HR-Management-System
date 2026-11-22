@@ -25,7 +25,6 @@ import { DeleteAppraisalButton } from "./appraisal-client";
 
 export const metadata: Metadata = { title: "Appraisals" };
 
-/** HR only. */
 export default async function AppraisalsPage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

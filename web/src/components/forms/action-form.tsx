@@ -31,7 +31,6 @@ const FormContext = createContext<FormContextValue>({
   pending: false,
 });
 
-/** Field errors for one input, from the last action result. */
 export function useFieldErrors(name: string): string[] | undefined {
   return useContext(FormContext).fieldErrors[name];
 }
@@ -40,7 +39,6 @@ export function useFormPending(): boolean {
   return useContext(FormContext).pending;
 }
 
-/** FormData -> plain object (repeated keys become arrays), for Zod. */
 function formDataToObject(form: FormData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const key of new Set(form.keys())) {
@@ -52,38 +50,16 @@ function formDataToObject(form: FormData): Record<string, unknown> {
 
 interface ActionFormProps<T> {
   action: FormAction<T>;
-  /**
-   * The same Zod schema the server action uses (from @/lib/validation,
-   * ADR-0005). Runs before submit for instant, inline feedback; the server
-   * check stays authoritative. With a schema the form sets noValidate, so
-   * every error renders inline instead of as a browser bubble.
-   */
   schema?: z.ZodType;
   children: ReactNode;
-  /** Accessible name for the form (e.g. "Add department"). */
   "aria-label"?: string;
-  /** Success toast (ADR-0006 rule 4). Omit when onSuccess takes over. */
   successMessage?: string;
-  /** Runs after a successful submit (e.g. show credentials, close a dialog). */
   onSuccess?: (data: T) => void;
-  /** Clear the inputs after success (create forms next to a list). */
   resetOnSuccess?: boolean;
-  /** Title of the form-level error alert. */
   errorTitle?: string;
   className?: string;
 }
 
-/**
- * Form wrapper for every mutation form (ADR-0006 rule 4):
- * - validates with the shared Zod schema first, when one is given;
- * - submits through `useActionState`, without React's automatic form reset,
- *   so values survive a failed submit;
- * - exposes `fieldErrors` to <FormField> via context, so errors render next
- *   to their inputs with aria-invalid / aria-describedby;
- * - shows `error.message` in a form-level alert and success as a toast
- *   (sonner's live region announces it; focus stays where it was);
- * - moves focus to the first invalid field, else to the alert (WCAG 3.3.1).
- */
 export function ActionForm<T>({
   action,
   schema,
@@ -173,7 +149,6 @@ export function ActionForm<T>({
   );
 }
 
-/** Submit button that shows the pending state of its <ActionForm>. */
 export function SubmitButton({
   children,
   pendingLabel = "Saving…",

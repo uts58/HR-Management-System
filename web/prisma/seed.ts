@@ -1,17 +1,3 @@
-/**
- * Dev and test seed for schema v2. Idempotent: every row is upserted on a fixed id, so re-running is safe.
- * Run from web/: `npm run db:seed` (prisma7.config.ts -> migrations.seed = "tsx prisma/seed.ts").
- *
- * Logins (dev only):
- *   admin       / Admin#12345     HR_ADMIN
- *   john.doe    / Employee#123    EMPLOYEE
- *   jane.smith  / Employee#123    EMPLOYEE (mustChangePassword = true, like a newly created employee)
- *   raj.patel   / Employee#123    EMPLOYEE
- *   mary.jones  (employee TERMINATED, users.disabledAt set, so login is blocked)
- *
- * Passwords are argon2id (@node-rs/argon2 defaults, the same parameters as src/auth/password.ts),
- * stored on the credential `account` row.
- */
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash as argon2Hash } from "@node-rs/argon2";
@@ -31,10 +17,9 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
 
-const d = (iso: string) => new Date(`${iso}T00:00:00Z`); // @db.Date values: UTC midnight
+const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
 async function main() {
-  // ---- Org --------------------------------------------------------------
   const departments = [
     "Human Resources",
     "Engineering",
@@ -62,7 +47,6 @@ async function main() {
     });
   }
 
-  // ---- Employees ----------------------------------------------------------
   const employees: Prisma.EmployeeUncheckedCreateInput[] = [
     {
       id: 1,
@@ -147,7 +131,6 @@ async function main() {
     });
   }
 
-  // ---- Auth users + credential accounts -------------------------------------
   const adminHash = await argon2Hash("Admin#12345");
   const empHash = await argon2Hash("Employee#123");
   const users = [
@@ -195,7 +178,6 @@ async function main() {
       mustChangePassword: false,
       disabledAt: null,
     },
-    // Terminated: terminateEmployee sets users.disabled_at, which blocks login.
     {
       id: "seed-user-5",
       employeeId: 5,
@@ -230,7 +212,6 @@ async function main() {
     });
   }
 
-  // ---- Leave requests (one in each state) ---------------------------------------
   const leave: Prisma.LeaveRequestUncheckedCreateInput[] = [
     {
       id: 1,
@@ -286,7 +267,6 @@ async function main() {
     });
   }
 
-  // ---- Notices (one of each type) ------------------------------------------------
   const notices: Prisma.NoticeUncheckedCreateInput[] = [
     {
       id: 1,
@@ -315,7 +295,6 @@ async function main() {
     await prisma.notice.upsert({ where: { id: id! }, update: rest, create: n });
   }
 
-  // ---- Appraisals ---------------------------------------------------------------
   const appraisals: Prisma.AppraisalUncheckedCreateInput[] = [
     {
       id: 1,
@@ -351,7 +330,6 @@ async function main() {
     });
   }
 
-  // Explicit ids were used above, so move each sequence past MAX(id).
   for (const t of [
     "departments",
     "positions",

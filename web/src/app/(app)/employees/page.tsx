@@ -36,13 +36,11 @@ const FILTERS: { value: EmployeeStatusFilter; label: string }[] = [
   { value: "ALL", label: "All" },
 ];
 
-/** HR only. */
 export default async function EmployeesPage({
   searchParams,
 }: PageProps<"/employees">) {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);
-  // Unknown or missing ?status= falls back to ACTIVE (never an error).
   const { status } = listEmployeesFilterSchema.parse({
     status: (await searchParams).status,
   });

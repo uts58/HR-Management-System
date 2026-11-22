@@ -26,12 +26,6 @@ function NotRecorded() {
   );
 }
 
-/**
- * A calendar date (`YYYY-MM-DD`: date of birth, leave and project dates).
- * It has no time zone, so it is NEVER converted: the label is built from
- * the string itself ("2026-12-22" → "22 Dec 2026") without creating a Date,
- * and renders identically on server and client. Null shows "—".
- */
 export function CalendarDate({ value }: { value: IsoDate | string | null }) {
   if (!value) return <NotRecorded />;
   const match = ISO_DATE.exec(value);
@@ -44,7 +38,6 @@ export function CalendarDate({ value }: { value: IsoDate | string | null }) {
   );
 }
 
-/** Inclusive range ("22 Dec 2026 – 31 Dec 2026"); a single day shows once. */
 export function CalendarDateRange({
   start,
   end,

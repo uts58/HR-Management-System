@@ -1,11 +1,3 @@
-/**
- * Performance appraisals (contracts.md#performance). HR only; employees
- * cannot see appraisals.
- *
- * BUG-11: a missing employee is a VALIDATION error on `employeeId` (schema),
- * and so is an unknown or terminated employee (service).
- */
-
 import "server-only";
 
 import { Role } from "@/contracts/auth";
@@ -80,8 +72,6 @@ export const performanceService: PerformanceService = {
     assertRole(actor, Role.HR_ADMIN);
     const input = createAppraisalSchema.parse(raw);
     return db.$transaction(async (tx) => {
-      // A termination racing this insert is harmless: appraisal history of
-      // terminated employees is kept anyway (contract rule 4).
       const employee = await tx.employee.findFirst({
         where: {
           id: input.employeeId,

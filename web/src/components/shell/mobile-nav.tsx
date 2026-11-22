@@ -16,7 +16,6 @@ import {
 import { Brand } from "./brand";
 import { SidebarNav } from "./sidebar-nav";
 
-/** Below the md breakpoint the sidebar moves into a left sheet. */
 export function MobileNav({ role }: { role: Role }) {
   const [open, setOpen] = useState(false);
   return (

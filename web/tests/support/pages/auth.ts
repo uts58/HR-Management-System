@@ -26,7 +26,6 @@ export class LoginPage {
     await this.submit().click();
   }
 
-  /** Form-level error after a refused sign-in (always generic, ADR-0004). */
   async expectError(text: string | RegExp) {
     await expect(
       this.page.getByRole("form", { name: "Sign in" }).getByRole("alert"),
@@ -39,7 +38,6 @@ export class ChangePasswordPage {
 
   form = (): Locator =>
     this.page.getByRole("form", { name: "Change password" });
-  /** "Current password", or "Temporary or current password" on the forced page. */
   current = (): Locator => this.form().getByLabel(/current password/i);
   next = (): Locator => this.form().getByLabel("New password", { exact: true });
   confirm = (): Locator => this.form().getByLabel("Confirm new password");

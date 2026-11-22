@@ -15,11 +15,6 @@ export interface Crumb {
   href?: string;
 }
 
-/**
- * Top of every page: optional breadcrumbs, the page's single <h1>, a short
- * description and page-level actions (buttons/links), which wrap below the
- * title on narrow screens.
- */
 export function PageHeader({
   title,
   description,

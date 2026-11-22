@@ -17,17 +17,8 @@ import {
   hashPassword,
 } from "./password";
 
-/**
- * AccountAdminApi (contract): server-only helpers the employee
- * service calls inside its own transaction. They write Better Auth's tables
- * directly with the caller's `tx` (auth.api can't join an outside
- * transaction), using the same argon2id hash as the Better Auth config.
- */
-
 export const PLACEHOLDER_EMAIL_DOMAIN = "users.invalid";
 const USERNAME_RE = new RegExp(USERNAME_PATTERN);
-// Deliberately loose: Better Auth only needs uniqueness; the employee
-// record keeps the contact email as entered.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function asTx(tx: unknown): TxClient {
@@ -49,7 +40,6 @@ function isUniqueViolation(err: unknown, field: string): boolean {
   return target.includes(field);
 }
 
-/** Pick the user's auth email: the real one if usable and free, else the placeholder. */
 async function chooseEmail(
   tx: TxClient,
   username: string,
@@ -119,7 +109,6 @@ async function createLoginAccount<Tx>(
       },
     });
   } catch (err) {
-    // Concurrent create with the same username (or email) slipped past the checks above.
     if (isUniqueViolation(err, "username")) throw conflict();
     throw err;
   }
@@ -179,7 +168,6 @@ async function disableLogin<Tx>(txArg: Tx, userId: UserId): Promise<void> {
   });
   if (!user)
     throw new AuthServiceError("NOT_FOUND", "Login account not found.");
-  // Keep the first disable time if it was already disabled.
   await tx.user.updateMany({
     where: { id: userId, disabledAt: null },
     data: { disabledAt: new Date() },
@@ -189,7 +177,6 @@ async function disableLogin<Tx>(txArg: Tx, userId: UserId): Promise<void> {
 
 export const DISPLAY_NAME_MAX_LENGTH = 200;
 
-/** Trimmed display name, or a VALIDATION error. Exported for unit tests. */
 export function normaliseDisplayName(name: unknown): string {
   const trimmed =
     typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
@@ -203,7 +190,6 @@ export function normaliseDisplayName(name: unknown): string {
       name: [`Use at most ${DISPLAY_NAME_MAX_LENGTH} characters.`],
     });
   }
-  // Control characters (incl. newlines) never belong in a header name.
   if (/[\u0000-\u001f\u007f]/.test(trimmed)) {
     throw new AuthServiceError("VALIDATION", "Display name is invalid.", {
       name: ["Display name contains invalid characters."],
@@ -212,10 +198,6 @@ export function normaliseDisplayName(name: unknown): string {
   return trimmed;
 }
 
-/**
- * Sets Better Auth's `user.name` (header/menu name) when HR renames an
- * employee. Never touches the username. NOT_FOUND for an unknown user.
- */
 async function updateDisplayName<Tx>(
   txArg: Tx,
   userId: UserId,
@@ -232,12 +214,6 @@ async function updateDisplayName<Tx>(
   }
 }
 
-/**
- * Replaces the user's password with one an operator chose (the create-admin
- * CLI), inside the caller's transaction. Checks the password policy (rule 5)
- * and clears mustChangePassword. Not part of AccountAdminApi: HR never sets
- * someone else's password, they issue a temporary one.
- */
 export async function setInitialPassword<Tx>(
   txArg: Tx,
   userId: UserId,

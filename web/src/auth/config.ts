@@ -25,13 +25,6 @@ function limiterKey(
   return LoginFailureLimiter.key(ip, attemptedUsername);
 }
 
-/**
- * The only Better Auth HTTP endpoints we serve. Everything else Better Auth
- * ships (/sign-in/email, /sign-up/email, /update-user, /change-password,
- * password reset, account linking, ...) would bypass our rules, so it is
- * disabled here and rejected by the route handler's allowlist too.
- * Server-side `auth.api.*` calls are not affected by `disabledPaths`.
- */
 export const ALLOWED_AUTH_PATHS = [
   "/sign-in/username",
   "/sign-out",
@@ -68,7 +61,6 @@ const DISABLED_PATHS = [
   "/revoke-other-sessions",
 ];
 
-/** Same response as a wrong password, so disabled accounts can't be told apart. */
 function invalidCredentials(): APIError {
   return APIError.from(
     "UNAUTHORIZED",
@@ -76,8 +68,6 @@ function invalidCredentials(): APIError {
   );
 }
 
-// env is validated at boot (instrumentation.ts). The optional chaining only
-// keeps this module importable in unit tests, where validation is skipped.
 const secureCookies = env.BETTER_AUTH_URL?.startsWith("https://") ?? false;
 
 function setMustChangeHint(
@@ -111,7 +101,6 @@ function createAuth() {
 
     emailAndPassword: {
       enabled: true,
-      // HR creates accounts (AccountAdminApi). No self sign-up.
       disableSignUp: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
       maxPasswordLength: PASSWORD_MAX_LENGTH,
@@ -122,10 +111,8 @@ function createAuth() {
     },
 
     user: {
+      // Every field must stay input: false, or users could set their own role or employeeId.
       additionalFields: {
-        // All input: false. If any of these were writable through an endpoint,
-        // a user could clear their own forced change or point employeeId at
-        // someone else's record.
         role: {
           type: "string",
           required: false,
@@ -155,25 +142,17 @@ function createAuth() {
     },
 
     session: {
-      // Database sessions, read on every request (cookie cache off) so role
-      // changes and terminations apply immediately. ADR-0004.
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
       cookieCache: { enabled: false },
     },
 
     rateLimit: {
-      // On in every environment (Better Auth's default is production only).
-      // In-memory storage is fine for one container; switch to "database"
-      // if we ever run more than one.
       enabled: true,
       storage: "memory",
       window: 60,
       max: 100,
       customRules: {
-        // Per client IP, all attempts: loose enough for a whole office
-        // behind one NAT address. The tighter limit is per username + IP
-        // (10 failures / 60 s, login-limiter.ts, enforced in the hooks).
         "/sign-in/username": { window: 60, max: 50 },
       },
     },
@@ -183,8 +162,7 @@ function createAuth() {
     advanced: {
       useSecureCookies: secureCookies,
       ipAddress: {
-        // Caddy overwrites X-Forwarded-For with the single TCP peer address
-        // (docs/platform/deployment.md), so it is the one header we trust.
+        // Caddy overwrites X-Forwarded-For with the TCP peer, so it is the one header we trust.
         ipAddressHeaders: ["x-forwarded-for"],
       },
       database: {
@@ -201,8 +179,6 @@ function createAuth() {
         };
         if (typeof body.username !== "string") return;
 
-        // Per username + IP failure limit (HTTP requests only, like Better
-        // Auth's own limiter; server-side auth.api calls have no client).
         if (ctx.request) {
           const key = limiterKey(ctx, body.username);
           const retryAfter = loginFailureLimiter.retryAfterSeconds(key);
@@ -249,7 +225,6 @@ function createAuth() {
               returned instanceof APIError &&
               returned.status === "UNAUTHORIZED"
             ) {
-              // Wrong password, unknown user, disabled account: all count.
               loginFailureLimiter.recordFailure(key);
             }
           }
@@ -257,9 +232,6 @@ function createAuth() {
           const mustChange = (
             newSession.user as { mustChangePassword?: unknown }
           ).mustChangePassword;
-          // Hint for proxy.ts only (no DB access there); set or clear it so a
-          // stale value from an earlier sign-in never sticks. The
-          // authoritative check is in requireSession/requireRole.
           setMustChangeHint(ctx, mustChange === true);
           return;
         }
@@ -276,11 +248,6 @@ export type Auth = ReturnType<typeof createAuth>;
 
 let instance: Auth | undefined;
 
-/**
- * The Better Auth instance, created on first use rather than at import, so
- * `next build` (which evaluates route modules without runtime secrets)
- * never constructs it. At runtime env.ts has already validated the secret.
- */
 export function getAuth(): Auth {
   instance ??= createAuth();
   return instance;

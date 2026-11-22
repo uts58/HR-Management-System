@@ -16,10 +16,6 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-/**
- * Login (feature map rows 1–2). Layout by Frontend; the form logic is
- * Security's. [CHANGE] No notices here: they moved behind login.
- */
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const session = await getSession();
   if (session) {

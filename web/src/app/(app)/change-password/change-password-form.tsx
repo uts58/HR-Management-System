@@ -13,20 +13,12 @@ import {
   changePasswordSchema,
 } from "@/lib/validation";
 
-/**
- * Change password (feature map rows 5–6). Fields = ChangePasswordInput.
- * Errors land on the right field: wrong current password → currentPassword,
- * mismatch → confirmPassword, policy → newPassword.
- */
 export function ChangePasswordForm({
   forced: forcedProp,
 }: {
   forced: boolean;
 }) {
   const router = useRouter();
-  // The action clears mustChangePassword and the page re-renders with
-  // forced=false before onSuccess runs, so remember the value we started
-  // with: a forced change must still leave for the dashboard.
   const [forced] = useState(forcedProp);
   return (
     <ActionForm
@@ -40,8 +32,6 @@ export function ChangePasswordForm({
       }
       resetOnSuccess
       onSuccess={() => {
-        // The forced change leaves the restricted shell; a normal change
-        // stays here (other sessions were signed out).
         if (forced) {
           router.replace(DASHBOARD_PATH);
           router.refresh();

@@ -41,14 +41,12 @@ describe("buildCsp", () => {
     expect(d.get("frame-ancestors")).toBe("'none'");
     expect(d.has("upgrade-insecure-requests")).toBe(true);
     expect(buildCsp(prod)).not.toContain("unsafe-eval");
-    // No 'unsafe-inline' for scripts.
     expect(d.get("script-src")).not.toContain("unsafe-inline");
   });
 
   it("styles allow inline (sonner <style>, style attributes) without a nonce", () => {
     const style = directives(buildCsp(prod)).get("style-src")!;
     expect(style).toBe("'self' 'unsafe-inline'");
-    // A nonce here would make browsers ignore 'unsafe-inline'.
     expect(style).not.toContain("nonce-");
   });
 

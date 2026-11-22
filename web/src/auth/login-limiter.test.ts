@@ -18,7 +18,7 @@ describe("LoginFailureLimiter", () => {
     c.advance(59_500);
     expect(l.retryAfterSeconds(key)).toBe(1);
     c.advance(500);
-    expect(l.retryAfterSeconds(key)).toBe(0); // window over
+    expect(l.retryAfterSeconds(key)).toBe(0);
   });
 
   it("keys on both IP and (case-insensitive) username", () => {

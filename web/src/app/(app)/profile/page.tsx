@@ -14,14 +14,8 @@ import { isServiceError } from "@/server/errors";
 
 export const metadata: Metadata = { title: "My profile" };
 
-/**
- * Feature map row 14 (legacy /hr/viewProfile, and HR's "View Profile").
- * Read-only for everyone (parity: nobody edits their own details).
- */
 export default async function ProfilePage() {
   const session = await requireSession({ onFail: "redirect" });
-  // NOT_FOUND means the account has no employee record: show the
-  // explanation below instead of a generic 404.
   const profile = await employeeService
     .getMyProfile(toActor(session))
     .catch((e: unknown) => {

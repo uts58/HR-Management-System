@@ -3,8 +3,6 @@ import { expect, test, users } from "../support/fixtures";
 import { expectFieldError, expectToast } from "../support/pages/common";
 import { fullName, uid } from "../support/users";
 
-/** Feature map rows 30–33 (legacy /addPerformance, savePerformance, viewPerformance, deletePerformance). */
-
 test.describe("Add appraisal: validation", () => {
   test.beforeEach(async ({ hr }) => {
     await hr.page.goto("/dashboard");
@@ -27,8 +25,6 @@ test.describe("Add appraisal: validation", () => {
   });
 
   test("an end date before the start date is rejected", async ({ hr }) => {
-    // The date-order rule is cross-field: it only runs once every other field
-    // is valid, so pick an employee (the first real option) first.
     await hr.appraisals
       .form()
       .getByLabel("Employee")

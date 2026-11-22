@@ -1,11 +1,3 @@
-/**
- * Service integration-test helpers (real Postgres, ADR-0008).
- *
- * Needs DATABASE_URL pointing at a throwaway, migrated database whose name
- * ends in `_test` or `_it`; anything else is refused, because every test
- * truncates all tables.
- */
-
 import { randomUUID } from "node:crypto";
 import type { AccountAdminApi } from "@/contracts/auth";
 import type { Actor } from "@/contracts/common";
@@ -49,7 +41,6 @@ export async function makeEmployee(
   });
 }
 
-/** A users row linked to an employee. */
 export async function makeUser(
   employeeId: number | null,
   role: "HR_ADMIN" | "EMPLOYEE",
@@ -60,7 +51,6 @@ export async function makeUser(
   return db.user.create({
     data: {
       id,
-      // Every real account has a credential row (the hash is irrelevant here).
       accounts: {
         create: {
           id: randomUUID(),
@@ -80,7 +70,6 @@ export async function makeUser(
   });
 }
 
-/** Employee + user, returned with the matching Actor. */
 export async function makePerson(
   role: "HR_ADMIN" | "EMPLOYEE",
   data: Partial<Prisma.EmployeeUncheckedCreateInput> = {},
@@ -91,11 +80,6 @@ export async function makePerson(
   return { employee, user, actor };
 }
 
-/**
- * The real AccountAdminApi, wrapped to record calls. It writes
- * through the caller's transaction client. `failOn` makes one method throw
- * after the real call, to prove the employee change rolls back with it.
- */
 export function recordingAccountAdmin(failOn?: keyof AccountAdminApi): {
   api: AccountAdminApi;
   calls: string[];
@@ -131,7 +115,6 @@ export function recordingAccountAdmin(failOn?: keyof AccountAdminApi): {
   return { api, calls };
 }
 
-/** Await a promise expected to reject with a ServiceError-like error. */
 export async function rejection(p: Promise<unknown>) {
   try {
     await p;

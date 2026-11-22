@@ -25,7 +25,6 @@ describe("leaveService", () => {
     const { emp, empId } = await setup();
     const r = await leaveService.applyForLeave(emp, {
       ...request,
-      // An employee id in the input is ignored (never read from input).
       employeeId: 999,
     } as typeof request);
     expect(r).toMatchObject({
@@ -108,11 +107,11 @@ describe("leaveService", () => {
   it("unseen decisions are counted and only cleared by markMyLeaveDecisionsSeen", async () => {
     const { hr, emp } = await setup();
     const a = await leaveService.applyForLeave(emp, request);
-    await leaveService.applyForLeave(emp, request); // stays PENDING
+    await leaveService.applyForLeave(emp, request);
     await leaveService.decideLeaveRequest(hr, a.id, "REJECTED");
 
     expect(await leaveService.countMyUnseenDecisions(emp)).toBe(1);
-    await leaveService.listMyLeaveRequests(emp); // reads have no side effect
+    await leaveService.listMyLeaveRequests(emp);
     expect(await leaveService.countMyUnseenDecisions(emp)).toBe(1);
     expect(await leaveService.markMyLeaveDecisionsSeen(emp)).toBe(1);
     expect(await leaveService.countMyUnseenDecisions(emp)).toBe(0);

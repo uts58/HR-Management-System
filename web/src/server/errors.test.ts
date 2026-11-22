@@ -20,7 +20,6 @@ import {
   validationError,
 } from "./errors";
 
-/** A P2002 shaped exactly like Prisma 7 + @prisma/adapter-pg produces it. */
 function adapterUniqueViolation(
   constraint: { index: string } | { fields: string[] },
   table = "departments",

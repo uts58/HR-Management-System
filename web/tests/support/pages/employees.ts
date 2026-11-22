@@ -13,7 +13,7 @@ export interface EmployeeInput {
   firstName: string;
   middleName?: string;
   lastName: string;
-  dateOfBirth: string; // YYYY-MM-DD
+  dateOfBirth: string;
   maritalStatus: "Single" | "Married" | "Divorced";
   gender: "Male" | "Female";
   department: string;
@@ -36,7 +36,6 @@ export class EmployeesPage {
     this.dialog = new ConfirmDialog(page);
   }
 
-  // ---- List (/employees) ----
   async openList() {
     await new Shell(this.page).go("Manage employees");
     await expectHeading(this.page, "Employees");
@@ -60,7 +59,6 @@ export class EmployeesPage {
     return row(this.page, name);
   }
 
-  /** `heading` differs from the list name: the page title is "first last", without the middle name. */
   async openDetails(fullName: string, heading: string | RegExp = fullName) {
     await this.row(fullName)
       .getByRole("link", { name: fullName, exact: true })
@@ -68,7 +66,6 @@ export class EmployeesPage {
     await expectHeading(this.page, heading);
   }
 
-  // ---- Create (/employees/new) ----
   form = (name: "Add employee" | "Edit employee"): Locator =>
     this.page.getByRole("form", { name });
 
@@ -114,7 +111,6 @@ export class EmployeesPage {
     await form.getByRole("button", { name: "Add employee" }).click();
   }
 
-  /** One-time credentials panel after create / reset (CredentialsPanel). */
   async readCredentials(
     panelName: "Temporary login" | "New temporary password" = "Temporary login",
   ): Promise<IssuedCredentials> {
@@ -131,7 +127,6 @@ export class EmployeesPage {
     };
   }
 
-  // ---- Edit (/employees/[id]/edit) ----
   async openEdit(fullName: string) {
     await this.row(fullName)
       .getByRole("link", { name: `Edit ${fullName}`, exact: true })
@@ -146,7 +141,6 @@ export class EmployeesPage {
     await expectToast(this.page, "Employee details saved.");
   }
 
-  // ---- Account actions ----
   async terminate(fullName: string) {
     await this.page
       .getByRole("button", { name: `Terminate ${fullName}` })

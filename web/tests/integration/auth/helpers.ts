@@ -1,7 +1,3 @@
-/**
- * Fixtures for the auth integration tests. Self-contained: does not use the shared E2E fixtures. Needs DATABASE_URL pointing at
- * a throwaway, migrated database: every test truncates the tables it uses.
- */
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/auth/db";
 import { hashPassword } from "@/auth/password";
@@ -18,7 +14,6 @@ export async function resetDb(): Promise<void> {
 }
 
 let ipCounter = 0;
-/** A fresh client IP per call, so the per-IP rate limit never couples tests. */
 export function freshIp(): string {
   ipCounter += 1;
   return `198.51.${Math.floor(ipCounter / 250)}.${(ipCounter % 250) + 1}`;
@@ -43,7 +38,6 @@ export async function createEmployee(
   return e.id;
 }
 
-/** User with a known argon2id password, or no credential at all. */
 export async function createUser(opts: {
   username: string;
   password?: string;
@@ -86,7 +80,6 @@ export async function createUser(opts: {
 export interface SignInResult {
   status: number;
   body: Record<string, unknown>;
-  /** "name=value" pairs from Set-Cookie, for the Cookie header. */
   cookie: string;
   setCookies: string[];
 }
@@ -115,9 +108,7 @@ export async function signIn(
   let body: Record<string, unknown> = {};
   try {
     body = (await res.json()) as Record<string, unknown>;
-  } catch {
-    // empty body (e.g. 429)
-  }
+  } catch {}
   return { status: res.status, body, cookie, setCookies };
 }
 

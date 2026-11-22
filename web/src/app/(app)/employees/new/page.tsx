@@ -10,7 +10,6 @@ import { EmployeeForm } from "../_components/employee-form";
 
 export const metadata: Metadata = { title: "Add employee" };
 
-/** HR only. */
 export default async function NewEmployeePage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

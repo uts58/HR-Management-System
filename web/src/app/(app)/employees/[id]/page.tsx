@@ -21,7 +21,6 @@ import {
 
 export const metadata: Metadata = { title: "Employee details" };
 
-/** HR only. */
 export default async function EmployeeDetailPage({
   params,
 }: PageProps<"/employees/[id]">) {

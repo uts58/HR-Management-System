@@ -3,14 +3,6 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import { hash as argon2Hash, verify as argon2Verify } from "@node-rs/argon2";
 
-/**
- * Password hashing for Better Auth (`emailAndPassword.password`) and for
- * AccountAdminApi, which writes hashes inside the caller's transaction.
- *
- * New hashes: argon2id at the OWASP baseline (m = 19 MiB, t = 2, p = 1).
- * The @node-rs/argon2 default algorithm is argon2id; tests assert the
- * `$argon2id$` prefix. Verify accepts argon2id only.
- */
 export const ARGON2_OPTIONS = {
   memoryCost: 19_456, // KiB = 19 MiB
   timeCost: 2,
@@ -26,15 +18,10 @@ export function isArgon2idHash(stored: string): boolean {
   return stored.startsWith(ARGON2ID_PREFIX);
 }
 
-/** argon2id hash of `password`. */
 export function hashPassword(password: string): Promise<string> {
   return argon2Hash(password, ARGON2_OPTIONS);
 }
 
-/**
- * true if `password` matches the argon2id `hash`. Other formats,
- * malformed hashes and plain text never match, and this never throws.
- */
 export async function verifyPassword({
   hash,
   password,
@@ -50,12 +37,10 @@ export async function verifyPassword({
   }
 }
 
-// No look-alike characters (0/O, 1/l/I), so HR can read it out.
 const TEMP_ALPHABET =
   "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const TEMPORARY_PASSWORD_LENGTH = 16;
 
-/** Random temporary password (CSPRNG, ~92 bits). Shown once, never stored in plain text. */
 export function generateTemporaryPassword(): string {
   let out = "";
   for (let i = 0; i < TEMPORARY_PASSWORD_LENGTH; i++) {
@@ -66,10 +51,6 @@ export function generateTemporaryPassword(): string {
 
 export type PasswordPolicyField = "newPassword" | "confirmPassword";
 
-/**
- * Policy for passwords users choose (contract Auth rule 5). Returns field
- * errors, or null when the password is acceptable.
- */
 export function checkPasswordPolicy(input: {
   newPassword: string;
   confirmPassword: string;

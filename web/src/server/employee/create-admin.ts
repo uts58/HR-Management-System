@@ -1,16 +1,3 @@
-/**
- * Bootstrap of the first HR admin (`npm run create-admin`, scripts/create-admin.ts).
- *
- * Idempotent: if the username already belongs to an HR admin, nothing changes
- * (the password is NOT reset). A username held by a non-admin is a CONFLICT;
- * this never promotes an existing account.
- *
- * Otherwise, in one transaction: an ACTIVE employee, then the login account
- * through AccountAdminApi.createLoginAccount (role HR_ADMIN), then the
- * operator's password through setInitialPassword (policy-checked, no forced
- * change). Any failure rolls back all of it.
- */
-
 import "server-only";
 
 import { Role, type AccountAdminApi } from "@/contracts/auth";

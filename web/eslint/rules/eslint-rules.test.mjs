@@ -1,5 +1,3 @@
-// Tests for the lint tooling: the local server-actions rule and
-// the import-boundary configuration in eslint.config.mjs.
 import path from "node:path";
 import { ESLint, RuleTester } from "eslint";
 import tsParser from "@typescript-eslint/parser";
@@ -32,9 +30,7 @@ ruleTester.run("hr/server-actions", rule, {
     {
       code: `"use server";\n${imp}export type Input = { id: string };\nexport interface Out { ok: boolean }\nexport type { Foo } from "./foo";\nexport const a = defineAction({ role: "HR_ADMIN" });`,
     },
-    // Not a 'use server' file: anything goes (except inline directives).
     { code: `export function helper() { return 1; }` },
-    // 'use server' that is not the leading directive does not count.
     { code: `"use client";\nexport function f() {}` },
   ],
   invalid: [
@@ -75,7 +71,6 @@ ruleTester.run("hr/server-actions", rule, {
       errors: [{ messageId: "notDefineAction" }],
     },
     {
-      // Locally defined lookalike.
       code: `"use server";\nconst defineAction = (c) => c;\nexport const x = defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "defineActionNotImported" }],
     },
@@ -84,7 +79,6 @@ ruleTester.run("hr/server-actions", rule, {
       errors: [{ messageId: "defineActionNotImported" }],
     },
     {
-      // Only @/server/action is allowed (ADR-0002), not lib/.
       code: `"use server";\nimport { defineAction } from "@/lib/action";\nexport const x = defineAction({ role: "HR_ADMIN" });`,
       errors: [{ messageId: "defineActionNotImported" }],
     },
@@ -103,7 +97,6 @@ ruleTester.run("hr/server-actions", rule, {
   ],
 });
 
-// --- defineAction role checks (PUBLIC only in src/auth) --------------------
 const srcRoot = path.resolve(import.meta.dirname, "..", "..", "src");
 const authActions = path.join(srcRoot, "auth", "actions.ts");
 const appActions = path.join(srcRoot, "app", "employees", "actions.ts");
@@ -120,7 +113,6 @@ ruleTester.run("hr/server-actions (roles)", rule, {
     action('role: "ANY", allowPendingPasswordChange: true,'),
     action('role: "PUBLIC",', authActions),
     action("role: `PUBLIC`,", authActions),
-    // Inside src/auth, nested folders count too.
     action('role: "PUBLIC",', path.join(srcRoot, "auth", "sign-in", "a.ts")),
   ],
   invalid: [
@@ -147,23 +139,17 @@ ruleTester.run("hr/server-actions (roles)", rule, {
         errors: [{ messageId: "configNotInline" }],
       },
       {
-        // Also checked outside 'use server' files.
         code: `${imp}const a = defineAction({ role: "PUBLIC", schema, handler });`,
         filename: path.join(srcRoot, "server", "x.ts"),
         errors: [{ messageId: "publicOutsideAuth" }],
       },
       {
-        // A look-alike directory name is not src/auth.
         ...action('role: "PUBLIC",', path.join(srcRoot, "authz", "a.ts")),
         errors: [{ messageId: "publicOutsideAuth" }],
       },
     ]),
 });
 
-// ---------------------------------------------------------------------------
-// hr/contracts-imports
-// ---------------------------------------------------------------------------
-// RuleTester needs absolute filenames (they need not exist).
 const srcDir = path.resolve(import.meta.dirname, "..", "..", "src");
 const contractFile = path.join(srcDir, "contracts", "leave.ts");
 const nestedContractFile = path.join(srcDir, "contracts", "sub", "x.ts");
@@ -178,7 +164,6 @@ ruleTester.run("hr/contracts-imports", contractsRule, {
     c('export * from "./common";\nexport { Role } from "./auth";'),
     c('export const LEAVE_TYPES = ["SICK"] as const;'),
     c('export type T = import("./common").Actor;'),
-    // Rule is inert outside src/contracts (config also scopes it).
     c('import { z } from "zod";', libFile),
   ],
   invalid: [
@@ -236,9 +221,6 @@ describe("contracts rule is wired to src/contracts in eslint.config.mjs", () => 
   });
 });
 
-// ---------------------------------------------------------------------------
-// Import boundaries, exercised through the real eslint.config.mjs.
-// ---------------------------------------------------------------------------
 const webRoot = path.resolve(import.meta.dirname, "..", "..");
 const eslint = new ESLint({ cwd: webRoot });
 
@@ -269,7 +251,6 @@ const AUTH_IMPORTS = [
 
 describe("import boundaries", () => {
   const cases = [
-    // file, allowDb, allowAuth
     ["src/app/employees/page.tsx", false, false],
     ["src/components/thing.tsx", false, false],
     ["src/lib/validation/employee.ts", false, false],

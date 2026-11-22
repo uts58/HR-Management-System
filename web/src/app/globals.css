@@ -55,13 +55,6 @@
 }
 
 :root {
-  /*
-   * HR admin palette. Neutral surfaces with a calm blue primary. Every
-   * text/background pair used by components meets WCAG 2.2 AA (4.5:1 for
-   * body text, 3:1 for large text and UI boundaries). Status colours
-   * (success / warning / info / destructive) are used as text on a ~12%
-   * tint of themselves, so their foreground values are dark enough for that.
-   */
   --background: oklch(0.99 0.002 250);
   --foreground: oklch(0.2 0.02 260);
   --card: oklch(1 0 0);
@@ -156,7 +149,6 @@
   html.dark {
     color-scheme: dark;
   }
-  /* Respect users who ask the OS for less motion. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

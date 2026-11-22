@@ -11,7 +11,6 @@ import { defineAction } from "@/server/action";
 import { revalidateApp } from "@/server/revalidate";
 import { employeeService } from "@/server/employee/service";
 
-/** Returns the new employee and the one-time credentials to show HR. */
 export const createEmployee = defineAction({
   role: Role.HR_ADMIN,
   schema: createEmployeeSchema,
@@ -22,7 +21,6 @@ export const createEmployee = defineAction({
   },
 });
 
-/** Input `{ id, ...fields }` (ADR-0002 action input convention). */
 export const updateEmployee = defineAction({
   role: Role.HR_ADMIN,
   schema: updateEmployeeActionSchema,
@@ -43,7 +41,6 @@ export const terminateEmployee = defineAction({
   },
 });
 
-/** Returns the one-time credentials to show HR. */
 export const resetEmployeePassword = defineAction({
   role: Role.HR_ADMIN,
   schema: resetEmployeePasswordSchema,

@@ -29,10 +29,7 @@ function CopyValue({ label, value }: { label: string; value: string }) {
               await navigator.clipboard.writeText(value);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
-            } catch {
-              // Clipboard can be blocked (insecure origin, permissions).
-              // The value stays selectable, so the user can copy by hand.
-            }
+            } catch {}
           }}
         >
           {copied ? <CheckIcon /> : <CopyIcon />}
@@ -42,11 +39,6 @@ function CopyValue({ label, value }: { label: string; value: string }) {
   );
 }
 
-/**
- * One-time credentials after "create employee" or "reset password"
- * (contracts.md Employee rule 2). Lives only in client state: it is never
- * written to the URL or storage, and a reload loses it on purpose.
- */
 export function CredentialsPanel({
   credentials,
   heading = "Temporary login",

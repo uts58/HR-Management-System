@@ -55,7 +55,6 @@ describe("orgService", () => {
       code: "CONFLICT",
       fieldErrors: { name: ["A department with this name already exists"] },
     });
-    // Positions are a separate namespace.
     await expect(
       orgService.createPosition(hr, { name: "finance" }),
     ).resolves.toMatchObject({ name: "finance" });

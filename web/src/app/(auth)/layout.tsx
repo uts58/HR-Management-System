@@ -1,6 +1,5 @@
 import { Brand } from "@/components/shell/brand";
 
-/** Centred card layout for anonymous pages (login). No app navigation. */
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <main

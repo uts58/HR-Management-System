@@ -1,23 +1,7 @@
-/**
- * Shared primitives for all service contracts.
- *
- * Rules for everything under web/src/contracts/ (see ADR-0003, ADR-0006):
- * - Framework-agnostic: no imports from next, better-auth, Prisma, zod or
- *   react.
- * - Type-only, except `as const` tuples/objects that model enums. These
- *   exist so that Zod schemas (web/src/lib/validation) and UI selects use
- *   the same values.
- * - No logic.
- */
-
 import type { Role } from "./auth";
 
-// ─── Identifiers ────────────────────────────────────────────────────────────
-
-/** Employee primary key. */
 export type EmployeeId = number;
 
-/** Login account primary key. Opaque string (Better Auth user id). */
 export type UserId = string;
 
 export type DepartmentId = number;
@@ -26,27 +10,9 @@ export type LeaveRequestId = number;
 export type NoticeId = number;
 export type AppraisalId = number;
 
-// ─── Dates (ADR-0007) ───────────────────────────────────────────────────────
-
-/**
- * Calendar date with no time or zone, formatted `YYYY-MM-DD`.
- * Used for date of birth, leave start/end and project begin/end.
- * Never pass these through `new Date(...)` for arithmetic or display: a zone
- * shift can move the day. Use the helpers in web/src/lib/dates.ts.
- */
 export type IsoDate = string & { readonly __brand: "IsoDate" };
 
-/**
- * A point in time (createdAt, decidedAt) as an ISO-8601 UTC string ending
- * in `Z`, e.g. "2026-11-18T09:30:00.000Z". Stored as timestamptz (UTC);
- * services convert Prisma's `Date` with `toIsoInstant()` at the boundary,
- * so read models are plain JSON-safe strings, never `Date`. Rendered in the
- * viewer's browser time zone by the client time component; there is no
- * company time zone (ADR-0007, user decision 2026-11-18).
- */
 export type UtcTimestamp = string & { readonly __brand: "UtcTimestamp" };
-
-// ─── Errors and results (ADR-0006) ──────────────────────────────────────────
 
 export const ERROR_CODES = [
   "VALIDATION", // input failed Zod or a business rule tied to a field
@@ -58,28 +24,17 @@ export const ERROR_CODES = [
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
-/** Field name -> messages. Keys match form field / input property names. */
 export type FieldErrors = Partial<Record<string, string[]>>;
 
 export interface AppError {
   code: ErrorCode;
-  /** Safe to show to the user. Never contains stack traces, SQL or secrets. */
   message: string;
   fieldErrors?: FieldErrors;
 }
 
-/**
- * What every server action returns to the client.
- * Services throw; actions return this.
- */
 export type ActionResult<T = void> =
   { ok: true; data: T } | { ok: false; error: AppError };
 
-/**
- * Shape of the error class services throw (implemented in
- * web/src/server/errors.ts as
- * `class ServiceError extends Error implements ServiceErrorShape`).
- */
 export interface ServiceErrorShape {
   readonly name: "ServiceError";
   readonly code: Exclude<ErrorCode, "UNAUTHENTICATED" | "INTERNAL">;
@@ -87,24 +42,12 @@ export interface ServiceErrorShape {
   readonly fieldErrors?: FieldErrors;
 }
 
-// ─── Actor ──────────────────────────────────────────────────────────────────
-
-/**
- * Who is calling a service. Built by the server action from the session
- * that `requireRole()` returns, and passed as the first argument to every
- * service function. Services never read cookies or call getSession()
- * themselves, which keeps them testable with plain Vitest.
- */
 export interface Actor {
   userId: UserId;
-  /** null only for accounts with no employee record. */
   employeeId: EmployeeId | null;
   role: Role;
 }
 
-// ─── Misc ───────────────────────────────────────────────────────────────────
-
-/** Small {id, label} pair for selects (department, position, employee). */
 export interface Option<TId extends string | number = number> {
   id: TId;
   label: string;

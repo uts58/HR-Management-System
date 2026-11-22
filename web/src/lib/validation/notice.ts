@@ -1,5 +1,3 @@
-/** Notice input schemas (contracts.md#notice). */
-
 import { z } from "zod";
 import { NOTICE_TYPES, type CreateNoticeInput } from "@/contracts/notice";
 import { enumField, idInputSchema, requiredText } from "./common";

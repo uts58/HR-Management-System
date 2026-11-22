@@ -1,15 +1,3 @@
-/**
- * Departments and positions (contracts.md#org).
- *
- * - Names are unique case-insensitively via hand-written
- *   `lower(name)` indexes. The service checks first (same `lower()` the
- *   index uses) and also maps the index's P2002 from the insert (a race) to
- *   the same CONFLICT on `name`.
- * - Deleting an in-use row is CONFLICT ("N employees are assigned…").
- *   Terminated employees count. The service checks first and also converts
- *   a P2003 from the delete itself (a race) into the same CONFLICT.
- */
-
 import "server-only";
 
 import { Role } from "@/contracts/auth";
@@ -55,7 +43,6 @@ const UNIQUE_INDEX = {
   position: "positions_name_lower_key",
 } as const;
 
-/** employeeCount (ACTIVE) and totalEmployeeCount per id. */
 async function countsBy(
   kind: Kind,
 ): Promise<Map<number, { active: number; total: number }>> {
@@ -98,7 +85,6 @@ async function list(kind: Kind): Promise<Department[]> {
 }
 
 async function nameTaken(kind: Kind, name: string): Promise<boolean> {
-  // Same expression as the unique index, so the check and the index agree.
   const rows =
     kind === "department"
       ? await db.$queryRaw<{ id: number }[]>`
@@ -129,7 +115,6 @@ async function create(kind: Kind, name: string): Promise<Department> {
   }
 }
 
-/** Every employee referencing the row blocks the delete (FK is Restrict). */
 async function referenceCount(kind: Kind, id: number): Promise<number> {
   return db.employee.count({ where: { [FK_FIELD[kind]]: id } });
 }
@@ -150,7 +135,6 @@ async function remove(kind: Kind, rawId: unknown): Promise<void> {
     else await db.position.delete({ where: { id } });
   } catch (e) {
     if (isForeignKeyViolation(e)) {
-      // An employee was assigned between the check and the delete.
       const now = await referenceCount(kind, id);
       throw conflictError(inUseMessage(kind, Math.max(now, 1)), undefined, {
         cause: e,

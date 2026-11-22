@@ -1,44 +1,17 @@
 import { z } from "zod";
 
-/**
- * Typed, validated server environment.
- *
- * Import `env` instead of reading `process.env` directly. Validation runs
- * the first time this module is loaded. `src/instrumentation.ts` imports it
- * when the server starts, so a misconfigured deployment fails at boot, not
- * on the first request.
- *
- * SKIP_ENV_VALIDATION=1 is honoured ONLY during `next build` (NEXT_PHASE is
- * "phase-production-build"), where real secrets are not available, and in
- * Vitest unit runs. At runtime the flag is ignored with a loud warning and
- * validation runs anyway, so it can never switch validation off in a
- * deployed server.
- *
- * New variables go in: the schema below, web/.env.example, the README table,
- * and the `web` service in docker-compose.yml.
- *
- * Time zones: there is no company time zone. Timestamps are stored in UTC
- * and rendered in each viewer's browser zone. The server process runs with
- * TZ=UTC (set in web/Dockerfile, compose and CI), so server-side date
- * handling is deterministic.
- */
-
 const serverSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
 
-  // Postgres connection string.
   DATABASE_URL: z.url().refine((v) => /^postgres(ql)?:\/\//.test(v), {
     message: "DATABASE_URL must be a postgres:// or postgresql:// URL",
   }),
 
-  // Better Auth: secret must be >= 32 chars of high entropy.
-  // Generate with: openssl rand -base64 32
   BETTER_AUTH_SECRET: z
     .string()
     .min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
-  // Public base URL of the app, e.g. http://localhost:3000 or https://hr.example.com
   BETTER_AUTH_URL: z.url(),
 
   LOG_LEVEL: z
@@ -79,7 +52,6 @@ function parseEnv(): ServerEnv {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`)
       .join("\n");
-    // Fail fast and loudly. Never print the values, which may be secrets.
     throw new Error(`Invalid environment variables:\n${issues}`);
   }
   return parsed.data;

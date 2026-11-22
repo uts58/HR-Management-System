@@ -23,7 +23,6 @@ const createActions = {
   position: createPosition,
 };
 
-/** "Add department/position" form (feature map rows 16, 19). */
 export function OrgUnitForm({ kind }: { kind: OrgUnitKind }) {
   const copy = ORG_UNIT_COPY[kind];
   const router = useRouter();
@@ -56,12 +55,6 @@ export function OrgUnitForm({ kind }: { kind: OrgUnitKind }) {
   );
 }
 
-/**
- * Delete with confirmation (feature map rows 17, 20). The list renders an
- * "In use" note instead of this button while any employee (terminated ones
- * included) references the row; the server enforces the same rule with
- * CONFLICT, which shows inside the dialog.
- */
 export function DeleteOrgUnitButton({
   kind,
   id,

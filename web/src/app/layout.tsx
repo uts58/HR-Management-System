@@ -33,13 +33,10 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // Per-request CSP nonce from proxy.ts. Reading it makes every
-  // page dynamic, which nonces require.
   const nonce = await getCspNonce();
   return (
     <html
       lang="en"
-      // The inline script below may add the "dark" class before hydration.
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >

@@ -3,11 +3,6 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
-/**
- * "You don't have access" body (403). Used by the /forbidden page and by any
- * page that renders it in place when requireRole fails. Deliberately says nothing about whether the
- * record exists.
- */
 export function ForbiddenState({
   title = "You don't have access to this page",
   description = "Your account doesn't have permission to view this page. If you think this is a mistake, contact your HR administrator.",

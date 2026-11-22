@@ -1,9 +1,3 @@
-/**
- * Leave input schemas (contracts.md#leave). Dates are
- * required, must be real `YYYY-MM-DD` dates, and the range must not end
- * before it starts. Past dates are allowed (sick leave logged afterwards).
- */
-
 import { z } from "zod";
 import type { LeaveRequestId } from "@/contracts/common";
 import {
@@ -36,7 +30,6 @@ export const applyForLeaveSchema = z
   .refine((v) => v.endDate >= v.startDate, {
     error: "End date cannot be before the start date",
     path: ["endDate"],
-    // Runs even when other fields fail, so all errors show at once.
     when: whenFieldsValid("startDate", "endDate"),
   }) satisfies z.ZodType<ApplyForLeaveInput>;
 

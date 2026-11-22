@@ -1,19 +1,3 @@
-/**
- * E2E database reset: TRUNCATE every app table, run
- * prisma/seed.ts, then load qa-fixtures.sql on top.
- *
- * Two entry points:
- *  - `ensureDatabaseReset()`: called by the worker fixture in
- *    tests/support/fixtures.ts. Resets ONCE per Playwright run even with
- *    several workers: an advisory lock serialises workers and a stamp row
- *    (keyed by the runner's process id, shared by all workers of a run)
- *    records that this run already reset.
- *    playwright.global-setup.ts calls it first, so workers normally skip the reset.
- *  - CLI: `npx tsx tests/support/db/reset.ts` (always resets).
- *
- * Uses `pg` directly: E2E code may not import the Prisma client (ADR-0002).
- * Never point DATABASE_URL at a database you care about.
- */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -24,7 +8,7 @@ import { DATABASE_URL, DB_RESET } from "../env";
 import { QA_PASSWORD } from "../users";
 
 const WEB_DIR = path.resolve(__dirname, "../../..");
-const LOCK_KEY = 72_026_117; // arbitrary, constant advisory-lock id
+const LOCK_KEY = 72_026_117;
 
 async function truncateAll(client: pg.Client) {
   const { rows } = await client.query<{ tablename: string }>(
@@ -41,7 +25,6 @@ async function truncateAll(client: pg.Client) {
 }
 
 function runDataSeed() {
-  // prisma7.config.ts runs the same command for `npm run db:seed`.
   const tsxCli = path.join(WEB_DIR, "node_modules", "tsx", "dist", "cli.mjs");
   execFileSync(process.execPath, [tsxCli, "prisma/seed.ts"], {
     cwd: WEB_DIR,
@@ -51,7 +34,6 @@ function runDataSeed() {
 }
 
 async function loadQaFixtures(client: pg.Client) {
-  // @node-rs/argon2 defaults: argon2id, the same parameters as the app.
   const hash = await argon2Hash(QA_PASSWORD);
   const sql = readFileSync(path.join(__dirname, "qa-fixtures.sql"), "utf8")
     .split("{{QA_HASH}}")
@@ -59,7 +41,6 @@ async function loadQaFixtures(client: pg.Client) {
   await client.query(sql);
 }
 
-/** ADR-0008 rule 1a: only databases named *_test or *_it may be wiped. */
 export function assertTestDatabase(url: string): void {
   const name = new URL(url).pathname.replace(/^\//, "");
   if (!/_(test|it)$/.test(name)) {
@@ -83,7 +64,6 @@ export async function resetDatabase(client?: pg.Client): Promise<void> {
   }
 }
 
-/** Reset once per Playwright run (see file header). */
 export async function ensureDatabaseReset(): Promise<void> {
   if (!DB_RESET) return;
   if (!DATABASE_URL) {
@@ -97,7 +77,6 @@ export async function ensureDatabaseReset(): Promise<void> {
   await client.connect();
   try {
     await client.query("SELECT pg_advisory_lock($1)", [LOCK_KEY]);
-    // Own schema, so Prisma never sees it as drift in "public".
     await client.query(`CREATE SCHEMA IF NOT EXISTS qa_e2e`);
     await client.query(
       `CREATE TABLE IF NOT EXISTS qa_e2e.runs (run_id text PRIMARY KEY, reset_at timestamptz NOT NULL DEFAULT now())`,
@@ -121,7 +100,6 @@ export async function ensureDatabaseReset(): Promise<void> {
   }
 }
 
-// CLI: npx tsx tests/support/db/reset.ts
 if (require.main === module) {
   resetDatabase()
     .then(() => console.log("E2E database reset: seed + QA fixtures loaded."))

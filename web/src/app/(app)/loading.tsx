@@ -1,6 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Shown while a page in the shell streams in. */
 export default function Loading() {
   return (
     <div role="status" aria-live="polite" className="flex flex-col gap-6">

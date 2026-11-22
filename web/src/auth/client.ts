@@ -5,18 +5,6 @@ import {
   safeCallbackPath,
 } from "./paths";
 
-/**
- * Browser-side sign-in (contract AuthClientApi). The only file in
- * web/src/auth that client components may import. No server-only code and
- * no better-auth import: it is one fetch to Better Auth's endpoint.
- *
- * Usage in the login form (client component):
- *
- *   const result = await signInWithUsername({ username, password }, callbackUrl);
- *   if (result.ok) router.replace(result.data.redirectTo);
- *   else setError(result.error.message);
- */
-
 export const INVALID_LOGIN_MESSAGE = "Invalid username or password";
 export const RATE_LIMITED_MESSAGE = "Too many attempts, try again shortly";
 
@@ -49,8 +37,6 @@ export async function signInWithUsername(
   }
 
   if (response.status === 429) return fail("VALIDATION", RATE_LIMITED_MESSAGE);
-  // Every other failure (unknown user, wrong password, disabled account,
-  // malformed username) gets the same message: no user enumeration.
   if (!response.ok) {
     return response.status >= 500
       ? fail("INTERNAL", "Something went wrong. Please try again.")
@@ -63,10 +49,7 @@ export async function signInWithUsername(
       user?: { mustChangePassword?: unknown };
     };
     mustChangePassword = body.user?.mustChangePassword === true;
-  } catch {
-    // Signed in but the body was unreadable; the server still enforces
-    // the forced change on the next page.
-  }
+  } catch {}
 
   const redirectTo = mustChangePassword
     ? CHANGE_PASSWORD_PATH
@@ -74,7 +57,6 @@ export async function signInWithUsername(
   return { ok: true, data: { redirectTo } };
 }
 
-/** Typed against the contract, so a signature drift fails typecheck. */
 export const authClient: AuthClientApi = {
   signInWithUsername: (input) => signInWithUsername(input),
 };

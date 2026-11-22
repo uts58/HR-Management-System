@@ -8,10 +8,6 @@ import type { Role } from "@/contracts";
 
 import { NAV_BY_ROLE, isActive } from "./nav-config";
 
-/**
- * Role-specific navigation list. The current page gets aria-current="page"
- * plus a visual highlight. Used by the desktop sidebar and the mobile sheet.
- */
 export function SidebarNav({
   role,
   onNavigate,

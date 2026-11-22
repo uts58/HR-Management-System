@@ -19,7 +19,6 @@ describe("noticeService", () => {
   it("HR creates; everyone signed in sees recent notices newest first", async () => {
     const hr = (await makePerson("HR_ADMIN")).actor;
     const emp = (await makePerson("EMPLOYEE")).actor;
-    // A notice with no createdAt sorts as the oldest.
     await db.notice.create({
       data: { title: "Legacy", body: "old", type: "GENERAL", createdAt: null },
     });

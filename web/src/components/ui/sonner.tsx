@@ -1,9 +1,5 @@
 "use client";
 
-// shadcn/ui `sonner` (base-nova), adapted: the theme comes from our own
-// useTheme (components/shell/theme.ts) instead of next-themes, so we don't
-// add a second theme library.
-
 import {
   CircleCheckIcon,
   InfoIcon,

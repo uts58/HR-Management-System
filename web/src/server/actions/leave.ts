@@ -20,7 +20,6 @@ export const applyForLeave = defineAction({
   },
 });
 
-/** Input `{ id, decision }`; decision is APPROVED or REJECTED. */
 export const decideLeaveRequest = defineAction({
   role: Role.HR_ADMIN,
   schema: decideLeaveRequestSchema,
@@ -31,10 +30,6 @@ export const decideLeaveRequest = defineAction({
   },
 });
 
-/**
- * Called by the leave-history page once it has rendered (contract rule 5),
- * so reads stay free of side effects. Returns how many rows changed.
- */
 export const markMyLeaveDecisionsSeen = defineAction({
   role: Role.EMPLOYEE,
   schema: noInputSchema,
