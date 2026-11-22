@@ -26,6 +26,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import {
   isoDateToUtcDate,
   toIsoDateOrNull,
+  toIsoInstant,
   toIsoInstantOrNull,
 } from "@/lib/dates";
 import { entityIdSchema } from "@/lib/validation/common";
@@ -42,7 +43,7 @@ import {
   uniqueViolationToConflict,
   validationError,
 } from "../errors";
-import { assertRole, fullName, shortName } from "../shared";
+import { assertRole, fullName } from "../shared";
 
 export const MESSAGES = {
   notFound: "Employee not found.",
@@ -89,6 +90,7 @@ function toDetail(r: DetailRow): EmployeeDetail {
     firstName: r.firstName,
     middleName: r.middleName,
     lastName: r.lastName,
+    fullName: fullName(r),
     department: r.department
       ? { id: r.department.id, label: r.department.name }
       : null,
@@ -104,7 +106,7 @@ function toDetail(r: DetailRow): EmployeeDetail {
     username: r.user?.username ?? null,
     status: r.employmentStatus,
     terminatedAt: toIsoInstantOrNull(r.terminatedAt),
-    createdAt: toIsoInstantOrNull(r.createdAt),
+    createdAt: toIsoInstant(r.createdAt),
   };
 }
 
@@ -241,10 +243,15 @@ export function createEmployeeService(
       assertRole(actor, Role.HR_ADMIN);
       const rows = await db.employee.findMany({
         where: { employmentStatus: "ACTIVE" },
-        select: { id: true, firstName: true, lastName: true },
+        select: {
+          id: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+        },
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
       });
-      return rows.map((r) => ({ id: r.id, label: shortName(r) }));
+      return rows.map((r) => ({ id: r.id, label: fullName(r) }));
     },
 
     async getEmployee(actor, rawId) {
@@ -313,7 +320,7 @@ export function createEmployeeService(
           const { credentials } = await accounts.createLoginAccount(tx, {
             employeeId: employee.id,
             username,
-            displayName: shortName(input),
+            displayName: fullName(input),
             email: input.email,
             role: Role.EMPLOYEE,
           });
@@ -339,6 +346,7 @@ export function createEmployeeService(
           select: {
             employmentStatus: true,
             firstName: true,
+            middleName: true,
             lastName: true,
             user: { select: { id: true } },
           },
@@ -354,10 +362,10 @@ export function createEmployeeService(
           data: toEmployeeData(input),
         });
         if (count === 0) throw conflictError(MESSAGES.terminatedEdit);
-        // The login's display name ("First Last") follows a rename, in the
+        // The login's display name ("First Middle Last") follows a rename, in the
         // same transaction (contract Employee rule 4). Username never changes.
-        const newName = shortName(input);
-        if (current.user && newName !== shortName(current)) {
+        const newName = fullName(input);
+        if (current.user && newName !== fullName(current)) {
           await accounts.updateDisplayName(tx, current.user.id, newName);
         }
         return toDetail(

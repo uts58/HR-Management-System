@@ -11,7 +11,7 @@ test.describe("Add appraisal: validation", () => {
     await hr.appraisals.openAdd();
   });
 
-  test("saving without an employee is rejected with a message (legacy BUG-11)", async ({
+  test("saving without an employee is rejected with a message", async ({
     hr,
   }) => {
     await hr.appraisals.fill({
@@ -81,7 +81,7 @@ test.describe("Appraisals: journeys", { tag: BACKEND_TAG }, () => {
     await hr.page.goto("/dashboard");
     await hr.appraisals.openAdd();
     await hr.appraisals.fill({
-      employee: "John Doe",
+      employee: "John A Doe",
       project,
       start: "2026-01-01",
       end: "2026-06-30",
@@ -92,7 +92,7 @@ test.describe("Appraisals: journeys", { tag: BACKEND_TAG }, () => {
 
     await hr.appraisals.openList();
     const row = hr.appraisals.row(project);
-    await expect(row).toContainText("John Doe");
+    await expect(row).toContainText("John A Doe");
     await expect(row).toContainText("1 Jan 2026 – 30 Jun 2026");
     await expect(row).toContainText("4/5");
     await expect(row).toContainText("Good");
@@ -102,7 +102,7 @@ test.describe("Appraisals: journeys", { tag: BACKEND_TAG }, () => {
     const project = uid("Project Delete");
     await hr.page.goto("/appraisals/new");
     await hr.appraisals.fill({
-      employee: "John Doe",
+      employee: "John A Doe",
       project,
       start: "2026-02-01",
       end: "2026-03-01",
@@ -111,7 +111,7 @@ test.describe("Appraisals: journeys", { tag: BACKEND_TAG }, () => {
     await hr.appraisals.save();
     await expectToast(hr.page, "Appraisal saved.");
     await hr.page.goto("/appraisals");
-    await hr.appraisals.delete("John Doe", project);
+    await hr.appraisals.delete("John A Doe", project);
     await expect(hr.appraisals.row(project)).toHaveCount(0);
   });
 
@@ -126,7 +126,7 @@ test.describe("Appraisals: journeys", { tag: BACKEND_TAG }, () => {
         .locator("option")
         .allInnerTexts()
     ).map((o) => o.trim());
-    expect(options).toContain("John Doe");
+    expect(options).toContain("John A Doe");
     expect(options).not.toContain(fullName(users.mary));
   });
 

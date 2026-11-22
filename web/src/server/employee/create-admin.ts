@@ -21,7 +21,7 @@ import {
 } from "../account-admin-seam";
 import { db } from "../db";
 import { conflictError } from "../errors";
-import { shortName } from "../shared";
+import { fullName } from "../shared";
 
 export interface CreateHrAdminInput {
   username: string;
@@ -73,7 +73,7 @@ export async function createHrAdmin(
     const { userId } = await accounts.createLoginAccount(tx, {
       employeeId: employee.id,
       username,
-      displayName: shortName({ firstName, lastName }),
+      displayName: fullName({ firstName, lastName }),
       email,
       role: Role.HR_ADMIN,
     });

@@ -30,7 +30,7 @@ export default async function EmployeeDetailPage({
   const id = idOrNotFound((await params).id);
   const employee = await orNotFound(employeeService.getEmployee(actor, id));
 
-  const name = `${employee.firstName} ${employee.lastName}`;
+  const name = employee.fullName;
   const active = employee.status === "ACTIVE";
 
   return (

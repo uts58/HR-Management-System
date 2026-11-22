@@ -73,6 +73,7 @@ export interface EmployeeDetail {
   firstName: string;
   middleName: string | null;
   lastName: string;
+  fullName: string; // "First Middle Last", middle omitted when empty
   department: Option<DepartmentId> | null;
   position: Option<PositionId> | null;
   /** string, not Country: stored values are not restricted to the list. */
@@ -92,10 +93,10 @@ export interface EmployeeDetail {
   username: string | null; // login name, null when no account
   status: EmploymentStatus;
   terminatedAt: UtcTimestamp | null;
-  createdAt: UtcTimestamp | null;
+  createdAt: UtcTimestamp;
 }
 
-/** How leave and appraisal history refers to an employee ("First Last"). */
+/** How leave and appraisal history refers to an employee ("First Middle Last"). */
 export interface EmployeeRef {
   id: EmployeeId;
   name: string;

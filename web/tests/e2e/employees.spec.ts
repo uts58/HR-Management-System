@@ -134,7 +134,7 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
 
   test("HR views an employee's details", async ({ hr }) => {
     await hr.page.goto("/employees");
-    await hr.employees.openDetails("John A Doe", "John Doe");
+    await hr.employees.openDetails("John A Doe");
     const d = (label: string) => hr.employees.detail(label);
     await expect(d("Full name")).toHaveText("John A Doe");
     await expect(d("Employee ID")).toHaveText(String(users.john.employeeId));
@@ -150,7 +150,7 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await expect(d("Date of birth")).toHaveText("1 Jan 1990");
   });
 
-  test("an unknown employee id shows the not-found page, not a server error (legacy BUG-09)", async ({
+  test("an unknown employee id shows the not-found page, not a server error", async ({
     hr,
   }) => {
     const res = await hr.page.goto("/employees/999999");
@@ -160,7 +160,7 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     );
   });
 
-  test("HR adds an employee; the new hire signs in with the one-time password and must change it (legacy BUG-01/03)", async ({
+  test("HR adds an employee; the new hire signs in with the one-time password and must change it", async ({
     hr,
     as,
   }) => {
@@ -203,7 +203,7 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await expectFieldError(form.getByLabel("Username"), /taken|already/i);
   });
 
-  test("HR edits an employee; a rename does not change their login (legacy BUG-02/04)", async ({
+  test("HR edits an employee; a rename does not change their login", async ({
     hr,
     as,
     baseURL,

@@ -55,7 +55,12 @@ export async function loadSessionFromHeaders(
       employeeId: true,
       disabledAt: true,
       employee: {
-        select: { firstName: true, lastName: true, employmentStatus: true },
+        select: {
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          employmentStatus: true,
+        },
       },
     },
   });
@@ -72,7 +77,14 @@ export async function loadSessionFromHeaders(
   }
 
   const fullName = user.employee
-    ? `${user.employee.firstName} ${user.employee.lastName}`.trim()
+    ? [
+        user.employee.firstName,
+        user.employee.middleName,
+        user.employee.lastName,
+      ]
+        .map((p) => p?.trim())
+        .filter(Boolean)
+        .join(" ")
     : "";
 
   return {

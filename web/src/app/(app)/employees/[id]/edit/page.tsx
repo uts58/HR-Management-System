@@ -25,7 +25,7 @@ export default async function EditEmployeePage({
     employeeService.getEmployeeFormOptions(actor),
   ]);
 
-  const name = `${employee.firstName} ${employee.lastName}`;
+  const name = employee.fullName;
 
   if (employee.status === "TERMINATED") {
     return (

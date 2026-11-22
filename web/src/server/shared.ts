@@ -36,17 +36,10 @@ export function fullName(e: {
     .join(" ");
 }
 
-/** "First Last". */
-export function shortName(e: { firstName: string; lastName: string }): string {
-  return [e.firstName, e.lastName]
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .join(" ");
-}
-
 export const employeeRefSelect = {
   id: true,
   firstName: true,
+  middleName: true,
   lastName: true,
   employmentStatus: true,
 } as const satisfies Prisma.EmployeeSelect;
@@ -59,24 +52,20 @@ export type EmployeeRefRow = Prisma.EmployeeGetPayload<{
 export function toEmployeeRef(e: EmployeeRefRow): EmployeeRef {
   return {
     id: e.id,
-    name: shortName(e),
+    name: fullName(e),
     status: e.employmentStatus,
   };
 }
 
-/**
- * History ordering by creation. A null createdAt counts as the oldest:
- * last when newest-first, first when oldest-first. `id` breaks ties.
- */
+/** History ordering by creation; `id` breaks ties. */
 type CreationOrder = Array<
-  | { createdAt: { sort: Prisma.SortOrder; nulls: Prisma.NullsOrder } }
-  | { id: Prisma.SortOrder }
+  { createdAt: Prisma.SortOrder } | { id: Prisma.SortOrder }
 >;
 
 export function newestFirst(): CreationOrder {
-  return [{ createdAt: { sort: "desc", nulls: "last" } }, { id: "desc" }];
+  return [{ createdAt: "desc" }, { id: "desc" }];
 }
 
 export function oldestFirst(): CreationOrder {
-  return [{ createdAt: { sort: "asc", nulls: "first" } }, { id: "asc" }];
+  return [{ createdAt: "asc" }, { id: "asc" }];
 }

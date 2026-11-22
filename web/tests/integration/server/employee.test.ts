@@ -278,6 +278,18 @@ describe("employeeService.updateEmployee", () => {
     expect(accounts.calls).toEqual([`rename:${emp.user.id}:Grace Hopper`]);
   });
 
+  it("uses the full name, middle name included, for the login display name", async () => {
+    const { service, hr, emp, form, accounts } = await setup();
+    const updated = await service.updateEmployee(hr.actor, emp.employee.id, {
+      ...form,
+      firstName: "Grace",
+      middleName: "B",
+      lastName: "Hopper",
+    } as never);
+    expect(updated.fullName).toBe("Grace B Hopper");
+    expect(accounts.calls).toEqual([`rename:${emp.user.id}:Grace B Hopper`]);
+  });
+
   it("no display-name call when the name is unchanged or there is no account", async () => {
     const { service, hr, emp, form, accounts } = await setup();
     const noLogin = await makeEmployee({ firstName: "No", lastName: "Login" });

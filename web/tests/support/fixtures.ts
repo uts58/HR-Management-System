@@ -70,7 +70,7 @@ type TestFixtures = {
   app: App;
   /** Signed in as the seeded HR admin, own context. */
   hr: App;
-  /** Signed in as seeded employee John Doe, own context. */
+  /** Signed in as seeded employee John A Doe, own context. */
   employee: App;
   /** Open another signed-in (or anonymous) context, e.g. for two-user journeys. */
   as: (user?: TestUser, options?: { timezoneId?: string }) => Promise<App>;

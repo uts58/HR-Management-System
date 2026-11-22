@@ -51,8 +51,7 @@ export function EmployeeForm({
     return (
       <div className="flex flex-col gap-5">
         <p role="status" className="text-sm font-medium text-success">
-          Employee {created.employee.firstName} {created.employee.lastName} was
-          added.
+          Employee {created.employee.fullName} was added.
         </p>
         <CredentialsPanel credentials={created.credentials} />
         <div className="flex flex-wrap gap-2">

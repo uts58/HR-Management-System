@@ -37,14 +37,10 @@ function EmailValue({ employee }: { employee: EmployeeDetail }) {
  * /profile.
  */
 export function EmployeeDetails({ employee }: { employee: EmployeeDetail }) {
-  const fullName = [employee.firstName, employee.middleName, employee.lastName]
-    .filter(Boolean)
-    .join(" ");
-
   return (
     <DescriptionList
       items={[
-        { label: "Full name", value: fullName },
+        { label: "Full name", value: employee.fullName },
         { label: "Employee ID", value: String(employee.id) },
         { label: "Username", value: employee.username },
         { label: "Department", value: employee.department?.label },
