@@ -95,14 +95,11 @@ there is no contact email. Never display a `@users.invalid` address.
     not-found UI, not 404 (e.g. `/employees/999`). Unmatched URLs still
     return 404.
 - 403: `ForbiddenState` (`common/forbidden-state.tsx`) and the `/forbidden`
-  page. We don't use the experimental `authInterrupts`/`forbidden()`. Security
-  decides whether `requireRole` failures redirect to `/forbidden` or render
-  `ForbiddenState` in place.
-- Each page calls `requireRole`/`requireSession` itself (layouts are not an
-  auth boundary). Until auth and services land, pages read from
-  `app/_stubs` (see the `TODO(Backend)` / `TODO(Security)` / `TODO(wire)`
-  markers). **Release blocker:** delete `app/_stubs`, including the persona
-  switcher, when the real services are wired.
+  page. We don't use the experimental `authInterrupts`/`forbidden()`, so a
+  `requireRole` failure in a page redirects to `/forbidden`.
+- Each page calls `requireRole`/`requireSession` itself with
+  `{ onFail: "redirect" }` (layouts are not an auth boundary), then reads
+  through `web/src/server/<area>/service.ts` with the session's actor.
 
 ## Accessibility checklist
 
