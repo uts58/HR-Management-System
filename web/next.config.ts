@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  // Next blocks /_next/hmr from 127.0.0.1 by default, so pages never hydrate
+  // in local e2e runs against the dev server.
+  allowedDevOrigins: ["127.0.0.1"],
+
   turbopack: {
     root: projectRoot,
     rules: {
