@@ -47,8 +47,13 @@ export function CalendarDateRange({
 }) {
   if (start && start === end) return <CalendarDate value={start} />;
   return (
-    <span className="whitespace-nowrap">
-      <CalendarDate value={start} /> – <CalendarDate value={end} />
+    <span className="whitespace-normal">
+      <span className="whitespace-nowrap">
+        <CalendarDate value={start} /> –
+      </span>{" "}
+      <span className="whitespace-nowrap">
+        <CalendarDate value={end} />
+      </span>
     </span>
   );
 }
