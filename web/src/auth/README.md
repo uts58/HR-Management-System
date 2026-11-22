@@ -75,7 +75,7 @@ import { changePassword, signOut } from "@/auth/actions";
 ```
 
 - `changePassword`: `changePasswordSchema` (lib/validation/auth.ts) + current
-  password check (argon2id or legacy bcrypt) + not equal to the username.
+  password check + not equal to the username.
   Field errors on `currentPassword` / `newPassword` / `confirmPassword`.
   On success: argon2id hash written, `mustChangePassword` cleared, every
   **other** session of the user deleted (this one stays). Then redirect to
@@ -122,9 +122,9 @@ await prisma.$transaction(async (tx) => {
   another user, else `<username>@users.invalid` with
   `emailIsPlaceholder = true`. 16-character temporary password, argon2id,
   `mustChangePassword = true`.
-- `issueTemporaryPassword(tx, userId)`: new temporary password (creates the
-  credential row if missing), `mustChangePassword = true`, all sessions
-  deleted. `NOT_FOUND` for an unknown user.
+- `issueTemporaryPassword(tx, userId)`: new temporary password,
+  `mustChangePassword = true`, all sessions deleted. `NOT_FOUND` for an
+  unknown user or a missing credential row.
 - `disableLogin(tx, userId)`: sets `disabledAt` (keeps an earlier value) and
   deletes all sessions. `NOT_FOUND` for an unknown user.
 - `updateDisplayName(tx, userId, name)`: sets `user.name` (header/menu
@@ -133,17 +133,18 @@ await prisma.$transaction(async (tx) => {
   control characters (`VALIDATION`, field `name`). `NOT_FOUND` for an
   unknown user.
 
-All three write with the caller's `tx`, so they roll back with it. Never log
+All of them write with the caller's `tx`, so they roll back with it. Never log
 `temporaryPassword`.
+
+`setInitialPassword(tx, userId, password)` (not part of `AccountAdminApi`) is
+used only by `npm run create-admin`: it checks the password policy, writes an
+argon2id hash and clears `mustChangePassword`.
 
 ## Security behaviour
 
 - **Hashing**: argon2id (`@node-rs/argon2`, m = 19 MiB, t = 2, p = 1) for
-  every new hash. Verify also accepts bcrypt `$2a$`/`$2b$`/`$2y$` (bcryptjs;
-  passwords over 72 bytes never match a bcrypt hash). After a successful
-  sign-in a `hooks.after` replaces a bcrypt hash with argon2id using
-  compare-and-swap (`UPDATE … WHERE password = <old hash>`); a failed rehash
-  is logged and never fails the login.
+  every hash. Verify accepts argon2id only; any other stored format never
+  matches.
 - **Disabled / terminated**: `hooks.before` on `/sign-in/username` rejects
   them with the same 401 and message as a wrong password, after spending an
   argon2 hash so timing matches.

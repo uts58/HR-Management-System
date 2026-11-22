@@ -1,4 +1,4 @@
-# Deployment topology and cutover runbook
+# Deployment topology and launch runbook
 
 Owner: Platform / DevOps. Status: **draft (Phase 0)**.
 
@@ -21,7 +21,7 @@ Owner: Platform / DevOps. Status: **draft (Phase 0)**.
           ┌─────────▼───────────────────────────────────▼┐
           │  Postgres 16  (named volume on local disk)   │
           │   ├─ hr_web   new app                        │
-          │   └─ hrdb     legacy (read-only after cutover)│
+          │   └─ hrdb     legacy (dropped after launch)  │
           └─────────┬────────────────────────────────────┘
                     │ nightly pg_dump + WAL archive
           ┌─────────▼──────────┐
@@ -47,7 +47,7 @@ derives `BETTER_AUTH_URL` from `APP_DOMAIN`.
   automatically and redirects HTTP to HTTPS. It sends HSTS
   (`max-age=31536000; includeSubDomains`), `nosniff` and a referrer policy.
 - `UPSTREAM` picks the backend: `app:3000` (legacy, the default) or
-  `web:3000`. Changing it is the cutover switch.
+  `web:3000`. Changing it is the launch switch.
 - `BETTER_AUTH_URL` must equal the public `https://` origin.
 - Only Caddy publishes ports (80, 443/tcp, 443/udp). `app`, `web` and `db`
   are reachable only on the internal Docker network.
@@ -89,8 +89,7 @@ derives `BETTER_AUTH_URL` from `APP_DOMAIN`.
   `hr_web` and `hrdb`, so the web role cannot even connect to the legacy
   database. `db-init` is the only web-profile service that uses superuser
   credentials.
-- The legacy data migration (`scripts/migrate-legacy/`) reads `hrdb` with
-  the legacy credentials and writes `hr_web` as `hr_web_app`.
+- The new app launches with an empty `hr_web`. No legacy data is migrated.
 
 **App containers:**
 
@@ -147,51 +146,44 @@ usage for the DB volume, and alerts on backup job failure.
 | Staging    | Same compose stack as prod on a separate host/DB, restored from an anonymised prod dump |
 | Production | Single Docker host as above                                          |
 
-## 3. Cutover runbook (outline, to be detailed in later phases)
+## 3. Launch runbook (outline, to be detailed in later phases)
+
+The new app is a new product: it starts with an empty database and nothing
+is migrated from `hrdb`.
 
 ### T-2 weeks: readiness
 
 - [ ] Feature parity sign-off against the legacy route inventory (QA + Architect).
-- [ ] Data migration scripts (`scripts/migrate-legacy/`) are idempotent and
-      have been rehearsed at least twice on staging with a fresh prod dump.
-      Row counts and checksums reconcile.
-- [ ] Password strategy agreed with Security. Legacy hashes are migrated or
-      users are forced to reset, and users have been told.
 - [ ] Prod host is provisioned. TLS works on a temporary hostname. Backups
       are running and a restore has been tested.
 - [ ] Rollback plan reviewed and the go/no-go owner named.
 
 ### T-1 day
 
-- [ ] Announce the maintenance window.
-- [ ] Freeze legacy deploys.
+- [ ] Announce the switch.
 - [ ] Build and tag the release images (`hr-web:<sha>`, `hr-web-migrate:<sha>`)
       and pull them onto the host.
 - [ ] Lower the DNS TTL if the hostname changes.
 
-### T-0: cutover window
+### T-0: launch
 
-1. Put the legacy app into maintenance or read-only mode. Stop the `app`
-   container, or have the proxy serve a maintenance page.
-2. Take a final `pg_dump -Fc hrdb` and keep it as the rollback point.
-3. `docker compose run --rm db-init`, then `docker compose run --rm web-migrate`
-   to bring the `hr_web` schema up to date.
-4. Run the legacy data migration (`scripts/migrate-legacy/`) from `hrdb` into
-   `hr_web`, then the reconciliation report. **Go/no-go checkpoint.**
-5. `docker compose --profile web up -d web`. Wait for it to report healthy.
-6. Smoke tests: log in for each role, run the key HR flows, and run
-   Playwright against prod (`PLAYWRIGHT_BASE_URL`) with a test account.
-7. Set `UPSTREAM=web:3000` and recreate Caddy (`docker compose -f docker-compose.yml -f compose.prod.yml up -d caddy`). Optionally
+1. `docker compose run --rm db-init`, then `docker compose run --rm web-migrate`
+   to create the `hr_web` schema.
+2. Create the first HR admin from a `web/` checkout with the full install,
+   pointed at `hr_web` (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`):
+   `CREATE_ADMIN_PASSWORD=... npm run create-admin -- --username <name>`.
+   It is idempotent and never prints the password.
+3. `docker compose --profile web up -d web`. Wait for it to report healthy.
+4. Smoke tests: log in as the new admin, add an employee, sign in as them,
+   and run Playwright against prod (`PLAYWRIGHT_BASE_URL`) with a test account.
+5. Set `UPSTREAM=web:3000` and recreate Caddy (`docker compose -f docker-compose.yml -f compose.prod.yml up -d caddy`). Optionally
    redirect legacy URLs to the new routes.
-8. Watch logs, error rate and `/api/health` for 60 minutes.
+6. Watch logs, error rate and `/api/health` for 60 minutes.
 
-### Rollback (any time before the end of the T+1 week stabilisation period)
+### Rollback
 
 1. Point the proxy back to the legacy `app` and start it.
-2. Legacy `hrdb` has been read-only since step 1, so no data loss is
-   expected for that period. Writes made in the new app after cutover must
-   be exported and replayed manually. Keep a log of them.
-3. Post-mortem before attempting again.
+2. Post-mortem before attempting again.
 
 ### T+1 week to T+1 month: decommission
 
@@ -200,7 +192,7 @@ usage for the DB volume, and alerts on backup job failure.
 - [ ] Remove the legacy code from the repo (separate PR) and the `legacy` CI job.
 - [ ] Move `web/` to the repo root if desired.
 - [ ] **Re-enable Dependabot.** The user turned it off for the duration of
-      the migration.
+      the rewrite.
       1. Turn it back on:
          `gh api -X PUT repos/uts58/HR-Management-System/vulnerability-alerts`
          and

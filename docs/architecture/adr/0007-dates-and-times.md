@@ -36,11 +36,9 @@ Rules:
 6. Display format for calendar dates: `d MMM yyyy` (e.g. `1 Jan 1990`), close to the legacy look, locale `en-GB` (configurable later). For instants: the same date format plus `HH:mm` in the viewer's locale settings.
 7. **Logs and exports stay in UTC**, written as ISO-8601 with `Z`.
 8. Leave ranges are inclusive. We do not compute business days or check overlaps (the legacy app does neither).
-9. **Migration** (Data): parse legacy strings with an explicit list of formats (`YYYY-MM-DD`, `DD Mon YYYY`, `M/D/YYYY`, `D/M/YYYY`, with ambiguity reported). Unparseable values become `NULL` and go into a migration report for HR to fix. Contract read models allow `null` for that reason.
 
 ## Consequences
 
 - There's no org-wide zone to configure. Platform removes `APP_TIME_ZONE` from `web/src/env.ts`, `.env.example`, compose files and CI.
 - Timezone off-by-one bugs on birthdays and leave dates can't happen by construction, because calendar dates never touch a zone.
 - Instant display depends on the client. Pages render a stable UTC fallback first, then local time, so there's no hydration error.
-- Legacy rows with bad dates show up as "—" until HR corrects them.

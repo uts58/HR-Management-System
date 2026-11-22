@@ -12,11 +12,10 @@
 | Services (unit) | Vitest, no DB | `web/src/server/**/*.test.ts` | Backend | `defineAction`, error mapping, pure logic |
 | Services (integration) | Vitest + **real Postgres** | `web/tests/integration/server/` | Backend | Business rules, role/ownership checks, error codes. Data is truncated between tests. Prisma is **not** mocked. |
 | Auth (unit) | Vitest | `web/src/auth/**/*.test.ts` | Security | `requireRole` behaviour, hashing, `mustChangePassword` gating |
-| Auth (integration) | Vitest + real Postgres | `web/tests/integration/auth/` | Security | Sign-in, rehash, disabled users, `AccountAdminApi` in transactions |
+| Auth (integration) | Vitest + real Postgres | `web/tests/integration/auth/` | Security | Sign-in, argon2id-only hashes, disabled users, `AccountAdminApi` in transactions |
 | Authorization matrix | Vitest | `web/tests/authz/` | QA | Every exported server action × {anonymous, EMPLOYEE, HR_ADMIN, terminated employee} → expected code. Fails if an action has no row. |
 | Components | Vitest + Testing Library (jsdom) | `web/src/components/**` | Frontend | Only for components with logic (forms, tables with filters). No snapshot tests. |
 | E2E | Playwright | `web/tests/e2e/` | QA | One journey per row in feature-map.md, run per role, against the Docker image with a seeded DB |
-| Migration | Vitest | `scripts/migrate-legacy/` | Data | Fixture legacy DB → migrate → assert counts, id preservation, date parsing report |
 
 Rules:
 

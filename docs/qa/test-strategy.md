@@ -158,19 +158,18 @@ Repeatability: `fixtures/seed.sql` truncates every table (and the `legacy_sessio
   - role-based navigation, the forced-change shell and `/forbidden`;
   - client-side validation, including BUG-05/11/12;
   - confirmation dialogs and calendar-date rendering.
-- **`@backend` specs** need real services, persistence and real page guards: CRUD journeys, toasts, role enforcement, terminate and reset password, the BUG-06 dashboard count, "No email on file" and placeholder employees.
+- **`@backend` specs** need real services, persistence and real page guards: CRUD journeys, toasts, role enforcement, terminate and reset password, the BUG-06 dashboard count, and "No email on file".
   - They are **skipped** (reported as skipped, never as passed) unless `E2E_BACKEND=1`.
   - Once Frontend replaces `app/_stubs`, CI sets `E2E_BACKEND=1` and the tag is only informational.
 
 ### Test data
 1. `reset.ts` truncates every table in `public` except `_prisma_migrations`, runs Data's `prisma/seed.ts`, then loads `qa-fixtures.sql`. It refuses any database not named `*_test` or `*_it` (ADR-0008 rule 1a).
-2. QA fixtures use ids 101 and up:
-   - a placeholder employee (#101) with leave and appraisal history;
+2. QA fixtures use ids 102 and up:
    - `nora.noemail`: placeholder login email, no contact email;
    - `carl.contact`: placeholder login email, contact email present;
    - one dedicated user per destructive journey: `terry.terminate`, `rita.reset`, `chad.changer`, `fran.forced`, `lena.leave`, `eric.edit`.
 
-   All use the password `QaPass#2026`, stored as bcrypt and rehashed to argon2id on first sign-in, like migrated users.
+   All use the password `QaPass#2026`, stored as argon2id.
 3. The reset runs **once per Playwright run**, from a worker-scoped auto fixture.
    - A Postgres advisory lock serialises the workers, and a stamp in the `qa_e2e` schema records that this run has reset. The stamp lives outside `public`, so Prisma sees no drift.
    - This is interim until Platform adds `globalSetup` (see needs below).

@@ -1,9 +1,10 @@
 # HR Management System: new app (`web/`)
 
 This is the Next.js rewrite of the legacy Express/EJS app at the repo root.
-Both apps live side by side until cutover. See
+The legacy app is a functional spec only and is deleted at launch; no legacy
+data is migrated. See
 [`docs/platform/deployment.md`](../docs/platform/deployment.md) for the
-deployment topology and the cutover runbook.
+deployment topology and the launch runbook.
 
 ## Stack
 
@@ -16,7 +17,7 @@ deployment topology and the cutover runbook.
 | Data       | Prisma ORM 7.10 (`prisma-client` generator, `@prisma/adapter-pg`)                      |
 | Auth       | Better Auth 1.7 + `@better-auth/prisma-adapter`                                        |
 | Validation | Zod 4                                                                                  |
-| Passwords  | `@node-rs/argon2` (new hashes), `bcryptjs` (verify legacy hashes)                      |
+| Passwords  | `@node-rs/argon2` (argon2id only)                                                      |
 | Dates      | date-fns 4. Stored in UTC, rendered in the viewer's browser zone; server runs `TZ=UTC` |
 | Tests      | Vitest 5 (unit + integration projects), Playwright 1.65 (e2e)                          |
 | Lint       | ESLint 9 flat config (`eslint-config-next`) + Prettier 3                               |
@@ -37,7 +38,7 @@ cp .env.example .env                           # then set BETTER_AUTH_SECRET:
 
 # 3. Database
 npm run db:migrate                             # prisma migrate dev
-npm run db:seed                                # once Data adds prisma/seed.ts
+npm run db:seed                                # dev data (admin / Admin#12345)
 
 # 4. Run
 npm run dev                                    # http://localhost:3000
@@ -60,6 +61,25 @@ npm run dev                                    # http://localhost:3000
 | `db:seed`                 | `prisma db seed` → `tsx prisma/seed.ts`                             |
 | `db:studio`               | Prisma Studio                                                       |
 | `db:generate`             | Regenerate the Prisma client into `src/generated/prisma`            |
+| `create-admin`            | Create the first HR admin (idempotent; see below)                   |
+
+## First HR admin
+
+A fresh database has no users. `npm run create-admin` creates an ACTIVE
+employee plus an `HR_ADMIN` login with the password you give it (no forced
+change). It reuses `AccountAdminApi.createLoginAccount`, runs in one
+transaction, and needs the same environment as the app (`DATABASE_URL`,
+`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`; `.env` is loaded).
+
+```bash
+CREATE_ADMIN_PASSWORD='a-strong-password' npm run create-admin -- --username admin
+# optional: --first-name, --last-name, --email (or CREATE_ADMIN_* env vars)
+```
+
+Pass the password through `CREATE_ADMIN_PASSWORD` rather than `--password`
+so it stays out of shell history. It is never printed. Re-running with an
+existing HR admin's username changes nothing (the password is not reset); a
+username that belongs to a non-admin is refused.
 
 ## Environment variables
 

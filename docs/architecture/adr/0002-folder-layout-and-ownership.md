@@ -10,7 +10,6 @@ The new app lives in `web/` next to the legacy app until cutover. Each path has 
 ```
 /                          legacy app (Express) - frozen except security patches (Security) and tests (QA)
 ├─ legacy-tests/           QA: characterisation tests against the legacy app
-├─ scripts/migrate-legacy/ Data: one-off legacy -> new data migration
 ├─ docs/architecture/      Tech Lead: ADRs, contracts.md, feature-map.md
 ├─ .github/, Dockerfile*, docker-compose*.yml   Platform
 └─ web/

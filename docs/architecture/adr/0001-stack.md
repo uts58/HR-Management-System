@@ -21,7 +21,7 @@ The legacy app is Express 4 + EJS + jQuery 2 + Bootstrap on Prisma 6/Postgres, a
 | Unit/integration tests | Vitest | ADR-0008 |
 | E2E tests | Playwright | ADR-0008 |
 | Runtime | Node.js 26 LTS in Docker, `output: 'standalone'` | Self-hosted, no Vercel-only features. Migrations run from a separate `migrator` image target, never on app start. |
-| Passwords | argon2id (`@node-rs/argon2`), legacy bcrypt verified and rehashed on login | ADR-0004 |
+| Passwords | argon2id (`@node-rs/argon2`) | ADR-0004 |
 | Package manager | npm | One lockfile in `web/`. |
 
 Version-specific facts we rely on:

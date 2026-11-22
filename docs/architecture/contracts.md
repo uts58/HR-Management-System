@@ -10,7 +10,7 @@ TypeScript source of truth: [`web/src/contracts/`](../../web/src/contracts/). If
 - Services throw `ServiceError` with the listed codes. Actions return `ActionResult<T>` (ADR-0006). `UNAUTHENTICATED`/`INTERNAL` can come from any action and aren't repeated below.
 - Calendar dates are `IsoDate` (`YYYY-MM-DD`, never converted). Instants are `UtcTimestamp` in every read model (ISO-8601 UTC strings ending in `Z`, never `Date`; services convert at the Prisma boundary), stored as UTC, and rendered in the viewer's browser time zone. There is no company time zone and no `APP_TIME_ZONE` (ADR-0007; this user decision of 2026-11-18 reverses the earlier director ruling).
 - String inputs are trimmed. Empty optional strings become `null`.
-- Read models allow `null` wherever migrated legacy data can be empty, even when create/update now require the field.
+- Some read-model fields are typed nullable (e.g. `createdAt`, leave dates) because the columns are nullable; new rows always have them.
 - Legend: **[CHANGE]** = intentional change from legacy, **[NEW]** = no legacy equivalent (director-approved where listed).
 
 ---
@@ -45,18 +45,17 @@ Implemented by Security in `web/src/auth/` on **Better Auth** (Prisma adapter, d
 | Function | Behaviour |
 |---|---|
 | `createLoginAccount(tx, { employeeId, username, displayName, email?, role })` | Creates the Better Auth `user` + credential `account` inside the caller's transaction, with a random temporary password (≥12 chars) and `mustChangePassword = true`. If no usable email is supplied (missing or already taken), it uses `<username>@users.invalid` **and sets `emailIsPlaceholder = true`**; a DB CHECK rejects a placeholder address without the flag. Returns `{ userId, credentials }`. `CONFLICT` on a taken username. |
-| `issueTemporaryPassword(tx, userId)` | New temporary password, `mustChangePassword = true`, all sessions revoked. **Creates the credential account if it's missing**: migrated users whose legacy password was empty have none. |
+| `issueTemporaryPassword(tx, userId)` | New temporary password, `mustChangePassword = true`, all sessions revoked. `NOT_FOUND` if the user or its credential account is missing. |
 | `updateDisplayName(tx, userId, name)` | Sets the user's display name (`user.name`). `updateEmployee` calls it in the same transaction when HR renames an employee (director ruling, Backend Phase 1b). Never changes the username. |
 | `disableLogin(tx, userId)` | Sets `users.disabledAt = now`, which blocks sign-in and `getSession()`, and deletes all of the user's sessions (termination). Our `role` column is the source of truth; Better Auth's admin-plugin `role`/`banned` fields are not used. |
 
-**`user.additionalFields`** (Data schema, Security config; type `AuthUserAdditionalFields`). **All six are `input: false`**: no Better Auth endpoint can set them from a request. Only `AccountAdminApi` and the migration write them.
+**`user.additionalFields`** (Data schema, Security config; type `AuthUserAdditionalFields`). **All five are `input: false`**: no Better Auth endpoint can set them from a request. Only `AccountAdminApi` (and the `create-admin` CLI) write them.
 
 | Field | Notes |
 |---|---|
 | `role` | Source of truth for authorization. |
-| `mustChangePassword` | Set by account creation, password reset and the migration (plain-text users). Cleared by `changePassword`. |
+| `mustChangePassword` | Set by account creation and password reset (HR-issued temporary password). Cleared by `changePassword`. |
 | `employeeId` | Unique FK to `employee`, `Restrict`. |
-| `legacyPersonId` | Legacy `person.id`, set only on migrated users. |
 | `disabledAt` | When set, sign-in is blocked and sessions are dropped. |
 | `emailIsPlaceholder` | True for `@users.invalid` addresses. |
 
@@ -82,7 +81,7 @@ Implemented by Security in `web/src/auth/` on **Better Auth** (Prisma adapter, d
 1a. **Sign-in is not a server action.** Better Auth's rate limiter only covers HTTP requests to `/api/auth/*`; server-side `auth.api` calls are not limited. The form calls the endpoint from the browser (`@/auth/client`), with the limits listed above.
 1b. Public sign-up is disabled (`emailAndPassword.disableSignUp: true`). Only HR creates accounts.
 1c. TERMINATED employees can't sign in, and their sessions are revoked at termination. The mechanism is `users.disabledAt` (set by `disableLogin`): any user with it set gets the generic login failure, and `getSession()` returns null.
-1d. **Forced password change for migrated plain-text users (director ruling):** users who still had a plain-text legacy password at migration get `mustChangePassword = true`, and must change it on their next login. Users already on bcrypt aren't forced.
+1d. **First HR admin:** `npm run create-admin` (in `web/`) creates an ACTIVE employee plus an `HR_ADMIN` login with an operator-chosen password (policy-checked, no forced change). It is idempotent and never promotes an existing non-admin account.
 2. Login failures always give the same message, whether or not the user exists.
 3. After sign-in, everyone lands on `/dashboard` (legacy `/home`), or on `callbackUrl` if it's same-origin.
 4. While `mustChangePassword` is true, only `/change-password`, `changePassword` and `signOut` are allowed. `changePassword` revokes the user's other sessions.
@@ -91,7 +90,7 @@ Implemented by Security in `web/src/auth/` on **Better Auth** (Prisma adapter, d
 ### Behaviour changes
 
 - **[CHANGE]** Login uses a stable `username`, no longer the employee's first name (`person.Name`). Legacy renamed the login when HR edited the first name, and two employees with the same first name collided.
-- **[CHANGE]** Passwords are hashed with argon2id (`@node-rs/argon2`). Legacy bcrypt hashes (from the Security patch to the legacy app) are accepted and rehashed to argon2id on the first successful login. Legacy plain text is hashed to argon2id during migration (ADR-0004 rule 7).
+- **[CHANGE]** Passwords are hashed with argon2id (`@node-rs/argon2`). Only argon2id hashes are accepted (ADR-0004 rule 7).
 - **[CHANGE]** Roles are enforced on every route. Legacy checked only "logged in".
 - **[CHANGE]** Logout is a POST action. Legacy used `GET /logout`.
 
@@ -133,15 +132,14 @@ The legacy form said "All fields are mandatory except Middle name". We now enfor
 
 ### Business rules
 
-1. **Employee ID generation [CHANGE]:** the database assigns ids (identity/sequence). The migration keeps legacy ids and moves the sequence past `max(id)`. Legacy computed `max(id)+1` when the form loaded and trusted the read-only field the browser sent back, which races when two HR users add employees at once.
+1. **Employee ID generation [CHANGE]:** the database assigns ids (identity/sequence). Legacy computed `max(id)+1` when the form loaded and trusted the read-only field the browser sent back, which races when two HR users add employees at once.
 2. **Create** inserts an `ACTIVE` employee and its login account through `AccountAdminApi.createLoginAccount(tx, …)` (role `EMPLOYEE`, random temporary password of at least 12 characters, `mustChangePassword = true`) in **one transaction**. The plain temporary password is returned once in `credentials` and shown to HR on the success screen. It is never logged or stored in plain text. **[CHANGE]** Legacy generated an 8-character random password that nobody could ever see, so new employees could not log in.
-3. New accounts are always `EMPLOYEE` (parity: there is no UI to create HR admins. The seed and migration create them).
+3. New accounts are always `EMPLOYEE` (parity: there is no UI to create HR admins. The seed and `npm run create-admin` create them).
 4. **Update** does not touch the username or the role. **[CHANGE]** Legacy set `person.Name` to the new first name, which changed the login name. When the name changes and the employee has an account, the linked user's **display name** follows: `AccountAdminApi.updateDisplayName`, called in the same transaction.
 5. **Termination replaces delete [CHANGE, director ruling].** Employees have `status: ACTIVE | TERMINATED` and `terminatedAt`. `terminateEmployee` runs in one transaction: sets `status = TERMINATED` and `terminatedAt = now`, calls `AccountAdminApi.disableLogin`, which sets `users.disabledAt` (no sign-in, all sessions revoked), and sets the employee's `PENDING` leave requests to `REJECTED` (`decidedBy = actor`). Leave and appraisal history is **kept**. Blocked with `CONFLICT` for yourself, the last active `HR_ADMIN`, or someone already terminated. There is **no hard delete in v1** and no reinstatement. Legacy hard-deleted `employee` + `person` and left leave/performance rows pointing at nothing.
 6. **Listing [CHANGE]:** by default shows ACTIVE employees only, the HR admin included, with a role badge, plus a filter for Terminated/All. Legacy hid `id == 1` by hard-coding it.
 6a. Terminated employees can't be edited or have their password reset, and don't appear in pickers (appraisals). Their usernames stay reserved. In leave and appraisal lists they appear with a "Terminated" marker (`employee.status` on `EmployeeRef`).
-6b. **Placeholder employees (director ruling).** The migration links orphaned legacy leave and appraisal rows to placeholder employees: TERMINATED, no account, `isPlaceholder = true`. Services exclude placeholders from **every** employee list, count (including department/position counts and "last active HR admin" checks) and picker. `getEmployee`, `updateEmployee`, `terminateEmployee` and `resetEmployeePassword` return `NOT_FOUND` for them. In leave and appraisal history they appear as `EmployeeRef { name: "Unknown employee #<id>", isPlaceholder: true }`.
-6c. **Usernames:** new accounts must match `USERNAME_PATTERN` (3–30 chars of `[a-z0-9._]`, the Better Auth username plugin default). Migrated users keep their legacy login name, lower-cased, when it is unique and valid; otherwise they get `first.last` (plus a number if taken). Data reports every fallback so HR can tell those users.
+6c. **Usernames:** new accounts must match `USERNAME_PATTERN` (3–30 chars of `[a-z0-9._]`, the Better Auth username plugin default). The default is `first.last` (plus a number if taken).
 6d. **Placeholder login email:** `EmployeeDetail.emailIsPlaceholder` mirrors `users.emailIsPlaceholder`. When it's true, the profile shows "No email on file" instead of the `@users.invalid` address. The address itself never appears in the UI.
 7. **Visibility:** EMPLOYEE can only see their own record through `getMyProfile`/`getEmployee(own id)`. **[CHANGE]** In legacy any logged-in user could open `/hr/viewDetails?id=N` for anyone.
 8. HR's own "View Profile" uses `getMyProfile` (legacy linked to `viewDetails?id=<own id>`).
@@ -203,7 +201,7 @@ Legacy integers: 0 = PENDING, 1 = APPROVED, 2 = REJECTED.
 
 ### Business rules
 
-1. `leaveType` is an enum (director ruling): `SICK | ANNUAL | CASUAL | MATERNITY | UNPAID | OTHER`, with display labels matching the legacy text (`LEAVE_TYPE_LABELS`). New requests use `REQUESTABLE_LEAVE_TYPES`, which leaves out `OTHER`. `OTHER` exists only on migrated rows whose legacy text wasn't recognised. Those rows keep the original text in `legacyLeaveType` (read-only), which is returned only in HR read models and shown next to "Other". It is `null` everywhere else, including the employee's own list. `startDate`/`endDate` are `IsoDate`, `endDate ≥ startDate`. `reason` is optional, ≤1000. Past dates are allowed (e.g. sick leave logged afterwards).
+1. `leaveType` is an enum (director ruling): `SICK | ANNUAL | CASUAL | MATERNITY | UNPAID` (`LEAVE_TYPES`), with display labels matching the legacy text (`LEAVE_TYPE_LABELS`). `startDate`/`endDate` are `IsoDate`, `endDate ≥ startDate`. `reason` is optional, ≤1000. Past dates are allowed (e.g. sick leave logged afterwards).
 2. New requests are always `PENDING` for `actor.employeeId`. The employee id is never read from input.
 3. **[CHANGE]** Only `PENDING` requests can be decided. Deciding again gives `CONFLICT`. Legacy `GET /assignLeave?id=&status=` accepted any integer status at any time, from any logged-in user.
 4. A decision sets `decidedAt = now`, `decidedBy = actor.userId` **[NEW, audit]**, `seenByEmployee = false`.
@@ -212,8 +210,6 @@ Legacy integers: 0 = PENDING, 1 = APPROVED, 2 = REJECTED.
 7. No balance tracking, no overlap check, no cancellation (none exist in legacy).
 7a. HR admins can't apply for leave (legacy parity, director ruling: out of scope until after cutover).
 7b. Terminating an employee rejects their PENDING requests (Employee rule 5). Their decided history stays visible to HR.
-8. Requests whose legacy employee was deleted belong to a placeholder employee and show "Unknown employee #<id>" (legacy showed the raw id). See Employee rule 6b.
-9. **Null dates on migrated rows:** Data stores unparseable legacy leave dates as `NULL` (ADR-0007). `startDate`/`endDate` are nullable in `LeaveRequest`. The UI shows "—", and sorting puts nulls last. New requests always have both dates.
 
 ---
 
@@ -264,27 +260,13 @@ Implemented by Backend in `web/src/server/performance/`. Types: `contracts/perfo
 
 ---
 
-## Open questions for Data
+## Data model (resolved)
 
-These are assumptions the contracts make about the Prisma schema. Please confirm or push back.
-
-1. **Better Auth tables replace `person`.** Generate the Better Auth models (`user`, `session`, `account`, `verification`) with `npx auth generate` for our config (username plugin; **no admin plugin**, director ruling). Better Auth ids are strings, which matches `UserId`. Add `user.additionalFields`: `role` (source of truth), `mustChangePassword`, `disabledAt timestamptz null` (blocks login), `employeeId` (**nullable unique** FK to `employee`). Are there production `person` rows without an `employee` row (or the other way round)?
-2. **Username.** The username plugin adds `username` (normalised lower-case, unique) and `displayUsername`. **Resolved (director ruling):** keep `lower(person.Name)` when it is unique and valid (plugin default: 3–30 chars of `[a-z0-9._]`, which the contract now uses as `USERNAME_PATTERN`). Otherwise fall back to `first.last`, plus a number if taken, and report every fallback to HR.
-3. **Role.** Stored on `user.role` with values `HR_ADMIN`/`EMPLOYEE`, mapped from `access` 1/0. Do any other `access` values exist in production?
-4. **Passwords** live in `account.password` (`providerId = 'credential'`, `accountId = userId`). **Resolved (director ruling):** bcrypt hashes (`$2a$`/`$2b$`/`$2y$`) are copied as-is with `mustChangePassword = false`. Remaining legacy plain text is hashed to argon2id with Security's `hash` function, with `mustChangePassword = true`. Report how many of each.
-4a. **Email is required and unique on Better Auth's `user` table**, but legacy `employee.email` is optional and not unique. **Resolved:** `user.email` is the employee's email when present and not already used, otherwise `<username>@users.invalid` with `emailIsPlaceholder = true` (enforced by a DB CHECK). Employee email stays non-unique on `employee`. The profile (`EmployeeDetail.emailIsPlaceholder`) shows "No email on file" when the flag is set.
-5. **Foreign keys.** `employee.departmentId`/`positionId` → `ON DELETE RESTRICT`. `leave_request.employeeId` and `appraisal.employeeId` → `ON DELETE RESTRICT` (employees are never hard-deleted; soft delete per director ruling). Employees pointing at deleted departments/positions get null (nullable in read models). **Resolved (director ruling):** orphan leave/appraisal rows point at placeholder employees (TERMINATED, no account, `employee.isPlaceholder boolean default false`), so the FKs stay `NOT NULL`. Services exclude placeholders everywhere except history (Employee rule 6b).
-5a. **Employment status.** `employee.status` enum `EmploymentStatus { ACTIVE, TERMINATED }` default `ACTIVE`, plus `terminatedAt timestamptz null`. All migrated employees are ACTIVE.
-6. **Type changes.** `empleave.empid` String → Int FK. `performance.empId` stays Int. Status Int → enum `LeaveStatus`, `read` Int → `seenByEmployee boolean`. `notice.type` Int → enum. `leaveType` text → enum `LeaveType { SICK, ANNUAL, CASUAL, MATERNITY, UNPAID, OTHER }` (unrecognised → `OTHER`; resolved by director ruling). `gender` Int → enum. `maritalStatus` text → enum (`'0'` → null).
-7. **Dates.** `date` columns for DOB, leave start/end and project start/end, parsed per ADR-0007 with a report of rows that fail. `timestamptz` `createdAt` on employee, leave, notice and appraisal (null for migrated rows; is backfilling `notice.date` worth it?).
-8. **New columns:** `leave_request.decidedAt`, `decidedByUserId`; `employee.createdAt`, `updatedAt`, `status`, `terminatedAt`.
-9. **Sequences.** Keep legacy ids for all tables and reset each identity to `max(id)+1`.
-10. **Unique names** on `lower(department.name)`, `lower(position.name)`: a hand-written index in the migration SQL (Prisma can't express it). Services map its unique violation to `CONFLICT` (Org rule 2). Duplicates in production need a merge rule (reassign employees to the lowest id).
-11. **Naming.** Contracts use `LeaveRequest`/`Appraisal`/`body`/`projectStart`. Table and column names are your call; services map them.
+The schema and its rationale are in `docs/data/schema-decisions.md`. In short: Better Auth tables (`user`, `session`, `account`, `verification`, username plugin, no admin plugin) with `user.additionalFields` `role`, `mustChangePassword`, `disabledAt`, `employeeId` (nullable unique FK) and `emailIsPlaceholder`; argon2id passwords on the credential `account`; enums for role, gender, marital status, employment status, leave type/status and notice type; `Restrict` FKs to employees (soft delete only); case-insensitive unique department/position names via a hand-written index. No legacy data is migrated.
 
 ## Open questions for other leads
 
-- **Security:** Better Auth config per ADR-0004. Implement `AccountAdminApi` so it writes inside the caller's Prisma transaction (not through `auth.api`). Hashing is argon2id, with bcrypt verify and rehash-on-login in a `hooks.after` on `/sign-in/username` (director ruling). Add a `customRules` rate limit for `/sign-in/username` and decide storage (memory is fine for one container). `disableLogin` uses `users.disabledAt` (no admin plugin), enforced at sign-in (e.g. a `hooks.before` on `/sign-in/username` that gives the generic failure) and in `getSession()`. Force `/change-password` for `mustChangePassword` users, including migrated plain-text users. Keep the username plugin's default validator (it matches `USERNAME_PATTERN`). Settle the email placeholder (Data Q4a). Proxy lives at `web/src/proxy.ts` (approved).
+- **Security:** Better Auth config per ADR-0004. Implement `AccountAdminApi` so it writes inside the caller's Prisma transaction (not through `auth.api`). Hashing is argon2id (director ruling). Add a `customRules` rate limit for `/sign-in/username` and decide storage (memory is fine for one container). `disableLogin` uses `users.disabledAt` (no admin plugin), enforced at sign-in (e.g. a `hooks.before` on `/sign-in/username` that gives the generic failure) and in `getSession()`. Force `/change-password` for `mustChangePassword` users. Keep the username plugin's default validator (it matches `USERNAME_PATTERN`). Proxy lives at `web/src/proxy.ts` (approved).
 - **Backend:** confirm `runAction`/`unstable_rethrow` naming. You own all of `web/src/lib/` (director ruling).
 - **Frontend:** import actions from `@/server/actions/<area>` and `@/auth/actions` (ADR-0002, revised). How the one-time credentials screen works (no reload, copy button).
 - **QA:** please confirm in `legacy-tests/` that `POST /hr/saveEmp` and `/hr/editEmp` actually fail (multipart body is never parsed), so the parity baseline is right.

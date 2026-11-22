@@ -1,6 +1,0 @@
-node_modules/
-.env
-# Reports contain employee PII and must never be committed.
-migration-report-*.json
-migration-report-*.csv
-*.usernames.csv
