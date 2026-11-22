@@ -40,7 +40,6 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** Current theme preference plus a setter that persists and applies it. */
 export function useTheme(): [ThemePreference, (next: ThemePreference) => void] {
   const preference = useSyncExternalStore(
     subscribe,
@@ -50,9 +49,7 @@ export function useTheme(): [ThemePreference, (next: ThemePreference) => void] {
   const setPreference = useCallback((next: ThemePreference) => {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      // Storage blocked: still apply for this page view.
-    }
+    } catch {}
     apply(next);
     listeners.forEach((listener) => listener());
   }, []);

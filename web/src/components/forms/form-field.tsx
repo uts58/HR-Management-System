@@ -19,7 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { useFieldErrors } from "./action-form";
 
-/** Props every control receives so label, hint and error are linked. */
 export interface ControlProps {
   id: string;
   name: string;
@@ -29,7 +28,6 @@ export interface ControlProps {
 }
 
 interface FormFieldProps {
-  /** Must equal the contract property name (ADR-0005 rule 5). */
   name: string;
   label: string;
   required?: boolean;
@@ -38,12 +36,6 @@ interface FormFieldProps {
   children: (control: ControlProps) => ReactNode;
 }
 
-/**
- * Label + control + hint + error, wired for assistive tech: the label's
- * `for` matches the control id, and the hint and error are
- * referenced from `aria-describedby`. Optional fields say "(optional)";
- * required ones carry the native `required` attribute.
- */
 export function FormField({
   name,
   label,
@@ -158,7 +150,6 @@ export function SelectField({
   defaultValue,
 }: Omit<FormFieldProps, "children"> & {
   options: readonly SelectOption[];
-  /** Adds an empty first option ("Select…"); it submits "" so the schema can reject it. */
   placeholder?: string;
   defaultValue?: string | number;
 }) {
@@ -192,10 +183,6 @@ export function SelectField({
   );
 }
 
-/**
- * Radio buttons in a fieldset/legend. Native inputs, so arrow keys move
- * between options and the value posts with the form.
- */
 export function RadioGroupField({
   name,
   label,

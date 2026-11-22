@@ -1,14 +1,3 @@
-/**
- * Employee input schemas (contracts.md#employee, ADR-0005).
- *
- * Rules that need the database are checked in the service (ADR-0005 rule 7):
- * department/position must exist, username must be free.
- *
- * Date of birth "before today" accepts up to the UTC date + 1 day
- * (ADR-0007 rule 4: the viewer's zone is unknown on the server). Forms may
- * add a stricter check against the browser's local date.
- */
-
 import { z } from "zod";
 import {
   COUNTRIES,
@@ -40,11 +29,6 @@ export const DATE_OF_BIRTH_NOT_PAST = "Date of birth must be in the past";
 
 const usernameRe = new RegExp(USERNAME_PATTERN);
 
-/**
- * Optional login name: trimmed, lower-cased (usernames are
- * case-insensitive), 3..30 of `[a-z0-9._]`. Blank means "generate the
- * default first.last".
- */
 export const usernameField = z
   .preprocess(
     (v) =>
@@ -61,10 +45,8 @@ export const usernameField = z
       })
       .optional(),
   )
-  .optional(); // the key may be omitted
+  .optional();
 
-// The checks after "required" skip empty input themselves (no `abort`, see
-// requiredText in ./common), so a blank field reports only "required".
 const filled = (test: (v: string) => boolean) => (v: string) =>
   v === "" || test(v);
 
@@ -96,7 +78,6 @@ const dateOfBirthField = isoDateField("Date of birth").refine(
   { error: DATE_OF_BIRTH_NOT_PAST },
 );
 
-/** Fields shared by create and update. */
 const employeeFields = {
   firstName: requiredText("First name", NAME_MAX),
   middleName: optionalText("Middle name", NAME_MAX),
@@ -117,16 +98,10 @@ export const createEmployeeSchema = z.object({
   username: usernameField,
 }) satisfies z.ZodType<CreateEmployeeInput>;
 
-/** Username is not editable, so it is not part of the update input. */
 export const updateEmployeeSchema = z.object(
   employeeFields,
 ) satisfies z.ZodType<UpdateEmployeeInput>;
 
-/**
- * What the edit-employee action receives: the record id plus the fields.
- * The action passes `id` and the rest separately to
- * `employeeService.updateEmployee(actor, id, input)`.
- */
 export const updateEmployeeActionSchema = updateEmployeeSchema.extend({
   id: entityIdSchema,
 });
@@ -134,10 +109,6 @@ export const updateEmployeeActionSchema = updateEmployeeSchema.extend({
 export const terminateEmployeeSchema = idInputSchema;
 export const resetEmployeePasswordSchema = idInputSchema;
 
-/**
- * Employee list filter (`?status=`), for `listEmployees`. Anything missing
- * or unknown falls back to ACTIVE, so a bad query string never errors.
- */
 export const listEmployeesFilterSchema = z.object({
   status: z
     .enum([

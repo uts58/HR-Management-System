@@ -3,8 +3,6 @@ import { expect, test } from "../support/fixtures";
 import { expectFieldError, expectToast } from "../support/pages/common";
 import { uid } from "../support/users";
 
-/** Feature map rows 21–23 (legacy /addNotice, saveNotice, deleteNotice) and dashboard notices (row 4). */
-
 test.describe("Notices: validation", () => {
   test("title and notice text are required", async ({ hr }) => {
     await hr.page.goto("/dashboard");
@@ -69,7 +67,6 @@ test.describe("Notices: journeys", { tag: BACKEND_TAG }, () => {
     for (const t of titles) {
       await hr.notices.post(t, "Batch notice.", "General");
       await expectToast(hr.page, "Notice posted.");
-      // Toasts stack, so wait for this notice itself before posting the next.
       await expect(hr.notices.row(t)).toBeVisible();
     }
     await employee.dashboard.goto();

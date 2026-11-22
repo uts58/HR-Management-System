@@ -1,16 +1,3 @@
-// Playwright globalSetup. Resets the E2E database once, before any worker
-// starts, using tests/support/db/reset.ts: TRUNCATE, then the seed, then the
-// QA fixtures. It refuses databases not named *_test or *_it.
-//
-// It goes through ensureDatabaseReset(), which calls resetDatabase() and
-// records a per-run stamp. E2E_RUN_ID is set here, and workers inherit it,
-// so the worker fixture in tests/support/fixtures.ts sees the stamp and
-// does not reset a second time.
-//
-// Skipped when E2E_DB_RESET=0, e.g. when PLAYWRIGHT_BASE_URL points at a
-// shared deployment.
-//
-// Against `next dev` it also warms every route up (see warmUpDevServer).
 import { randomUUID } from "node:crypto";
 
 import { chromium, type FullConfig } from "@playwright/test";
@@ -43,17 +30,9 @@ const EMPLOYEE_ROUTES = [
   "/notices",
   "/profile",
   "/change-password",
-  "/employees", // redirects to /forbidden
+  "/employees",
 ];
 
-/**
- * `next dev` compiles each route on first request, and a compile that lands
- * while a page is loading makes the dev client reload it. With parallel
- * workers that aborted navigations and wiped half-typed login forms, so the
- * first specs to touch a route (callbackUrl redirect, login form) failed
- * only on a cold dev server. Visiting every route once, signed in, before
- * the workers start gets all of that compilation out of the way.
- */
 async function warmUpDevServer(baseURL: string): Promise<void> {
   const browser = await chromium.launch();
   try {

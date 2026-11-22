@@ -2,10 +2,6 @@ import { postSignIn, SIGN_IN_PATH } from "../support/auth";
 import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 
-/**
- * The API block talks to Better Auth's real endpoint; the form block drives the login form.
- */
-
 test.describe("Sign-in API (Better Auth)", () => {
   test("valid credentials sign in and set a session cookie", async ({
     context,
@@ -70,7 +66,6 @@ test.describe("Sign-in API (Better Auth)", () => {
     for (const res of [wrong, unknown, terminated]) {
       expect(res.status()).toBe(401);
     }
-    // No user enumeration: identical bodies.
     const [a, b, c] = await Promise.all([
       wrong.text(),
       unknown.text(),
@@ -103,7 +98,6 @@ test.describe("Sign-in API (Better Auth)", () => {
     expect(limited, "no HTTP 429 after 15 failed sign-ins").toBe(true);
     expect(attempts, "locked before the 10th failure").toBeGreaterThan(10);
 
-    // While locked, even the right password from this client is refused.
     const locked = await postSignIn(
       context,
       baseURL!,
@@ -112,7 +106,6 @@ test.describe("Sign-in API (Better Auth)", () => {
     );
     expect(locked.status()).toBe(429);
 
-    // A different username from the same client is not locked (no office-NAT lockout).
     const colleague = await postSignIn(
       context,
       baseURL!,
@@ -121,7 +114,6 @@ test.describe("Sign-in API (Better Auth)", () => {
     );
     expect(colleague.status()).toBe(200);
 
-    // The same username from another client is not locked (no remote lockout of a named account).
     const other = await playwright.request.newContext({
       baseURL,
       extraHTTPHeaders: { "x-forwarded-for": "198.19.255.254" },

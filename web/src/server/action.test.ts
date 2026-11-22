@@ -43,10 +43,6 @@ class FakeAuthError extends Error {
   }
 }
 
-/**
- * Fake of requireRole/requireSession: `session` null means
- * signed out; role mismatch and pending password change mean FORBIDDEN.
- */
 function fakeAuth(session: Session | null) {
   const check = (roles: readonly string[] | null, opts?: RequireOptions) => {
     if (!session) throw new FakeAuthError("UNAUTHENTICATED");

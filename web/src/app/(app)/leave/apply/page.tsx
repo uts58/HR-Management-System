@@ -8,7 +8,6 @@ import { ApplyLeaveForm } from "../_components/leave-client";
 
 export const metadata: Metadata = { title: "Apply for leave" };
 
-/** EMPLOYEE only. */
 export default async function ApplyLeavePage() {
   await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
   return (

@@ -3,8 +3,6 @@ import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 import { ChangePasswordPage } from "../support/pages/auth";
 
-/** Feature map rows 5–6 (legacy /changePassword, /savePassword) and the forced change. */
-
 test.describe("Change password: validation", () => {
   test.beforeEach(async ({ employee }) => {
     await employee.page.goto("/dashboard");
@@ -68,7 +66,6 @@ test.describe("Change password: journeys", { tag: BACKEND_TAG }, () => {
     await chad.password.change(users.chad.password, next);
     await chad.password.expectChanged();
 
-    // Other sessions are revoked; this one stays.
     await otherDevice.page.goto("/dashboard");
     await otherDevice.login.expectOnPage();
     await chad.page.goto("/dashboard");

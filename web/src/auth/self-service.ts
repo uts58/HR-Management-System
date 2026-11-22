@@ -10,25 +10,8 @@ import { MUST_CHANGE_COOKIE } from "./paths";
 import { checkPasswordPolicy, hashPassword, verifyPassword } from "./password";
 import type { LoadedSession } from "./session";
 
-/**
- * Server-side work behind the AuthActions in ./actions.ts. Failures throw
- * AuthServiceError (ServiceError shape), which defineAction's runAction
- * maps to `{ ok: false, error }`.
- */
-
 const WRONG_CURRENT = "Current password is incorrect";
 
-/**
- * Change the password of the user behind `current`, keeping `current`
- * signed in.
- *
- * Input is expected to have passed changePasswordSchema already (lengths,
- * confirmation, differs from current). This re-checks the policy anyway,
- * plus what needs the database: the current password and "not equal to the
- * username". Then, in one transaction: write
- * an argon2id hash (compare-and-swap on the old hash), clear
- * mustChangePassword, delete every other session of the user.
- */
 export async function changePasswordForSession(
   current: LoadedSession,
   input: ChangePasswordInput,
@@ -79,7 +62,7 @@ export async function changePasswordForSession(
       where: { id: account.id, password: oldHash },
       data: { password: newHash },
     });
-    if (count !== 1) return false; // changed concurrently (e.g. HR reset)
+    if (count !== 1) return false;
     await tx.user.update({
       where: { id: user.userId },
       data: { mustChangePassword: false },
@@ -100,22 +83,18 @@ export async function changePasswordForSession(
     (await cookies()).delete(MUST_CHANGE_COOKIE);
   } catch (err) {
     unstable_rethrow(err);
-    // Outside a server action/route handler (tests); the hint is harmless.
   }
 }
 
-/** End the request's session. Safe to call when signed out. */
 export async function signOutCurrentSession(): Promise<void> {
   try {
     await getAuth().api.signOut({ headers: await headers() });
   } catch (err) {
     unstable_rethrow(err);
-    // No session or already revoked: nothing to do.
   }
   try {
     (await cookies()).delete(MUST_CHANGE_COOKIE);
   } catch (err) {
     unstable_rethrow(err);
-    // Outside a server action/route handler.
   }
 }

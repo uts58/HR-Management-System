@@ -43,7 +43,6 @@ describe("sign-in (POST /api/auth/sign-in/username)", () => {
       role: "EMPLOYEE",
       mustChangePassword: false,
     });
-    // Internal fields never reach the browser.
     expect(r.body.user).not.toHaveProperty("disabledAt");
   });
 
@@ -83,7 +82,6 @@ describe("sign-in (POST /api/auth/sign-in/username)", () => {
     const userId = await createUser({ username: "jane", password: "pass-123" });
     expect(isArgon2idHash((await credentialHash(userId))!)).toBe(true);
 
-    // Known bcrypt vector (OpenBSD test suite) for the password "U*U".
     await prisma.account.updateMany({
       where: { userId },
       data: {
@@ -125,11 +123,8 @@ describe("sign-in (POST /api/auth/sign-in/username)", () => {
       statuses.push((await signIn("jane", "wrong", officeIp)).status);
     expect(statuses.slice(0, 10).every((s) => s === 401)).toBe(true);
     expect(statuses[10]).toBe(429);
-    // Jane is locked out from that IP, even with the right password...
     expect((await signIn("JANE", "right-pass", officeIp)).status).toBe(429);
-    // ...her colleague behind the same NAT address is not...
     expect((await signIn("omar", "omar-pass-1", officeIp)).status).toBe(200);
-    // ...and an attacker's failures elsewhere don't lock Jane out at home.
     expect((await signIn("jane", "right-pass", freshIp())).status).toBe(200);
   });
 

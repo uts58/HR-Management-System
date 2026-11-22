@@ -1,6 +1,5 @@
 export type OrgUnitKind = "department" | "position";
 
-/** Wording per kind. */
 export const ORG_UNIT_COPY: Record<
   OrgUnitKind,
   {

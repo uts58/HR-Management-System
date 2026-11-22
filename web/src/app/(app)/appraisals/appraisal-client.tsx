@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { createAppraisalSchema } from "@/lib/validation";
 import { createAppraisal, deleteAppraisal } from "@/server/actions/performance";
 
-/** Add appraisal (feature map rows 30–31). Fields = CreateAppraisalInput. */
 export function AppraisalForm({
   employees,
 }: {
@@ -84,7 +83,6 @@ export function AppraisalForm({
   );
 }
 
-/** Delete with confirmation (feature map row 33). */
 export function DeleteAppraisalButton({
   id,
   label,

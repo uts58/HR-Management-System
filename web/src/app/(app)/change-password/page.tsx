@@ -10,11 +10,6 @@ import { ChangePasswordForm } from "./change-password-form";
 
 export const metadata: Metadata = { title: "Change password" };
 
-/**
- * Feature map rows 5–6. Also the forced page while mustChangePassword is
- * set: requireSession/requireRole send every other page here, and the shell
- * hides the navigation.
- */
 export default async function ChangePasswordPage() {
   const session = await requireSession({
     onFail: "redirect",

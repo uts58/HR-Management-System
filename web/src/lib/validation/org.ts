@@ -1,9 +1,3 @@
-/**
- * Department and position input schemas (contracts.md#org).
- * Name uniqueness (case-insensitive) is checked in the service and by the
- * `lower(name)` unique index; see `@/server/errors` for the mapping.
- */
-
 import { z } from "zod";
 import type {
   CreateDepartmentInput,

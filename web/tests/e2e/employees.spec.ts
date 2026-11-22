@@ -6,8 +6,6 @@ import { expectFieldError, expectToast } from "../support/pages/common";
 import type { EmployeeInput } from "../support/pages/employees";
 import { fullName, uid } from "../support/users";
 
-/** Feature map rows 7–14 (legacy /hr/*Employee*, /hr/viewDetails, /hr/viewProfile) + reset password. */
-
 const newHire = (first: string): EmployeeInput => ({
   firstName: first,
   lastName: "Starter",
@@ -109,7 +107,7 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await hr.page.goto("/dashboard");
     await hr.employees.openList();
     const admin = hr.employees.row(fullName(users.admin));
-    await expect(admin).toContainText("HR admin"); // legacy hid employee id 1
+    await expect(admin).toContainText("HR admin");
     const john = hr.employees.row("John A Doe");
     await expect(john).toContainText("Software Engineer");
     await expect(john).toContainText("Engineering");
@@ -234,7 +232,6 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
       ).status(),
     ).toBe(200);
 
-    // The display name follows the rename (AccountAdminApi.updateDisplayName); the username doesn't.
     const eric = await as(users.eric);
     await eric.page.goto("/dashboard");
     await expect(eric.shell.userMenuButton()).toHaveAccessibleName(
@@ -265,7 +262,6 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
       "Terminated",
     );
 
-    // Their open session is gone and they can't sign in again.
     await terry.page.goto("/dashboard");
     await terry.login.expectOnPage();
     const probe = await as();
@@ -280,13 +276,11 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
       ).status(),
     ).toBe(401);
 
-    // Pending leave was rejected; the history stays visible with a marker.
     await hr.page.goto("/leave/all");
     const leave = hr.leave.row(reason);
     await expect(leave).toContainText("Rejected");
     await expect(leave).toContainText("Terminated");
 
-    // A terminated record can't be edited or terminated again.
     await hr.page.goto(`/employees/${users.terry.employeeId}`);
     await expect(hr.page.getByRole("link", { name: "Edit" })).toHaveCount(0);
     await expect(

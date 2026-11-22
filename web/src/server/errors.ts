@@ -1,16 +1,3 @@
-/**
- * Domain errors and their mapping to `ActionResult` (ADR-0006).
- *
- * Services throw `ServiceError`; `runAction` (and `defineAction`, built on
- * it) turns anything thrown into `{ ok: false, error }` with a user-safe
- * message. Next.js control-flow errors (redirect, notFound, forbidden, …)
- * are rethrown untouched via `unstable_rethrow` (the Next 16 API name).
- *
- * Prisma and auth errors are recognised by shape (`name` + `code`), not by
- * `instanceof`, so this module needs neither the generated Prisma client
- * nor `@/auth`, and duplicate module copies cannot defeat the checks.
- */
-
 import "server-only";
 
 import { unstable_rethrow } from "next/navigation";
@@ -22,8 +9,6 @@ import type {
   FieldErrors,
   ServiceErrorShape,
 } from "@/contracts/common";
-
-// ─── ServiceError ───────────────────────────────────────────────────────────
 
 export type ServiceErrorCode = ServiceErrorShape["code"];
 
@@ -37,10 +22,6 @@ const DEFAULT_MESSAGES: Record<ServiceErrorCode, string> = {
 export const INTERNAL_ERROR_MESSAGE = "Something went wrong. Please try again.";
 const UNAUTHENTICATED_MESSAGE = "Your session has ended. Please sign in again.";
 
-/**
- * The only error services throw on purpose. `message` must be safe to show
- * to the user; `fieldErrors` keys are input property names.
- */
 export class ServiceError extends Error implements ServiceErrorShape {
   override readonly name = "ServiceError" as const;
   readonly code: ServiceErrorCode;
@@ -58,20 +39,14 @@ export class ServiceError extends Error implements ServiceErrorShape {
   }
 }
 
-/** `NOT_FOUND`, e.g. `notFoundError("Employee not found")`. */
 export function notFoundError(message?: string): ServiceError {
   return new ServiceError("NOT_FOUND", message);
 }
 
-/** `FORBIDDEN` from a service-level role or ownership check. */
 export function forbiddenError(message?: string): ServiceError {
   return new ServiceError("FORBIDDEN", message);
 }
 
-/**
- * `CONFLICT`. With `field`, the message is also attached to that form
- * field (e.g. a duplicate department name on `name`).
- */
 export function conflictError(
   message: string,
   field?: string,
@@ -85,10 +60,6 @@ export function conflictError(
   );
 }
 
-/**
- * `VALIDATION` for rules the schema cannot check (unknown department,
- * date of birth vs the company's today, terminated employee picked, …).
- */
 export function validationError(
   fieldErrors: FieldErrors,
   message: string = DEFAULT_MESSAGES.VALIDATION,
@@ -96,7 +67,6 @@ export function validationError(
   return new ServiceError("VALIDATION", message, fieldErrors);
 }
 
-/** Single-field shorthand: `fieldValidationError("employeeId", "…")`. */
 export function fieldValidationError(
   field: string,
   message: string,
@@ -115,8 +85,6 @@ export function isServiceError(e: unknown): e is ServiceErrorShape {
   );
 }
 
-// ─── AuthError (thrown by @/auth requireRole/requireSession) ────────────────
-
 const AUTH_CODES = new Set<AuthFailure>(["UNAUTHENTICATED", "FORBIDDEN"]);
 
 export function isAuthError(e: unknown): e is AuthErrorShape {
@@ -126,8 +94,6 @@ export function isAuthError(e: unknown): e is AuthErrorShape {
     AUTH_CODES.has((e as { code?: unknown }).code as AuthFailure)
   );
 }
-
-// ─── Prisma errors (duck-typed) ─────────────────────────────────────────────
 
 interface PrismaKnownErrorLike {
   name: "PrismaClientKnownRequestError";
@@ -147,35 +113,17 @@ export function isPrismaKnownError(
   return typeof actual === "string" && (code === undefined || actual === code);
 }
 
-/**
- * True for a Prisma P2003 foreign-key violation. Deliberately NOT mapped
- * globally (it stays INTERNAL, ADR-0006): only delete services that can hit
- * a Restrict FK catch it and convert it to CONFLICT with their own message.
- */
 export function isForeignKeyViolation(e: unknown): boolean {
   return isPrismaKnownError(e, "P2003");
 }
 
-/** What a unique violation tells us about the constraint it hit. */
 export interface UniqueViolation {
-  /** Index/constraint name, e.g. "departments_name_lower_key". */
   constraint?: string;
-  /** Column names, when the driver reports them. */
   fields?: string[];
 }
 
 const unquote = (s: string) => s.trim().replace(/^"|"$/g, "");
 
-/**
- * Details of a Prisma P2002 unique violation, or null for any other error.
- *
- * Prisma 7 with `@prisma/adapter-pg` puts the driver error under
- * `meta.driverAdapterError.cause`: `constraint` is `{ index }` when
- * Postgres names the constraint (always, in practice) or `{ fields }`.
- * Expression indexes such as `lower(name)` only give a usable index name,
- * so callers match on the constraint name. Older engines put `target`
- * (string or string[]) on `meta` directly; both are handled.
- */
 export function getUniqueViolation(e: unknown): UniqueViolation | null {
   if (!isPrismaKnownError(e, "P2002")) return null;
   const meta = e.meta ?? {};
@@ -201,7 +149,6 @@ export function getUniqueViolation(e: unknown): UniqueViolation | null {
 
   const target = meta.target;
   if (typeof target === "string") {
-    // Engine form: the constraint name, or a column list.
     if (!result.constraint) result.constraint = target;
   } else if (Array.isArray(target) && !result.fields) {
     result.fields = target.map(String).map(unquote);
@@ -209,16 +156,11 @@ export function getUniqueViolation(e: unknown): UniqueViolation | null {
   return result;
 }
 
-/** How a known unique constraint maps to a form field. */
 export interface UniqueConstraintRule {
   field: string;
   message: string;
 }
 
-/**
- * Unique constraints services must report on a field. The `lower(name)` indexes are hand-written, so
- * their violation names no column and is identified by constraint name only.
- */
 export const KNOWN_UNIQUE_CONSTRAINTS = {
   departments_name_lower_key: {
     field: "name",
@@ -236,17 +178,6 @@ export const KNOWN_UNIQUE_CONSTRAINTS = {
 
 export type KnownUniqueConstraint = keyof typeof KNOWN_UNIQUE_CONSTRAINTS;
 
-/**
- * Turn a P2002 into `CONFLICT` on the right field, if it is one of `rules`
- * (default: all KNOWN_UNIQUE_CONSTRAINTS). Matches by constraint name only:
- * a bare column name such as `name` cannot tell departments from positions.
- * Returns null if `e` is not a matching unique violation, so callers can
- * rethrow:
- *
- *   } catch (e) {
- *     throw uniqueViolationToConflict(e, ["departments_name_lower_key"]) ?? e;
- *   }
- */
 export function uniqueViolationToConflict(
   e: unknown,
   only?: readonly KnownUniqueConstraint[],
@@ -264,9 +195,6 @@ export function uniqueViolationToConflict(
   return null;
 }
 
-// ─── Mapping to ActionResult ────────────────────────────────────────────────
-
-/** `z.flattenError` field errors, dropping empty entries. */
 function zodFieldErrors(e: ZodError): {
   fieldErrors: FieldErrors;
   formErrors: string[];
@@ -284,7 +212,6 @@ function zodFieldErrors(e: ZodError): {
 
 export type ErrorLogger = (entry: Record<string, unknown>) => void;
 
-/** Structured JSON to stdout/stderr (ADR-0006 rule 6). Never logs input. */
 export const defaultErrorLogger: ErrorLogger = (entry) => {
   console.error(JSON.stringify(entry));
 };
@@ -302,11 +229,6 @@ function describeError(e: unknown): Record<string, unknown> {
   return { thrown: typeof e };
 }
 
-/**
- * Map any thrown value to a user-safe `AppError` (ADR-0006 table).
- * Unexpected errors are logged with a request id and become INTERNAL with a
- * generic message: no stack, SQL or internals ever reach the client.
- */
 export function toAppError(
   e: unknown,
   log: ErrorLogger = defaultErrorLogger,
@@ -362,7 +284,6 @@ export function toAppError(
   return { code: "INTERNAL", message: INTERNAL_ERROR_MESSAGE };
 }
 
-/** `toAppError` wrapped as a failed `ActionResult`. */
 export function toActionResult(
   e: unknown,
   log?: ErrorLogger,
@@ -370,11 +291,6 @@ export function toActionResult(
   return { ok: false, error: toAppError(e, log) };
 }
 
-/**
- * Run `fn` and return its value as an `ActionResult`. Never throws, except
- * for Next.js control-flow errors (redirect/notFound/forbidden/…), which
- * must reach the framework.
- */
 export async function runAction<T>(
   fn: () => Promise<T> | T,
   log?: ErrorLogger,

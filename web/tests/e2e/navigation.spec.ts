@@ -2,11 +2,6 @@ import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 import { ChangePasswordPage } from "../support/pages/auth";
 
-/**
- * Role-based navigation.
- * Hiding links is convenience only; forbidden.spec.ts checks enforcement.
- */
-
 const HR_NAV = [
   "Dashboard",
   "Manage employees",

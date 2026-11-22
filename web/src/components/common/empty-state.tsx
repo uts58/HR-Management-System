@@ -10,7 +10,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 
-/** "Nothing here yet" block for empty lists, with an optional next step. */
 export function EmptyState({
   icon: Icon,
   title,

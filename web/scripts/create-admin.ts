@@ -1,21 +1,3 @@
-/**
- * Creates the first HR admin: an employee plus a login account with role
- * HR_ADMIN and the given password (no forced change). Idempotent: re-running
- * with an existing HR admin's username changes nothing.
- *
- *   npm run create-admin -- --username admin
- *   (password from CREATE_ADMIN_PASSWORD, so it stays out of shell history)
- *
- * Options (each falls back to the env var in brackets):
- *   --username   [CREATE_ADMIN_USERNAME]  required
- *   --password   [CREATE_ADMIN_PASSWORD]  required; prefer the env var
- *   --first-name [CREATE_ADMIN_FIRST_NAME] default "HR"
- *   --last-name  [CREATE_ADMIN_LAST_NAME]  default "Admin"
- *   --email      [CREATE_ADMIN_EMAIL]      optional
- *
- * Needs the app's server environment (DATABASE_URL, BETTER_AUTH_SECRET,
- * BETTER_AUTH_URL; web/.env is loaded). The password is never printed.
- */
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { createHrAdmin } from "@/server/employee/create-admin";
@@ -58,8 +40,6 @@ async function main() {
 
 main()
   .catch((err: unknown) => {
-    // ServiceError-shaped failures (validation, conflict) carry a safe message.
-    // Never print the input, which holds the password.
     const e = err as { name?: string; message?: string; fieldErrors?: unknown };
     if (e?.name === "ServiceError") {
       const details = e.fieldErrors ? ` ${JSON.stringify(e.fieldErrors)}` : "";

@@ -1,10 +1,3 @@
-/**
- * Appraisal input schemas (contracts.md#performance). The
- * employee is required and reported on field `employeeId` instead of
- * failing silently. The service also checks the employee exists, is ACTIVE
- * and is not a placeholder (VALIDATION on `employeeId`).
- */
-
 import { z } from "zod";
 import {
   RATINGS,
@@ -23,7 +16,6 @@ export const PROJECT_NAME_MAX = 200;
 
 const RATING_MESSAGE = "Rating must be between 1 and 5";
 
-/** 1..5, from a select (string) or a number. */
 export const ratingField = z.preprocess(
   (v) =>
     typeof v === "string" && /^\s*\d+\s*$/.test(v) ? Number(v.trim()) : v,
@@ -46,7 +38,6 @@ export const createAppraisalSchema = z
   .refine((v) => v.projectEnd >= v.projectStart, {
     error: "End date cannot be before the start date",
     path: ["projectEnd"],
-    // Runs even when other fields fail, so all errors show at once.
     when: whenFieldsValid("projectStart", "projectEnd"),
   }) satisfies z.ZodType<CreateAppraisalInput>;
 

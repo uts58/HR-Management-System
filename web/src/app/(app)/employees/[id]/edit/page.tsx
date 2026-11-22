@@ -13,7 +13,6 @@ import { EmployeeForm } from "../../_components/employee-form";
 
 export const metadata: Metadata = { title: "Edit employee" };
 
-/** HR only. */
 export default async function EditEmployeePage({
   params,
 }: PageProps<"/employees/[id]/edit">) {

@@ -6,11 +6,6 @@ import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 
-/**
- * Unexpected error inside the shell (ADR-0006 rule 5). Shows a generic
- * message plus the digest so support can match the server log; never the
- * raw error text. Focus moves to the heading so screen readers announce it.
- */
 export default function AppError({
   error,
   retry,

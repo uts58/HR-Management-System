@@ -379,9 +379,7 @@ describe("employeeService.terminateEmployee", () => {
   it("can't terminate the last active HR admin", async () => {
     const { service, hr } = await setup();
     const other = await makePerson("HR_ADMIN");
-    // Two admins: one may go.
     await service.terminateEmployee(hr.actor, other.employee.id);
-    // An admin without an employee record is the only one left to act.
     const ghost = await makeUser(null, "HR_ADMIN");
     const ghostActor = {
       userId: ghost.id,

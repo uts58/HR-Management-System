@@ -14,9 +14,6 @@ import {
   terminateEmployee,
 } from "@/server/actions/employee";
 
-/**
- * Terminate (soft delete) with confirmation (feature map row 13).
- */
 export function TerminateEmployeeButton({
   employeeId,
   name,
@@ -56,10 +53,6 @@ export function TerminateEmployeeButton({
   );
 }
 
-/**
- * Reset password (feature map, [NEW] approved). Shows the one-time
- * temporary password after confirmation.
- */
 export function ResetPasswordButton({
   employeeId,
   name,

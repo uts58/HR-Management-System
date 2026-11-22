@@ -20,12 +20,6 @@ import { Button } from "@/components/ui/button";
 
 type ButtonProps = React.ComponentProps<typeof Button>;
 
-/**
- * Confirmation step for destructive or irreversible actions (ADR-0004
- * rule 9, ADR-0009 rule 7). Focus moves into the dialog, Escape cancels,
- * and focus returns to the trigger on close. A failed action keeps the
- * dialog open and shows the error message inside it.
- */
 export function ConfirmActionDialog<T>({
   triggerLabel,
   triggerIcon,
@@ -45,7 +39,6 @@ export function ConfirmActionDialog<T>({
   triggerIcon?: ReactNode;
   triggerVariant?: ButtonProps["variant"];
   triggerSize?: ButtonProps["size"];
-  /** Fuller name for screen readers when the visible label is short (e.g. "Delete Finance"). */
   triggerAriaLabel?: string;
   title: string;
   description: ReactNode;
@@ -54,7 +47,6 @@ export function ConfirmActionDialog<T>({
   destructive?: boolean;
   onConfirm: () => Promise<ActionResult<T>>;
   onSuccess?: (data: T) => void;
-  /** Success toast (ADR-0006 rule 4), e.g. "Department deleted." */
   successMessage?: string;
 }) {
   const [open, setOpen] = useState(false);

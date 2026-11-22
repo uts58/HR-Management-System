@@ -5,10 +5,6 @@ export interface DescriptionItem {
   value: ReactNode;
 }
 
-/**
- * Label/value pairs for read-only records (employee details, profile).
- * Empty values show an em dash so screen readers do not skip the row.
- */
 export function DescriptionList({ items }: { items: DescriptionItem[] }) {
   return (
     <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">

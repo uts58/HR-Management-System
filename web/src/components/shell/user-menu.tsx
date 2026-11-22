@@ -38,16 +38,6 @@ const initials = (name: string) =>
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-/**
- * Header user menu: who is signed in, Profile, Change password, theme and
- * Sign out. `restricted` (mustChangePassword) leaves only Sign out, since
- * nothing else is reachable until the password is changed.
- *
- * `signOutAction` is the `signOut` server action (AuthActions),
- * passed down from the layout. Whatever it returns (including
- * UNAUTHENTICATED for an already-expired session), the user ends up on
- * /login.
- */
 export function UserMenu({
   user,
   restricted = false,

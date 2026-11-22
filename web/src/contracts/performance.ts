@@ -1,9 +1,3 @@
-/**
- * Performance appraisal contract.
- * Implemented in web/src/server/performance/.
- * Business rules: docs/architecture/contracts.md#performance
- */
-
 import type {
   Actor,
   AppraisalId,
@@ -13,7 +7,6 @@ import type {
 } from "./common";
 import type { EmployeeRef } from "./employee";
 
-/** Rating, 1..5. */
 export const RATINGS = [1, 2, 3, 4, 5] as const;
 export type Rating = (typeof RATINGS)[number];
 
@@ -36,26 +29,20 @@ export interface Appraisal {
 }
 
 export interface CreateAppraisalInput {
-  employeeId: EmployeeId; // must exist, be ACTIVE and not a placeholder
-  projectName: string; // trimmed, 1..200
+  employeeId: EmployeeId;
+  projectName: string;
   projectStart: IsoDate;
-  projectEnd: IsoDate; // >= projectStart
+  projectEnd: IsoDate;
   rating: Rating;
 }
 
 export interface PerformanceService {
-  /** HR_ADMIN. All appraisals (placeholder history included), newest first. */
   listAppraisals(actor: Actor): Promise<Appraisal[]>;
 
-  /**
-   * HR_ADMIN. Throws VALIDATION (incl. unknown, TERMINATED or placeholder
-   * employee).
-   */
   createAppraisal(
     actor: Actor,
     input: CreateAppraisalInput,
   ): Promise<Appraisal>;
 
-  /** HR_ADMIN. Throws NOT_FOUND. */
   deleteAppraisal(actor: Actor, id: AppraisalId): Promise<void>;
 }

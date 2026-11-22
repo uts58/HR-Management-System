@@ -1,6 +1,5 @@
 import { UsersRoundIcon } from "lucide-react";
 
-/** Product mark used in the sidebar, mobile sheet and auth pages. */
 export function Brand() {
   return (
     <span className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">

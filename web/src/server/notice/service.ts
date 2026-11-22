@@ -1,8 +1,3 @@
-/**
- * Notices (contracts.md#notice). Behind login: every function needs an
- * actor; there is no anonymous access.
- */
-
 import "server-only";
 
 import { Role } from "@/contracts/auth";
@@ -20,7 +15,6 @@ import { db } from "../db";
 import { notFoundError } from "../errors";
 import { assertRole, newestFirst } from "../shared";
 
-/** Upper bound for `listRecentNotices(limit)`, so callers can't dump the table. */
 export const MAX_RECENT_NOTICES = 50;
 
 const noticeSelect = {

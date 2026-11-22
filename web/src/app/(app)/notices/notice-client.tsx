@@ -15,7 +15,6 @@ import {
 import { createNoticeSchema } from "@/lib/validation";
 import { createNotice, deleteNotice } from "@/server/actions/notice";
 
-/** Post a notice (feature map row 22). Fields = CreateNoticeInput. */
 export function NoticeForm() {
   const router = useRouter();
   return (
@@ -56,7 +55,6 @@ export function NoticeForm() {
   );
 }
 
-/** Delete a notice with confirmation (feature map row 23). */
 export function DeleteNoticeButton({
   id,
   title,

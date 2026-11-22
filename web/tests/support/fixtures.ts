@@ -20,7 +20,6 @@ import {
 } from "./pages/hr";
 import { users, type TestUser } from "./users";
 
-/** Page objects for one browser context. */
 export class App {
   readonly shell: Shell;
   readonly login: LoginPage;
@@ -64,20 +63,14 @@ async function openApp(
 }
 
 type TestFixtures = {
-  /** Skips @backend specs unless E2E_BACKEND=1 (auto). */
   backendGate: void;
-  /** Anonymous app on the default page (own client IP). */
   app: App;
-  /** Signed in as the seeded HR admin, own context. */
   hr: App;
-  /** Signed in as seeded employee John A Doe, own context. */
   employee: App;
-  /** Open another signed-in (or anonymous) context, e.g. for two-user journeys. */
   as: (user?: TestUser, options?: { timezoneId?: string }) => Promise<App>;
 };
 
 type WorkerFixtures = {
-  /** Truncate + seed + QA fixtures, once per run (auto). */
   database: void;
 };
 
@@ -101,7 +94,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     { auto: true },
   ],
 
-  // Every default context gets its own client IP (see support/auth.ts).
   extraHTTPHeaders: async ({}, provide) => {
     await provide({ "x-forwarded-for": nextClientIp() });
   },
@@ -126,7 +118,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     const closers: (() => Promise<void>)[] = [];
     await provide(async (user, options) => {
       const s = await openApp(browser, baseURL!, user, options);
-      // A fresh page is about:blank; land on the app so journeys can use it.
       await s.app.page.goto("/");
       closers.push(s.close);
       return s.app;

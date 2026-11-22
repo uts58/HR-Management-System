@@ -1,20 +1,3 @@
-/**
- * Local ESLint rule: hr/contracts-imports
- *
- * ADR-0002: `src/contracts/` may import nothing except other contract files,
- * and only types. Applied to src/contracts/** in eslint.config.mjs.
- *
- * - `import type { X } from "./other"` is allowed. The declaration itself
- *   must be type-only: `import { type X }` is rejected, because it can leave
- *   a runtime side-effect import behind.
- * - The source must resolve inside src/contracts/. Relative paths and the
- *   "@/contracts/..." alias are both accepted.
- * - Re-exports (`export * from "./x"`, `export { A } from "./x"`) must also
- *   come from inside contracts/. They may re-export values, because the
- *   contract files define constants such as Role and LEAVE_TYPES.
- * - Side-effect imports, dynamic import(), require() and `import("pkg")`
- *   type queries that point outside contracts/ are rejected.
- */
 import path from "node:path";
 
 /** @type {import("eslint").Rule.RuleModule} */
@@ -88,8 +71,6 @@ const rule = {
         if (node.source) checkSource(node, node.source);
       },
       TSImportType(node) {
-        // import("x").Foo in a type position. typescript-eslint v8 exposes
-        // the specifier as `argument` (TSLiteralType) or `source`.
         const lit =
           node.source ??
           (node.argument && node.argument.literal) ??

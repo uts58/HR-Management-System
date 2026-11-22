@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
-/** Body of the 404 pages (inside and outside the shell). */
 export function NotFoundState({
   title = "Page not found",
   description = "The page or record you are looking for does not exist, or you do not have access to it.",

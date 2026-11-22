@@ -1,17 +1,3 @@
-/**
- * Auth form schemas (contracts.md#auth). Shared form shapes.
- *
- * Passwords are never trimmed or lower-cased.
- *
- * - `signInSchema` only checks that both fields are present, so the form
- *   gives no hint about which accounts exist. The username is trimmed and
- *   lower-cased (logins are case-insensitive).
- * - `changePasswordSchema` encodes the policy rules that need no database:
- *   8..128 characters, confirmation matches, differs from the current
- *   password. "Not equal to the username" and "current password correct"
- *   are checked by the changePassword action.
- */
-
 import { z } from "zod";
 import type { ChangePasswordInput, SignInInput } from "@/contracts/auth";
 

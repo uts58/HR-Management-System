@@ -1,13 +1,3 @@
-/**
- * Leave requests (contracts.md#leave).
- *
- * - Only EMPLOYEE applies; the employee id always comes from
- *   the actor, never from input.
- * - Decisions only from PENDING, with a conditional update so two HR users
- *   deciding at once can't both win: the loser gets CONFLICT.
- * - Reads have no side effects; marking decisions seen is its own call.
- */
-
 import "server-only";
 
 import { Role } from "@/contracts/auth";
@@ -161,7 +151,6 @@ export const leaveService: LeaveService = {
       decision: rawDecision,
     });
     return db.$transaction(async (tx) => {
-      // Conditional update: only a PENDING row changes, so it is atomic.
       const { count } = await tx.leaveRequest.updateMany({
         where: { id, status: "PENDING" },
         data: {

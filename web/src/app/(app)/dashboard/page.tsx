@@ -29,7 +29,6 @@ import {
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-/** HR and employee variants. */
 export default async function DashboardPage() {
   const session = await requireSession({ onFail: "redirect" });
   const actor = toActor(session);
@@ -39,8 +38,7 @@ export default async function DashboardPage() {
     noticeService.listRecentNotices(actor, RECENT_NOTICE_LIMIT),
     isHr
       ? leaveService.countPendingLeaveRequests(actor)
-      : // Accounts without an employee record have no leave of their own.
-        session.user.employeeId === null
+      : session.user.employeeId === null
         ? Promise.resolve(0)
         : leaveService.countMyUnseenDecisions(actor),
   ]);

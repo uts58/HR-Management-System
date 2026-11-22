@@ -1,6 +1,5 @@
 import type { Gender, MaritalStatus, NoticeType } from "@/contracts";
 
-/** Display labels for contract enums that have no label map in contracts/. */
 export const GENDER_LABELS: Readonly<Record<Gender, string>> = {
   MALE: "Male",
   FEMALE: "Female",

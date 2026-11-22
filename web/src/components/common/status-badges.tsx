@@ -20,10 +20,6 @@ const TONES: Record<Tone, string> = {
   primary: "border-primary/25 bg-primary/10 text-primary",
 };
 
-/**
- * Small status pill. Colour is never the only signal: the text always
- * carries the meaning (WCAG 1.4.1).
- */
 export function StatusPill({
   tone = "neutral",
   children,
@@ -87,10 +83,6 @@ export function NoticeTypeBadge({ type }: { type: NoticeType }) {
   return <StatusPill tone={tone}>{label}</StatusPill>;
 }
 
-/**
- * Employee name in leave/appraisal history; terminated employees get a
- * "Terminated" marker (contracts.md Employee rule 6a).
- */
 export function EmployeeRefName({ employee }: { employee: EmployeeRef }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">

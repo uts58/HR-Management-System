@@ -5,8 +5,6 @@ import { expectFieldError } from "../support/pages/common";
 import type { OrgUnitPage } from "../support/pages/hr";
 import { uid } from "../support/users";
 
-/** Feature map rows 15–20 (legacy /hr/addDep, saveDep, deleteDep and the position equivalents). */
-
 const kinds: {
   name: string;
   page: (a: App) => OrgUnitPage;

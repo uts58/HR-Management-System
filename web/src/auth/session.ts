@@ -9,14 +9,12 @@ import { prisma } from "./db";
 import { AuthError } from "./errors";
 import { CHANGE_PASSWORD_PATH, FORBIDDEN_PATH, LOGIN_PATH } from "./paths";
 
-/** The contract Session plus what auth itself needs (never exported from @/auth). */
 export interface LoadedSession {
   session: Session;
   sessionId: string;
   sessionToken: string;
 }
 
-/** Map the DB enum to the contract Role; anything unexpected is treated as the least privilege. */
 export function toRole(value: string | null | undefined): Role {
   return value === Role.HR_ADMIN ? Role.HR_ADMIN : Role.EMPLOYEE;
 }
@@ -31,10 +29,6 @@ function logError(msg: string, err: unknown): void {
   );
 }
 
-/**
- * Resolve a session from request headers. Exported for integration tests;
- * app code uses getSession().
- */
 export async function loadSessionFromHeaders(
   requestHeaders: Headers,
 ): Promise<LoadedSession | null> {
@@ -70,8 +64,6 @@ export async function loadSessionFromHeaders(
     user.disabledAt !== null ||
     user.employee?.employmentStatus === "TERMINATED"
   ) {
-    // Revoke anything left over (disableLogin already does this; this
-    // covers a status set some other way).
     await prisma.session.deleteMany({ where: { userId: user.id } });
     return null;
   }
@@ -104,13 +96,12 @@ export async function loadSessionFromHeaders(
   };
 }
 
-/** Memoised per request. Never throws. */
 export const loadCurrentSession = cache(
   async (): Promise<LoadedSession | null> => {
     try {
       return await loadSessionFromHeaders(await headers());
     } catch (err) {
-      // Next's dynamic-render/redirect signals must propagate.
+      // Next dynamic-render and redirect signals must propagate.
       unstable_rethrow(err);
       logError("auth: getSession failed", err);
       return null;
@@ -118,7 +109,6 @@ export const loadCurrentSession = cache(
   },
 );
 
-/** Current session or null. Never throws, never redirects. */
 export async function getSession(): Promise<Session | null> {
   return (await loadCurrentSession())?.session ?? null;
 }
@@ -126,7 +116,6 @@ export async function getSession(): Promise<Session | null> {
 async function currentPath(): Promise<string | null> {
   try {
     const h = await headers();
-    // Set by proxy.ts for every matched request.
     return h.get("x-hr-pathname");
   } catch (err) {
     unstable_rethrow(err);
@@ -148,7 +137,6 @@ async function failUnauthenticated(
   throw new AuthError("UNAUTHENTICATED");
 }
 
-/** Pure decision used by requireSession/requireRole (unit-tested). */
 export function checkAccess(
   session: Session | null,
   roles: readonly Role[] | null,
@@ -183,12 +171,10 @@ async function enforce(
   }
 }
 
-/** Any signed-in user. */
 export function requireSession(opts?: RequireOptions): Promise<Session> {
   return enforce(null, opts);
 }
 
-/** Signed-in user whose role is `role` (or one of `role`). */
 export function requireRole(
   role: Role | readonly Role[],
   opts?: RequireOptions,

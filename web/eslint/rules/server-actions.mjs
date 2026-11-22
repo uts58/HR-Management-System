@@ -1,36 +1,7 @@
-/**
- * Local ESLint rule: hr/server-actions-use-define-action
- *
- * Enforces ADR-0002 "Server action auth is enforced structurally":
- *
- *  1. In a file whose first directive is 'use server', every runtime export
- *     must look like
- *         export const name = defineAction({ role, schema, handler });
- *     `defineAction` must be imported (by that name, unaliased) from one of
- *     the allowed modules. Any other export form is an error: function
- *     declarations, `let`/`var`, re-exports, `export { x }`, default
- *     exports, `export *`, or wrapped calls (`defineAction(...) as X`).
- *     Type-only exports are allowed because they are erased at compile time.
- *
- *  2. Inline 'use server' directives inside function bodies are rejected in
- *     every file. Server actions must live in a 'use server' module.
- *
- *  3. Every defineAction(...) call, in any file, takes exactly one inline
- *     object literal with a statically readable `role`: a string literal,
- *     a member expression such as Role.HR_ADMIN, or an array of those.
- *     Spreads and variables are rejected. `role: "PUBLIC"` (no session
- *     required) is allowed only in files under src/auth/.
- *
- * defineAction runs requireRole, then schema validation, then the handler,
- * so this rule guarantees that every server action is authorised and
- * validated.
- */
-
 const DEFAULT_ALLOWED_SOURCES = ["@/server/action"];
 const PUBLIC_ROLE = "PUBLIC";
 const PUBLIC_ALLOWED_SEGMENT = "/src/auth/";
 
-/** @param {import("estree").Node[]} body */
 function hasUseServerDirective(body) {
   for (const stmt of body) {
     if (
@@ -87,7 +58,6 @@ const rule = {
     const program = sourceCode.ast;
     const isUseServerFile = hasUseServerDirective(program.body);
 
-    /** Is the `defineAction` identifier bound to an allowed import? */
     function isImportedDefineAction(identifierNode) {
       const scope = sourceCode.getScope(identifierNode);
       let ref = null;
@@ -115,7 +85,6 @@ const rule = {
     const filename = context.filename.replaceAll("\\", "/");
     const publicAllowed = filename.includes(PUBLIC_ALLOWED_SEGMENT);
 
-    /** Role names in `node`, or null if they can't be read statically. */
     function readRoles(node) {
       if (node.type === "Literal" && typeof node.value === "string") {
         return [node.value];
@@ -203,8 +172,6 @@ const rule = {
         const decl = node.declaration;
 
         if (!decl) {
-          // `export { a }` / `export { a } from "./b"`: can't be verified.
-          // Allow only if every specifier is type-only.
           const allTypes =
             node.specifiers.length > 0 &&
             node.specifiers.every((s) => s.exportKind === "type");

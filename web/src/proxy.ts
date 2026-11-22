@@ -12,25 +12,6 @@ import {
 } from "@/auth/security-headers";
 import { env } from "@/env";
 
-/**
- * 1. Security headers on every matched response, including a per-request
- *    nonce CSP (Next 16 CSP guide). The CSP also goes on the forwarded
- *    request, which is how Next.js finds the nonce for its own scripts;
- *    Server Components read it from `x-nonce` (getCspNonce()).
- *
- * 2. Optimistic redirects only (ADR-0004 rule 3). This is NOT the
- *    authorization boundary: every page, action and route handler calls
- *    requireSession/requireRole, which read the database. No DB access here.
- *    - No session cookie: GET/HEAD of a protected page -> /login?callbackUrl=…
- *    - Forced password change hint cookie: GET/HEAD of any page other than
- *      /change-password -> /change-password.
- *    - Non-GET requests (server actions) pass through; the action itself
- *      returns UNAUTHENTICATED/FORBIDDEN.
- *    - Sets x-hr-pathname so requireSession({ onFail: 'redirect' }) can
- *      build the callbackUrl. Client-sent values of x-hr-pathname, x-nonce
- *      and Content-Security-Policy are overwritten.
- */
-
 const PUBLIC_PATHS = [LOGIN_PATH];
 const PUBLIC_PREFIXES = ["/api/auth/", "/api/health"];
 
@@ -103,8 +84,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    // Everything except Next internals and files with an extension (public/ assets).
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
 };

@@ -1,13 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// requireRole/requireSession read the request through next/headers. Point it
-// at whatever cookie the test has signed in with.
 const request = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({
   headers: async () => request.headers,
   cookies: async () => ({ delete: () => undefined, get: () => undefined }),
 }));
-// redirect() throws a control-flow error in Next; make it observable here.
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   redirect: (url: string) => {
@@ -93,7 +90,6 @@ describe("requireSession / requireRole", () => {
       displayName: "Hana Rahman",
     });
 
-    // Demote in the DB: the very next check sees it.
     await prisma.user.update({
       where: { id: hrId },
       data: { role: "EMPLOYEE" },
@@ -161,11 +157,9 @@ describe("server actions through defineAction", () => {
   it("signOut (PUBLIC) succeeds quietly when signed out, revoked, or pending a change", async () => {
     const { signOut } = await import("@/auth/actions");
 
-    // No cookie at all.
     request.headers = new Headers();
     expect(await signOut()).toEqual({ ok: true, data: undefined });
 
-    // A cookie whose session was already revoked.
     const userId = await createUser({
       username: "jane",
       password: "jane-pass-1",
@@ -174,8 +168,6 @@ describe("server actions through defineAction", () => {
     await prisma.session.deleteMany({ where: { userId } });
     expect(await signOut()).toEqual({ ok: true, data: undefined });
 
-    // A user who must change their password can still sign out, and only
-    // their own session ends.
     await prisma.user.update({
       where: { id: userId },
       data: { mustChangePassword: true },
@@ -337,7 +329,6 @@ describe("AccountAdminApi", () => {
     });
     expect(isArgon2idHash((await credentialHash(a.userId))!)).toBe(true);
 
-    // Email already used -> placeholder. Missing -> placeholder.
     const b = await prisma.$transaction((tx) =>
       accountAdmin.createLoginAccount(tx, {
         employeeId: e2,
@@ -369,7 +360,6 @@ describe("AccountAdminApi", () => {
       emailIsPlaceholder: true,
     });
 
-    // The issued password works and lands on the forced change.
     const r = await signIn("ann.lee", a.credentials.temporaryPassword);
     expect(r.status).toBe(200);
     expect(
@@ -450,10 +440,8 @@ describe("AccountAdminApi", () => {
         select: { name: true, username: true },
       }),
     ).toEqual({ name: "Jane Smith", username: "jane" });
-    // Login is unaffected.
     expect((await signIn("jane", "jane-pass-1")).status).toBe(200);
 
-    // Rolls back with the caller's transaction.
     await expect(
       prisma.$transaction(async (tx) => {
         await accountAdmin.updateDisplayName(tx, userId, "Rolled Back");

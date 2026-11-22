@@ -5,24 +5,11 @@ import prettier from "eslint-config-prettier/flat";
 import contractsImportsRule from "./eslint/rules/contracts-imports.mjs";
 import serverActionsRule from "./eslint/rules/server-actions.mjs";
 
-// ---------------------------------------------------------------------------
-// Import boundaries (ADR-0002). Owned by Platform. An `eslint-disable` of
-// these rules needs review from the owner of the affected path. CI runs ESLint
-// with --report-unused-disable-directives.
-//
-//   Database (Prisma packages, @/server/db, generated client):
-//     allowed in src/server/**, src/auth/**, tests/integration/**, prisma/**
-//   better-auth / @better-auth/*:
-//     allowed in src/auth/** and src/app/api/auth/** only
-// ---------------------------------------------------------------------------
-
 const DB_MESSAGE =
   "Database access is only allowed in src/server/**, src/auth/** and tests/integration/** (ADR-0002). Call a service from '@/server/<domain>/...' instead.";
 const AUTH_MESSAGE =
   "better-auth may only be imported in src/auth/** (and src/app/api/auth/**). Use the helpers exported from '@/auth/...' (ADR-0002).";
 
-// Regexes are matched against the import specifier and cover alias,
-// relative and package forms.
 const DB_IMPORT_REGEXES = [
   "^@prisma/client(/.*)?$",
   "^@prisma/adapter-[^/]+(/.*)?$",
@@ -33,14 +20,8 @@ const DB_IMPORT_REGEXES = [
 ];
 const AUTH_IMPORT_REGEXES = ["^better-auth(/.*)?$", "^@better-auth/.+$"];
 
-// esquery regex literals end at the first "/", so write "/" as \x2F.
 const toEsquery = (re) => re.replaceAll("/", "\\x2F");
 
-/**
- * Build the restriction rules for one zone. Flat config replaces rule
- * options instead of merging them, so each zone gets a complete config.
- * @param {{ db: boolean, auth: boolean }} restrict
- */
 function boundaryRules({ db, auth }) {
   const patterns = [];
   const syntax = [];
@@ -48,8 +29,6 @@ function boundaryRules({ db, auth }) {
     for (const regex of regexes) {
       patterns.push({ regex, message });
       const es = toEsquery(regex);
-      // Dynamic import("...") and require("...") are invisible to
-      // no-restricted-imports.
       syntax.push(
         { selector: `ImportExpression[source.value=/${es}/]`, message },
         {
@@ -73,7 +52,6 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
 
-  // Local rules.
   {
     plugins: {
       hr: {
@@ -86,12 +64,10 @@ const eslintConfig = defineConfig([
     rules: { "hr/server-actions": "error" },
   },
   {
-    // Contracts may import only types, and only from other contract files.
     files: ["src/contracts/**"],
     rules: { "hr/contracts-imports": "error" },
   },
 
-  // Boundary zones: the default comes first, and later entries override it.
   {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,tsx,jsx}"],
     rules: boundaryRules({ db: true, auth: true }),
@@ -108,7 +84,6 @@ const eslintConfig = defineConfig([
   },
   { files: ["prisma/**"], rules: boundaryRules({ db: false, auth: true }) },
 
-  // Must come last: turns off stylistic rules that conflict with Prettier.
   prettier,
   globalIgnores([
     ".next/**",

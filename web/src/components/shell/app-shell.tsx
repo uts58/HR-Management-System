@@ -8,13 +8,6 @@ import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
 
-/**
- * Authenticated layout: skip link, role-based sidebar (a sheet below md),
- * sticky top bar with the user menu, and a single <main> landmark.
- *
- * `restricted` is for users with mustChangePassword: no navigation, only
- * Sign out, because every other page redirects to /change-password anyway.
- */
 export function AppShell({
   user,
   restricted = false,
@@ -25,7 +18,6 @@ export function AppShell({
   user: Pick<SessionUser, "displayName" | "username" | "role">;
   restricted?: boolean;
   signOutAction?: () => Promise<unknown>;
-  /** Optional slot at the start of the header's right side. */
   headerExtra?: ReactNode;
   children: ReactNode;
 }) {

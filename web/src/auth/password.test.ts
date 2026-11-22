@@ -34,7 +34,6 @@ describe("verifyPassword", () => {
   });
 
   it("rejects bcrypt hashes (argon2id only)", async () => {
-    // Known bcrypt vector (OpenBSD test suite) for the password "U*U".
     const hash = "$2a$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW";
     expect(await verifyPassword({ hash, password: "U*U" })).toBe(false);
   });

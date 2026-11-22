@@ -1,14 +1,3 @@
-/**
- * Employees (contracts.md#employee).
- *
- * - Login accounts are written only through AccountAdminApi (ADR-0004 rule
- *   10), passed the transaction client so employee + account changes commit
- *   together. Production gets it from ../account-admin-seam.
- * - Termination is a soft delete: status, login disabled, PENDING leave
- *   rejected, history kept. Serialised with an advisory lock so two HR
- *   admins can't terminate each other and leave no active HR admin.
- */
-
 import "server-only";
 
 import { Role, type AccountAdminApi } from "@/contracts/auth";
@@ -59,7 +48,6 @@ export const MESSAGES = {
   unknownPosition: "Select an existing position",
 } as const;
 
-/** Arbitrary constant key for pg_advisory_xact_lock around terminations. */
 const TERMINATION_LOCK_KEY = 72_001;
 
 const detailSelect = {
@@ -110,7 +98,6 @@ function toDetail(r: DetailRow): EmployeeDetail {
   };
 }
 
-/** Form fields -> Prisma data (shared by create and update). */
 function toEmployeeData(input: UpdateEmployeeInput) {
   return {
     firstName: input.firstName,
@@ -128,13 +115,11 @@ function toEmployeeData(input: UpdateEmployeeInput) {
   } satisfies Prisma.EmployeeUncheckedUpdateInput;
 }
 
-/** VALIDATION on departmentId/positionId when they don't exist. */
 async function assertOrgRefs(
   tx: Tx,
   departmentId: number,
   positionId: number,
 ): Promise<void> {
-  // Sequential: a transaction has one connection, so no parallel queries.
   const department = await tx.department.findUnique({
     where: { id: departmentId },
     select: { id: true },
@@ -149,23 +134,16 @@ async function assertOrgRefs(
   if (Object.keys(errors).length > 0) throw validationError(errors);
 }
 
-// ─── Usernames ──────────────────────────────────────────────────────────────
-
-const USERNAME_BASE_MAX = 27; // leaves room for a numeric suffix (max 30)
+const USERNAME_BASE_MAX = 27;
 
 function slug(s: string): string {
   return s
     .normalize("NFKD")
-    .replace(/\p{M}/gu, "") // strip accents: "José" -> "Jose"
+    .replace(/\p{M}/gu, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 }
 
-/**
- * Default username `first.last` (contract): lower-case, ASCII-folded,
- * invalid characters dropped, at most 27 chars, short ones padded
- * (`al` -> `al.user`).
- */
 export function usernameBase(firstName: string, lastName: string): string {
   let base = [slug(firstName), slug(lastName)].filter(Boolean).join(".");
   if (base === "") base = "user";
@@ -174,7 +152,6 @@ export function usernameBase(firstName: string, lastName: string): string {
   return base;
 }
 
-/** `base`, or `base2`, `base3`… whichever is free. */
 async function nextFreeUsername(tx: Tx, base: string): Promise<string> {
   const taken = new Set(
     (
@@ -190,8 +167,6 @@ async function nextFreeUsername(tx: Tx, base: string): Promise<string> {
     if (!taken.has(candidate)) return candidate;
   }
 }
-
-// ─── Service ────────────────────────────────────────────────────────────────
 
 export function createEmployeeService(
   accounts: AccountAdminApi = defaultAccountAdmin,
@@ -257,7 +232,6 @@ export function createEmployeeService(
     async getEmployee(actor, rawId) {
       assertRole(actor, Role.HR_ADMIN, Role.EMPLOYEE);
       const id = entityIdSchema.parse(rawId);
-      // Someone else's id is NOT_FOUND, not FORBIDDEN, so ids can't be probed.
       if (actor.role !== Role.HR_ADMIN && id !== actor.employeeId) {
         throw notFoundError(MESSAGES.notFound);
       }
@@ -331,7 +305,6 @@ export function createEmployeeService(
           return { employee: toDetail(detail), credentials };
         });
       } catch (e) {
-        // A username taken by a concurrent create (raw P2002 from users).
         throw uniqueViolationToConflict(e, ["users_username_key"]) ?? e;
       }
     },
@@ -356,14 +329,11 @@ export function createEmployeeService(
           throw conflictError(MESSAGES.terminatedEdit);
         }
         await assertOrgRefs(tx, input.departmentId, input.positionId);
-        // Conditional on ACTIVE, so a termination committed meanwhile wins.
         const { count } = await tx.employee.updateMany({
           where: { id, employmentStatus: "ACTIVE" },
           data: toEmployeeData(input),
         });
         if (count === 0) throw conflictError(MESSAGES.terminatedEdit);
-        // The login's display name ("First Middle Last") follows a rename, in the
-        // same transaction (contract Employee rule 4). Username never changes.
         const newName = fullName(input);
         if (current.user && newName !== fullName(current)) {
           await accounts.updateDisplayName(tx, current.user.id, newName);

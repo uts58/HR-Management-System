@@ -22,7 +22,6 @@ import { DeleteNoticeButton, NoticeForm } from "./notice-client";
 
 export const metadata: Metadata = { title: "Notices" };
 
-/** HR only. */
 export default async function NoticesPage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);

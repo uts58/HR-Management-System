@@ -2,12 +2,7 @@ import { BACKEND_TAG } from "../support/env";
 import { expect, test, users } from "../support/fixtures";
 import { seededJohnLeave } from "../support/users";
 
-/**
- * ADR-0007: calendar dates (DOB, leave and project dates) are never
- * converted. The same text must appear for viewers in UTC+14 and UTC-11.
- */
-
-const ZONES = ["Pacific/Kiritimati", "Pacific/Pago_Pago"] as const; // UTC+14, UTC-11
+const ZONES = ["Pacific/Kiritimati", "Pacific/Pago_Pago"] as const;
 const MONTHS = [
   "Jan",
   "Feb",
@@ -43,7 +38,7 @@ for (const timezoneId of ZONES) {
       const dates = hr.page.locator("main time[datetime]");
       for (const el of await dates.all()) {
         const iso = (await el.getAttribute("datetime")) ?? "";
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) continue; // instants are LocalTime, not calendar dates
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) continue;
         await expect(el, `${path} ${iso}`).toHaveText(label(iso));
         checked += 1;
       }

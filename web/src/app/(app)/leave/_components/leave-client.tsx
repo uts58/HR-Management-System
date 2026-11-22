@@ -25,10 +25,6 @@ import {
   markMyLeaveDecisionsSeen,
 } from "@/server/actions/leave";
 
-/**
- * Leave request form (feature map rows 24–25). Fields = ApplyForLeaveInput.
- * Types come from LEAVE_TYPES. Past dates are allowed.
- */
 export function ApplyLeaveForm() {
   const router = useRouter();
   return (
@@ -82,7 +78,6 @@ export function ApplyLeaveForm() {
   );
 }
 
-/** Approve / Reject with confirmation (feature map row 28). */
 export function DecideLeaveButtons({
   id,
   employeeName,
@@ -125,18 +120,11 @@ export function DecideLeaveButtons({
   );
 }
 
-/**
- * Marks the employee's decided requests as seen once, AFTER the history
- * page has rendered (feature map row 26). Reads stay side-effect free, so
- * link prefetching can't clear the dashboard notification.
- */
 export function MarkLeaveDecisionsSeen({ unseen }: { unseen: number }) {
   const done = useRef(false);
   useEffect(() => {
     if (done.current || unseen === 0) return;
     done.current = true;
-    // Fire and forget: a failure only means the dashboard notice stays
-    // until the next visit.
     void markMyLeaveDecisionsSeen();
   }, [unseen]);
   return null;
