@@ -44,8 +44,7 @@ image build. See [`docs/qa/test-strategy.md`](docs/qa/test-strategy.md).
 
 ## Create the first admin
 
-A fresh database has no users. With `DATABASE_URL`, `BETTER_AUTH_SECRET` and
-`BETTER_AUTH_URL` set:
+A fresh database has no users. With `DATABASE_URL` set:
 
 ```bash
 cd web

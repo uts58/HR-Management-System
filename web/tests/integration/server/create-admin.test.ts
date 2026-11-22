@@ -122,13 +122,9 @@ describe("npm run create-admin (CLI)", () => {
       "scripts/create-admin.ts",
     ],
   ) {
-    const env: NodeJS.ProcessEnv = {
-      ...process.env,
-      BETTER_AUTH_SECRET:
-        process.env.BETTER_AUTH_SECRET ?? "x".repeat(32) + "-create-admin-test",
-      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://127.0.0.1:3000",
-      ...extraEnv,
-    };
+    const env: NodeJS.ProcessEnv = { ...process.env, ...extraEnv };
+    delete env.BETTER_AUTH_SECRET;
+    delete env.BETTER_AUTH_URL;
     delete env.SKIP_ENV_VALIDATION;
     delete env.VITEST;
     return run(process.execPath, [...entry, ...args], {
