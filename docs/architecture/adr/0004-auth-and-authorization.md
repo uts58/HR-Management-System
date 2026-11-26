@@ -78,7 +78,7 @@ AuthActions: signOut, changePassword                            // server action
 |---|---|---|---|
 | Login page | yes | – (redirected to dashboard) | – |
 | Dashboard with notices, own profile, change password | – | yes | yes |
-| Apply for / view own leave | – | yes | – (legacy parity; revisit after cutover) |
+| Apply for / view own leave | – | yes | yes (can't decide own request unless sole active HR admin; contracts.md Leave rule 7a) |
 | Employees, departments, positions, notices admin, leave decisions, appraisals | – | – | yes |
 
 Terminated employees can't sign in, and their existing sessions stop working.

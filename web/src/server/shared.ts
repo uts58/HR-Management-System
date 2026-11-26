@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Role } from "@/contracts/auth";
-import type { Actor, EmployeeId } from "@/contracts/common";
+import { Role } from "@/contracts/auth";
+import type { Actor, EmployeeId, UserId } from "@/contracts/common";
 import type { EmployeeRef } from "@/contracts/employee";
 import type { Prisma } from "@/generated/prisma/client";
 import { forbiddenError } from "./errors-core";
@@ -58,4 +58,30 @@ export function newestFirst(): CreationOrder {
 
 export function oldestFirst(): CreationOrder {
   return [{ createdAt: "asc" }, { id: "asc" }];
+}
+
+// Serialises every change to the set of active HR admins (termination,
+// create-admin) with every check that depends on it (self-decided leave).
+const HR_ADMIN_SET_LOCK_KEY = 72_001;
+
+export async function lockHrAdminSet(
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await tx.$executeRaw`SELECT 1 FROM pg_advisory_xact_lock(${HR_ADMIN_SET_LOCK_KEY}::bigint)`;
+}
+
+// Enabled HR_ADMIN logins other than `userId` whose employee record (if any)
+// is not terminated. Call after lockHrAdminSet in the same transaction.
+export function countOtherActiveHrAdmins(
+  tx: Prisma.TransactionClient,
+  userId: UserId,
+): Promise<number> {
+  return tx.user.count({
+    where: {
+      id: { not: userId },
+      role: Role.HR_ADMIN,
+      disabledAt: null,
+      OR: [{ employeeId: null }, { employee: { employmentStatus: "ACTIVE" } }],
+    },
+  });
 }

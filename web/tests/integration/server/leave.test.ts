@@ -1,8 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import type { IsoDate } from "@/contracts/common";
+import type { Actor, IsoDate } from "@/contracts/common";
 import type { ApplyForLeaveInput } from "@/contracts/leave";
-import { leaveService } from "@/server/leave/service";
-import { db, makePerson, rejection, resetDatabase } from "./helpers";
+import { SELF_DECISION_MESSAGE, leaveService } from "@/server/leave/service";
+import { lockHrAdminSet } from "@/server/shared";
+import { db, makePerson, makeUser, rejection, resetDatabase } from "./helpers";
 
 beforeEach(resetDatabase);
 afterAll(() => db.$disconnect());
@@ -53,11 +54,8 @@ describe("leaveService", () => {
     expect(await db.leaveRequest.count()).toBe(0);
   });
 
-  it("HR can't apply (parity) and an account without an employee is FORBIDDEN", async () => {
-    const { hr, emp } = await setup();
-    expect(
-      (await rejection(leaveService.applyForLeave(hr, request))).code,
-    ).toBe("FORBIDDEN");
+  it("an account without an employee is FORBIDDEN from applying", async () => {
+    const { emp } = await setup();
     expect(
       (
         await rejection(
@@ -147,18 +145,200 @@ describe("leaveService", () => {
     expect(queue.map((r) => r.id)).toEqual([undated.id, fresh.id]);
     expect(await leaveService.countPendingLeaveRequests(hr)).toBe(2);
   });
+});
 
-  it("role gates: employees can't see the queue; HR has no 'my leave'", async () => {
-    const { hr, emp } = await setup();
-    expect(
-      (await rejection(leaveService.listPendingLeaveRequests(emp))).code,
-    ).toBe("FORBIDDEN");
-    expect(
-      (await rejection(leaveService.decideLeaveRequest(emp, 1, "APPROVED")))
-        .code,
-    ).toBe("FORBIDDEN");
-    expect((await rejection(leaveService.listMyLeaveRequests(hr))).code).toBe(
-      "FORBIDDEN",
+type MatrixRole = "EMPLOYEE" | "HR_ADMIN";
+const BOTH: MatrixRole[] = ["EMPLOYEE", "HR_ADMIN"];
+const HR: MatrixRole[] = ["HR_ADMIN"];
+
+describe("leaveService authorization matrix", () => {
+  const calls: Record<
+    keyof typeof leaveService,
+    [(a: Actor) => Promise<unknown>, MatrixRole[]]
+  > = {
+    applyForLeave: [(a) => leaveService.applyForLeave(a, request), BOTH],
+    listMyLeaveRequests: [(a) => leaveService.listMyLeaveRequests(a), BOTH],
+    markMyLeaveDecisionsSeen: [
+      (a) => leaveService.markMyLeaveDecisionsSeen(a),
+      BOTH,
+    ],
+    countMyUnseenDecisions: [
+      (a) => leaveService.countMyUnseenDecisions(a),
+      BOTH,
+    ],
+    listPendingLeaveRequests: [
+      (a) => leaveService.listPendingLeaveRequests(a),
+      HR,
+    ],
+    listAllLeaveRequests: [(a) => leaveService.listAllLeaveRequests(a), HR],
+    countPendingLeaveRequests: [
+      (a) => leaveService.countPendingLeaveRequests(a),
+      HR,
+    ],
+    canDecideOwnLeave: [(a) => leaveService.canDecideOwnLeave(a), HR],
+    decideLeaveRequest: [
+      (a) => leaveService.decideLeaveRequest(a, 999, "APPROVED"),
+      HR,
+    ],
+  };
+
+  for (const [name, [call, allowed]] of Object.entries(calls)) {
+    for (const role of BOTH) {
+      const expected = allowed.includes(role) ? "allowed" : "FORBIDDEN";
+      it(`${name} as ${role}: ${expected}`, async () => {
+        const { actor } = await makePerson(role);
+        const result = await call(actor).then(
+          () => "allowed",
+          (e: { code?: string }) =>
+            e.code === "NOT_FOUND" ? "allowed" : e.code,
+        );
+        expect(result).toBe(expected);
+      });
+    }
+  }
+});
+
+describe("leaveService: HR admins' own leave (rule 7a)", () => {
+  async function twoAdmins() {
+    const a = await makePerson("HR_ADMIN", { firstName: "Ana", lastName: "A" });
+    const b = await makePerson("HR_ADMIN", { firstName: "Ben", lastName: "B" });
+    return { a, b };
+  }
+
+  it("an HR admin applies and sees the request in their history", async () => {
+    const { a } = await twoAdmins();
+    const r = await leaveService.applyForLeave(a.actor, request);
+    expect(r).toMatchObject({
+      employee: { id: a.employee.id },
+      status: "PENDING",
+      selfApproved: false,
+    });
+    const mine = await leaveService.listMyLeaveRequests(a.actor);
+    expect(mine.map((x) => x.id)).toEqual([r.id]);
+  });
+
+  it("another HR admin can decide it; it is not self-approved", async () => {
+    const { a, b } = await twoAdmins();
+    const r = await leaveService.applyForLeave(a.actor, request);
+    const decided = await leaveService.decideLeaveRequest(
+      b.actor,
+      r.id,
+      "APPROVED",
     );
+    expect(decided).toMatchObject({ status: "APPROVED", selfApproved: false });
+    expect(await leaveService.countMyUnseenDecisions(a.actor)).toBe(1);
+  });
+
+  it("deciding your own request with another active admin is FORBIDDEN and changes nothing", async () => {
+    const { a } = await twoAdmins();
+    const r = await leaveService.applyForLeave(a.actor, request);
+    expect(await leaveService.canDecideOwnLeave(a.actor)).toBe(false);
+    for (const d of ["APPROVED", "REJECTED"] as const) {
+      const err = await rejection(
+        leaveService.decideLeaveRequest(a.actor, r.id, d),
+      );
+      expect(err).toMatchObject({
+        code: "FORBIDDEN",
+        message: SELF_DECISION_MESSAGE,
+      });
+    }
+    const row = await db.leaveRequest.findUniqueOrThrow({
+      where: { id: r.id },
+    });
+    expect(row).toMatchObject({
+      status: "PENDING",
+      decidedById: null,
+      selfApproved: false,
+    });
+  });
+
+  it("the sole active HR admin can decide their own request; it is marked self-approved", async () => {
+    const a = await makePerson("HR_ADMIN");
+    await makePerson("EMPLOYEE");
+    const r = await leaveService.applyForLeave(a.actor, request);
+    expect(await leaveService.canDecideOwnLeave(a.actor)).toBe(true);
+    const decided = await leaveService.decideLeaveRequest(
+      a.actor,
+      r.id,
+      "APPROVED",
+    );
+    expect(decided).toMatchObject({ status: "APPROVED", selfApproved: true });
+    const row = await db.leaveRequest.findUniqueOrThrow({
+      where: { id: r.id },
+    });
+    expect(row).toMatchObject({ decidedById: a.user.id, selfApproved: true });
+    const [mine] = await leaveService.listMyLeaveRequests(a.actor);
+    expect(mine).toMatchObject({ id: r.id, selfApproved: true });
+  });
+
+  it("a terminated or disabled second admin doesn't count", async () => {
+    const { a, b } = await twoAdmins();
+    const r = await leaveService.applyForLeave(a.actor, request);
+    await db.employee.update({
+      where: { id: b.employee.id },
+      data: { employmentStatus: "TERMINATED", terminatedAt: new Date() },
+    });
+    const c = await makePerson("HR_ADMIN");
+    await db.user.update({
+      where: { id: c.user.id },
+      data: { disabledAt: new Date() },
+    });
+    expect(await leaveService.canDecideOwnLeave(a.actor)).toBe(true);
+    const decided = await leaveService.decideLeaveRequest(
+      a.actor,
+      r.id,
+      "REJECTED",
+    );
+    expect(decided).toMatchObject({ status: "REJECTED", selfApproved: true });
+  });
+
+  it("an HR admin login without an employee record counts as another admin", async () => {
+    const a = await makePerson("HR_ADMIN");
+    await makeUser(null, "HR_ADMIN");
+    const r = await leaveService.applyForLeave(a.actor, request);
+    const err = await rejection(
+      leaveService.decideLeaveRequest(a.actor, r.id, "APPROVED"),
+    );
+    expect(err.code).toBe("FORBIDDEN");
+  });
+
+  it("a self-decision waits for a concurrent admin change and then sees it", async () => {
+    const a = await makePerson("HR_ADMIN");
+    const r = await leaveService.applyForLeave(a.actor, request);
+    let locked = false;
+    let release!: () => void;
+    const gate = new Promise<void>((done) => {
+      release = done;
+    });
+    const holder = db.$transaction(
+      async (tx) => {
+        await lockHrAdminSet(tx);
+        locked = true;
+        const second = await tx.employee.create({
+          data: { firstName: "New", lastName: "Admin" },
+        });
+        await tx.user.create({
+          data: {
+            id: "second-admin",
+            name: "second",
+            email: "second@users.invalid",
+            emailIsPlaceholder: true,
+            username: "second",
+            role: "HR_ADMIN",
+            employeeId: second.id,
+          },
+        });
+        await gate;
+      },
+      { timeout: 20_000 },
+    );
+    while (!locked) await new Promise((t) => setTimeout(t, 10));
+    const decision = rejection(
+      leaveService.decideLeaveRequest(a.actor, r.id, "APPROVED"),
+    );
+    await new Promise((t) => setTimeout(t, 300));
+    release();
+    await holder;
+    expect((await decision).code).toBe("FORBIDDEN");
   });
 });

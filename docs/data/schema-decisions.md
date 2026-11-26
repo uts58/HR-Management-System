@@ -45,7 +45,7 @@ Prisma schema can't express these. They are hand-written at the end of `migratio
 |---|---|
 | `Role` | `HR_ADMIN`, `EMPLOYEE`. Our `users.role` column is the source of truth; Better Auth's admin-plugin `role`/`banned` fields are **not** used. The first HR admin comes from `npm run create-admin` (web/README.md). |
 | `LeaveType` | `SICK`, `ANNUAL`, `CASUAL`, `MATERNITY`, `UNPAID` (the legacy form's five options). |
-| `LeaveStatus` | `PENDING`, `APPROVED`, `REJECTED`. `seen_by_employee` is false while HR has decided and the employee hasn't looked yet. |
+| `LeaveStatus` | `PENDING`, `APPROVED`, `REJECTED`. `seen_by_employee` is false while HR has decided and the employee hasn't looked yet. `self_approved` is true when the requester decided their own request as the sole active HR admin (contracts.md Leave rule 7a); a CHECK keeps it false on PENDING rows. |
 | `NoticeType` | `GENERAL`, `URGENT`, `HOLIDAY`. |
 | `EmploymentStatus` | `ACTIVE`, `TERMINATED` (soft delete). |
 | `Gender` | `MALE`, `FEMALE`, `NON_BINARY`, `PREFER_NOT_TO_SAY`. The column stays nullable and the form allows blank ("Not specified"). |

@@ -11,7 +11,7 @@ import { revalidateApp } from "@/server/revalidate";
 import { leaveService } from "@/server/leave/service";
 
 export const applyForLeave = defineAction({
-  role: Role.EMPLOYEE,
+  role: [Role.EMPLOYEE, Role.HR_ADMIN],
   schema: applyForLeaveSchema,
   handler: async (actor, input) => {
     const request = await leaveService.applyForLeave(actor, input);
@@ -31,7 +31,7 @@ export const decideLeaveRequest = defineAction({
 });
 
 export const markMyLeaveDecisionsSeen = defineAction({
-  role: Role.EMPLOYEE,
+  role: [Role.EMPLOYEE, Role.HR_ADMIN],
   schema: noInputSchema,
   handler: async (actor) => {
     const changed = await leaveService.markMyLeaveDecisionsSeen(actor);

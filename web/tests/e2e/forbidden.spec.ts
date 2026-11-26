@@ -17,7 +17,7 @@ const HR_ONLY_PAGES = [
   "/appraisals/new",
 ];
 
-const EMPLOYEE_ONLY_PAGES = ["/leave/apply", "/leave/history"];
+const OWN_LEAVE_PAGES = ["/leave/apply", "/leave/history"];
 
 test("the /forbidden page explains the refusal and links back to the dashboard", async ({
   employee,
@@ -46,10 +46,10 @@ test.describe("Role enforcement on pages", { tag: BACKEND_TAG }, () => {
     });
   }
 
-  for (const path of EMPLOYEE_ONLY_PAGES) {
-    test(`HR admin opening ${path} is sent to /forbidden`, async ({ hr }) => {
+  for (const path of OWN_LEAVE_PAGES) {
+    test(`HR admin can open ${path} for their own leave`, async ({ hr }) => {
       await hr.page.goto(path);
-      await expect(hr.page).toHaveURL("/forbidden");
+      await expect(hr.page).toHaveURL(path);
     });
   }
 
