@@ -4,6 +4,7 @@ import { Role, type AccountAdminApi } from "@/contracts/auth";
 import type { Actor, EmployeeId } from "@/contracts/common";
 import {
   COUNTRIES,
+  EMPLOYMENT_TYPES,
   GENDERS,
   MARITAL_STATUSES,
   type EmployeeDetail,
@@ -62,6 +63,9 @@ const detailSelect = {
   gender: true,
   maritalStatus: true,
   dateOfBirth: true,
+  employmentType: true,
+  hireDate: true,
+  employeeNumber: true,
   employmentStatus: true,
   terminatedAt: true,
   createdAt: true,
@@ -83,6 +87,9 @@ function toDetail(r: DetailRow): EmployeeDetail {
       ? { id: r.department.id, label: r.department.name }
       : null,
     position: r.position ? { id: r.position.id, label: r.position.name } : null,
+    employmentType: r.employmentType,
+    hireDate: toIsoDateOrNull(r.hireDate),
+    employeeNumber: r.employeeNumber,
     country: r.country,
     homeTown: r.homeTown,
     contactNo: r.contactNo,
@@ -105,11 +112,14 @@ function toEmployeeData(input: UpdateEmployeeInput) {
     lastName: input.lastName,
     departmentId: input.departmentId,
     positionId: input.positionId,
+    employmentType: input.employmentType,
+    hireDate: input.hireDate ? isoDateToUtcDate(input.hireDate) : null,
+    employeeNumber: input.employeeNumber ?? null,
     country: input.country,
     homeTown: input.homeTown,
     contactNo: input.contactNo,
     email: input.email,
-    gender: input.gender,
+    gender: input.gender ?? null,
     maritalStatus: input.maritalStatus,
     dateOfBirth: isoDateToUtcDate(input.dateOfBirth),
   } satisfies Prisma.EmployeeUncheckedUpdateInput;
@@ -262,6 +272,7 @@ export function createEmployeeService(
         countries: COUNTRIES,
         genders: GENDERS,
         maritalStatuses: MARITAL_STATUSES,
+        employmentTypes: EMPLOYMENT_TYPES,
       };
     },
 
@@ -305,7 +316,12 @@ export function createEmployeeService(
           return { employee: toDetail(detail), credentials };
         });
       } catch (e) {
-        throw uniqueViolationToConflict(e, ["users_username_key"]) ?? e;
+        throw (
+          uniqueViolationToConflict(e, [
+            "users_username_key",
+            "employees_employee_number_key",
+          ]) ?? e
+        );
       }
     },
 
@@ -313,38 +329,44 @@ export function createEmployeeService(
       assertRole(actor, Role.HR_ADMIN);
       const id = entityIdSchema.parse(rawId);
       const input = updateEmployeeSchema.parse(raw);
-      return db.$transaction(async (tx) => {
-        const current = await tx.employee.findFirst({
-          where: { id },
-          select: {
-            employmentStatus: true,
-            firstName: true,
-            middleName: true,
-            lastName: true,
-            user: { select: { id: true } },
-          },
-        });
-        if (!current) throw notFoundError(MESSAGES.notFound);
-        if (current.employmentStatus === "TERMINATED") {
-          throw conflictError(MESSAGES.terminatedEdit);
-        }
-        await assertOrgRefs(tx, input.departmentId, input.positionId);
-        const { count } = await tx.employee.updateMany({
-          where: { id, employmentStatus: "ACTIVE" },
-          data: toEmployeeData(input),
-        });
-        if (count === 0) throw conflictError(MESSAGES.terminatedEdit);
-        const newName = fullName(input);
-        if (current.user && newName !== fullName(current)) {
-          await accounts.updateDisplayName(tx, current.user.id, newName);
-        }
-        return toDetail(
-          await tx.employee.findUniqueOrThrow({
+      try {
+        return await db.$transaction(async (tx) => {
+          const current = await tx.employee.findFirst({
             where: { id },
-            select: detailSelect,
-          }),
+            select: {
+              employmentStatus: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              user: { select: { id: true } },
+            },
+          });
+          if (!current) throw notFoundError(MESSAGES.notFound);
+          if (current.employmentStatus === "TERMINATED") {
+            throw conflictError(MESSAGES.terminatedEdit);
+          }
+          await assertOrgRefs(tx, input.departmentId, input.positionId);
+          const { count } = await tx.employee.updateMany({
+            where: { id, employmentStatus: "ACTIVE" },
+            data: toEmployeeData(input),
+          });
+          if (count === 0) throw conflictError(MESSAGES.terminatedEdit);
+          const newName = fullName(input);
+          if (current.user && newName !== fullName(current)) {
+            await accounts.updateDisplayName(tx, current.user.id, newName);
+          }
+          return toDetail(
+            await tx.employee.findUniqueOrThrow({
+              where: { id },
+              select: detailSelect,
+            }),
+          );
+        });
+      } catch (e) {
+        throw (
+          uniqueViolationToConflict(e, ["employees_employee_number_key"]) ?? e
         );
-      });
+      }
     },
 
     async terminateEmployee(actor: Actor, rawId: EmployeeId) {

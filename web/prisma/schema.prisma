@@ -8,7 +8,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 enum Role {
   EMPLOYEE
   HR_ADMIN
@@ -19,6 +18,8 @@ enum Role {
 enum Gender {
   MALE
   FEMALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
 
   @@map("gender")
 }
@@ -29,6 +30,14 @@ enum MaritalStatus {
   DIVORCED
 
   @@map("marital_status")
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACTOR
+
+  @@map("employment_type")
 }
 
 enum EmploymentStatus {
@@ -63,7 +72,6 @@ enum NoticeType {
 
   @@map("notice_type")
 }
-
 
 model Department {
   id        Int        @id @default(autoincrement())
@@ -103,11 +111,15 @@ model Employee {
   positionId   Int?        @map("position_id")
   position     Position?   @relation(fields: [positionId], references: [id], onDelete: Restrict)
 
+  employmentType EmploymentType @default(FULL_TIME) @map("employment_type")
+  hireDate       DateTime?      @map("hire_date") @db.Date
+  employeeNumber String?        @unique @map("employee_number")
+
   employmentStatus EmploymentStatus @default(ACTIVE) @map("employment_status")
   terminatedAt     DateTime?        @map("terminated_at") @db.Timestamptz(3)
 
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user          User?
   leaveRequests LeaveRequest[]
@@ -120,7 +132,6 @@ model Employee {
   @@index([lastName, firstName])
   @@map("employees")
 }
-
 
 model LeaveRequest {
   id         Int      @id @default(autoincrement())
@@ -138,14 +149,13 @@ model LeaveRequest {
   decidedById    String?     @map("decided_by_id")
   decidedBy      User?       @relation("LeaveDecider", fields: [decidedById], references: [id], onDelete: SetNull)
 
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([employeeId, status])
   @@index([status, id])
   @@map("leave_requests")
 }
-
 
 model Notice {
   id    Int        @id @default(autoincrement())
@@ -153,13 +163,12 @@ model Notice {
   body  String
   type  NoticeType @default(GENERAL)
 
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([createdAt(sort: Desc)])
   @@map("notices")
 }
-
 
 model Appraisal {
   id           Int       @id @default(autoincrement())
@@ -170,13 +179,12 @@ model Appraisal {
   projectEnd   DateTime? @map("project_end") @db.Date
   rating       Int?      @db.SmallInt
 
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([employeeId])
   @@map("appraisals")
 }
-
 
 model User {
   id                 String  @id
@@ -256,4 +264,3 @@ model Verification {
   @@index([identifier])
   @@map("verifications")
 }
-

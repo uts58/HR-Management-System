@@ -40,6 +40,9 @@ async function setup() {
     lastName: "Ñúñez",
     departmentId: String(dept.id),
     positionId: String(pos.id),
+    employmentType: "FULL_TIME",
+    hireDate: "",
+    employeeNumber: "",
     country: "Germany",
     homeTown: "Berlin",
     contactNo: "+49 30 1234567",
@@ -163,6 +166,143 @@ describe("employeeService.createEmployee", () => {
   });
 });
 
+describe("employee job fields", () => {
+  it("create stores employment type, hire date, employee number and an inclusive gender", async () => {
+    const { service, hr, form } = await setup();
+    const { employee } = await service.createEmployee(hr.actor, {
+      ...form,
+      gender: "NON_BINARY",
+      employmentType: "CONTRACTOR",
+      hireDate: "2026-03-02",
+      employeeNumber: "  EMP-0042 ",
+    } as never);
+    expect(employee).toMatchObject({
+      gender: "NON_BINARY",
+      employmentType: "CONTRACTOR",
+      hireDate: "2026-03-02",
+      employeeNumber: "EMP-0042",
+    });
+    const row = await db.employee.findUniqueOrThrow({
+      where: { id: employee.id },
+    });
+    expect(row.hireDate?.toISOString()).toBe("2026-03-02T00:00:00.000Z");
+  });
+
+  it("blank optional fields are stored as NULL", async () => {
+    const { service, hr, form } = await setup();
+    const { employee } = await service.createEmployee(hr.actor, {
+      ...form,
+      gender: "",
+    } as never);
+    expect(employee).toMatchObject({
+      gender: null,
+      employmentType: "FULL_TIME",
+      hireDate: null,
+      employeeNumber: null,
+    });
+  });
+
+  it("employment type defaults to FULL_TIME in the database", async () => {
+    const e = await makeEmployee({ firstName: "Default", lastName: "Type" });
+    const row = await db.employee.findUniqueOrThrow({ where: { id: e.id } });
+    expect(row.employmentType).toBe("FULL_TIME");
+  });
+
+  it("many employees may have no employee number", async () => {
+    const { service, hr, form } = await setup();
+    await service.createEmployee(hr.actor, form as never);
+    await service.createEmployee(hr.actor, form as never);
+    expect(await db.employee.count({ where: { employeeNumber: null } })).toBe(
+      await db.employee.count(),
+    );
+  });
+
+  it("a duplicate employee number on create is CONFLICT on employeeNumber; nothing is written", async () => {
+    const { service, hr, form } = await setup();
+    await service.createEmployee(hr.actor, {
+      ...form,
+      employeeNumber: "EMP-1",
+    } as never);
+    const employees = await db.employee.count();
+    const users = await db.user.count();
+    const e = await rejection(
+      service.createEmployee(hr.actor, {
+        ...form,
+        employeeNumber: " EMP-1 ",
+      } as never),
+    );
+    expect(e).toMatchObject({
+      code: "CONFLICT",
+      fieldErrors: {
+        employeeNumber: ["This employee number is already in use"],
+      },
+    });
+    expect(await db.employee.count()).toBe(employees);
+    expect(await db.user.count()).toBe(users);
+  });
+
+  it("update sets, keeps and clears the job fields", async () => {
+    const { service, hr, emp, form } = await setup();
+    const set = await service.updateEmployee(hr.actor, emp.employee.id, {
+      ...form,
+      gender: "PREFER_NOT_TO_SAY",
+      employmentType: "PART_TIME",
+      hireDate: "2021-07-19",
+      employeeNumber: "P-9",
+    } as never);
+    expect(set).toMatchObject({
+      gender: "PREFER_NOT_TO_SAY",
+      employmentType: "PART_TIME",
+      hireDate: "2021-07-19",
+      employeeNumber: "P-9",
+    });
+    const same = await service.updateEmployee(hr.actor, emp.employee.id, {
+      ...form,
+      employeeNumber: "P-9",
+    } as never);
+    expect(same.employeeNumber).toBe("P-9");
+    const cleared = await service.updateEmployee(hr.actor, emp.employee.id, {
+      ...form,
+      gender: "",
+      hireDate: "",
+      employeeNumber: " ",
+    } as never);
+    expect(cleared).toMatchObject({
+      gender: null,
+      hireDate: null,
+      employeeNumber: null,
+    });
+  });
+
+  it("a duplicate employee number on update is CONFLICT on employeeNumber; the row is unchanged", async () => {
+    const { service, hr, emp, form } = await setup();
+    await makeEmployee({ employeeNumber: "TAKEN-1" });
+    const e = await rejection(
+      service.updateEmployee(hr.actor, emp.employee.id, {
+        ...form,
+        firstName: "Changed",
+        employeeNumber: "TAKEN-1",
+      } as never),
+    );
+    expect(e).toMatchObject({
+      code: "CONFLICT",
+      fieldErrors: {
+        employeeNumber: ["This employee number is already in use"],
+      },
+    });
+    const row = await db.employee.findUniqueOrThrow({
+      where: { id: emp.employee.id },
+    });
+    expect(row.firstName).toBe("Emp");
+  });
+
+  it("the database rejects an untrimmed or empty employee number", async () => {
+    for (const employeeNumber of ["", " A1", "A1 "]) {
+      await expect(makeEmployee({ employeeNumber })).rejects.toThrow();
+    }
+  });
+});
+
 describe("employeeService reads", () => {
   it("lists ACTIVE by default with role; TERMINATED/ALL on request", async () => {
     const { service, hr } = await setup();
@@ -237,7 +377,17 @@ describe("employeeService reads", () => {
       "Engineering",
     ]);
     expect(options.countries).toContain("Bangladesh");
-    expect(options.genders).toEqual(["MALE", "FEMALE"]);
+    expect(options.genders).toEqual([
+      "MALE",
+      "FEMALE",
+      "NON_BINARY",
+      "PREFER_NOT_TO_SAY",
+    ]);
+    expect(options.employmentTypes).toEqual([
+      "FULL_TIME",
+      "PART_TIME",
+      "CONTRACTOR",
+    ]);
   });
 
   it("HR-only reads are FORBIDDEN for employees", async () => {

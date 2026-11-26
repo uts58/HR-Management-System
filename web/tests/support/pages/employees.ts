@@ -15,13 +15,17 @@ export interface EmployeeInput {
   lastName: string;
   dateOfBirth: string;
   maritalStatus: "Single" | "Married" | "Divorced";
-  gender: "Male" | "Female";
+  gender:
+    "Not specified" | "Male" | "Female" | "Non-binary" | "Prefer not to say";
   department: string;
   position: string;
   email: string;
   contactNo: string;
   country: string;
   homeTown: string;
+  employmentType?: "Full-time" | "Part-time" | "Contractor";
+  hireDate?: string;
+  employeeNumber?: string;
   username?: string;
 }
 
@@ -88,7 +92,7 @@ export class EmployeesPage {
         .getByLabel("Marital status")
         .selectOption({ label: e.maritalStatus });
     if (e.gender)
-      await form.getByRole("radio", { name: e.gender, exact: true }).check();
+      await form.getByLabel("Gender").selectOption({ label: e.gender });
     if (e.department)
       await form.getByLabel("Department").selectOption({ label: e.department });
     if (e.position)
@@ -100,6 +104,14 @@ export class EmployeesPage {
       await form.getByLabel("Country").selectOption({ label: e.country });
     if (e.homeTown !== undefined)
       await form.getByLabel("Home town").fill(e.homeTown);
+    if (e.employmentType)
+      await form
+        .getByLabel("Employment type")
+        .selectOption({ label: e.employmentType });
+    if (e.hireDate !== undefined)
+      await form.getByLabel("Hire date").fill(e.hireDate);
+    if (e.employeeNumber !== undefined)
+      await form.getByLabel("Employee number").fill(e.employeeNumber);
     if (e.username !== undefined)
       await form.getByLabel("Username").fill(e.username);
   }
