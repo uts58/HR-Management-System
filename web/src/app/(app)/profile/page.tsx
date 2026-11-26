@@ -1,12 +1,11 @@
 import { KeyRoundIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { requireSession } from "@/auth";
 import { NotFoundState } from "@/components/common/not-found-state";
 import { PageHeader } from "@/components/common/page-header";
 import { EmployeeDetails } from "@/components/employees/employee-details";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toActor } from "@/server/action";
 import { employeeService } from "@/server/employee/service";
@@ -42,10 +41,10 @@ export default async function ProfilePage() {
           { label: "My profile" },
         ]}
         actions={
-          <Button variant="outline" render={<Link href="/change-password" />}>
+          <ButtonLink variant="outline" href="/change-password">
             <KeyRoundIcon aria-hidden="true" />
             Change password
-          </Button>
+          </ButtonLink>
         }
       />
       <Card>

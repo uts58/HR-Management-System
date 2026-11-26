@@ -1,13 +1,12 @@
 import { ClipboardListIcon, StarIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { RATING_LABELS } from "@/contracts";
 import { CalendarDateRange } from "@/components/calendar-date";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { EmployeeRefName } from "@/components/common/status-badges";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -40,21 +39,17 @@ export default async function AppraisalsPage() {
           { label: "Appraisals" },
         ]}
         actions={
-          <Button render={<Link href="/appraisals/new" />}>
+          <ButtonLink href="/appraisals/new">
             <ClipboardListIcon aria-hidden="true" />
             Add appraisal
-          </Button>
+          </ButtonLink>
         }
       />
       {appraisals.length === 0 ? (
         <EmptyState
           icon={StarIcon}
           title="No appraisals recorded yet"
-          action={
-            <Button render={<Link href="/appraisals/new" />}>
-              Add appraisal
-            </Button>
-          }
+          action={<ButtonLink href="/appraisals/new">Add appraisal</ButtonLink>}
         />
       ) : (
         <Card className="py-0">

@@ -1,6 +1,5 @@
 import { CalendarPlusIcon, HistoryIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { Role, requireRole } from "@/auth";
 import { toActor } from "@/server/action";
@@ -13,7 +12,7 @@ import {
   StatusPill,
 } from "@/components/common/status-badges";
 import { LocalTime } from "@/components/local-time";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -47,10 +46,10 @@ export default async function LeaveHistoryPage() {
           { label: "Leave history" },
         ]}
         actions={
-          <Button render={<Link href="/leave/apply" />}>
+          <ButtonLink href="/leave/apply">
             <CalendarPlusIcon aria-hidden="true" />
             Apply for leave
-          </Button>
+          </ButtonLink>
         }
       />
       {requests.length === 0 ? (

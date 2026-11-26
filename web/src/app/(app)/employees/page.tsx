@@ -15,7 +15,7 @@ import {
 import { LocalTime } from "@/components/local-time";
 import { listEmployeesFilterSchema } from "@/lib/validation";
 import { employeeService } from "@/server/employee/service";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -56,10 +56,10 @@ export default async function EmployeesPage({
           { label: "Employees" },
         ]}
         actions={
-          <Button render={<Link href="/employees/new" />}>
+          <ButtonLink href="/employees/new">
             <UserPlusIcon aria-hidden="true" />
             Add employee
-          </Button>
+          </ButtonLink>
         }
       />
 
@@ -166,14 +166,14 @@ export default async function EmployeesPage({
                   <TableCell className="pr-4">
                     <div className="flex justify-end gap-1.5">
                       {e.status === "ACTIVE" && (
-                        <Button
+                        <ButtonLink
                           variant="outline"
                           size="sm"
-                          render={<Link href={`/employees/${e.id}/edit`} />}
+                          href={`/employees/${e.id}/edit`}
                           aria-label={`Edit ${e.fullName}`}
                         >
                           Edit
-                        </Button>
+                        </ButtonLink>
                       )}
                       {e.status === "ACTIVE" &&
                         e.id !== session.user.employeeId && (

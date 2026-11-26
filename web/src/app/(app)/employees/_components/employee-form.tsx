@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -20,7 +19,7 @@ import {
   SelectField,
   TextField,
 } from "@/components/forms/form-field";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import {
   createEmployeeSchema,
   updateEmployeeActionSchema,
@@ -49,9 +48,9 @@ export function EmployeeForm({
         </p>
         <CredentialsPanel credentials={created.credentials} />
         <div className="flex flex-wrap gap-2">
-          <Button render={<Link href={`/employees/${created.employee.id}`} />}>
+          <ButtonLink href={`/employees/${created.employee.id}`}>
             View employee
-          </Button>
+          </ButtonLink>
           <Button
             variant="outline"
             onClick={() => {
@@ -231,13 +230,13 @@ export function EmployeeForm({
         <SubmitButton>
           {mode === "create" ? "Add employee" : "Save changes"}
         </SubmitButton>
-        <Button
+        <ButtonLink
           variant="outline"
           size="lg"
-          render={<Link href={v ? `/employees/${v.id}` : "/employees"} />}
+          href={v ? `/employees/${v.id}` : "/employees"}
         >
           Cancel
-        </Button>
+        </ButtonLink>
       </div>
     </>
   );
