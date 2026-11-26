@@ -52,6 +52,7 @@ function Button({
       data-slot="button"
       render={render}
       nativeButton={nativeButton ?? !render}
+      role={render ? "link" : undefined}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
