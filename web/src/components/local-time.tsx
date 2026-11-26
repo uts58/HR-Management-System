@@ -4,6 +4,8 @@ import { useSyncExternalStore } from "react";
 
 import type { UtcTimestamp } from "@/contracts";
 
+import { formatInstant } from "./date-format";
+
 const noopSubscribe = () => () => {};
 
 function useIsClient() {
@@ -14,14 +16,8 @@ function useIsClient() {
   );
 }
 
-const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
-const pad = (n: number) => String(n).padStart(2, "0");
-
 function utcFallback(date: Date, dateOnly: boolean) {
-  const day = `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
-  return dateOnly
-    ? `${day} UTC`
-    : `${day}, ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
+  return `${formatInstant(date, { timeZone: "UTC", dateOnly })} UTC`;
 }
 
 function NotRecorded() {
@@ -49,18 +45,13 @@ export function LocalTime({
 
   if (!isClient) {
     return (
-      <time dateTime={value} title={`${utcFallback(date, false)}`}>
+      <time dateTime={value} title={utcFallback(date, false)}>
         {utcFallback(date, dateOnly)}
       </time>
     );
   }
 
-  const text = new Intl.DateTimeFormat(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    ...(dateOnly ? {} : { hour: "2-digit", minute: "2-digit" }),
-  }).format(date);
+  const text = formatInstant(date, { dateOnly });
   const full = new Intl.DateTimeFormat(undefined, {
     dateStyle: "full",
     timeStyle: "long",

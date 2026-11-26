@@ -53,8 +53,8 @@ export default async function DashboardPage() {
             : "Your notices and leave updates."
         }
       />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
+      <div className={cn("grid gap-6", isHr && "lg:grid-cols-3")}>
+        <div className={cn("flex flex-col gap-6", isHr && "lg:col-span-2")}>
           {leaveCount > 0 && (
             <Link
               href={isHr ? "/leave/requests" : "/leave/history"}
@@ -77,22 +77,11 @@ export default async function DashboardPage() {
           )}
           <RecentNotices notices={notices} />
         </div>
-        <div className="flex flex-col gap-6">
-          {isHr && <QuickLinks />}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <h2>Our company policy</h2>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground">
-              The payroll module automates the pay process by gathering data on
-              employee time and attendance, calculating various deductions and
-              taxes, and generating periodic pay cheques and employee tax
-              reports.
-            </CardContent>
-          </Card>
-        </div>
+        {isHr && (
+          <div>
+            <QuickLinks />
+          </div>
+        )}
       </div>
     </>
   );

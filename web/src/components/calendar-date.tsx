@@ -1,21 +1,6 @@
 import type { IsoDate } from "@/contracts";
 
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+import { formatCalendarDate } from "./date-format";
 
 function NotRecorded() {
   return (
@@ -28,14 +13,9 @@ function NotRecorded() {
 
 export function CalendarDate({ value }: { value: IsoDate | string | null }) {
   if (!value) return <NotRecorded />;
-  const match = ISO_DATE.exec(value);
-  if (!match) return <span>{value}</span>;
-  const [, year, month, day] = match;
-  return (
-    <time dateTime={value}>
-      {Number(day)} {MONTHS[Number(month) - 1] ?? month} {year}
-    </time>
-  );
+  const text = formatCalendarDate(value);
+  if (text === null) return <span>{value}</span>;
+  return <time dateTime={value}>{text}</time>;
 }
 
 export function CalendarDateRange({
