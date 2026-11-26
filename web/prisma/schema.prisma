@@ -148,7 +148,7 @@ model LeaveRequest {
   decidedAt      DateTime?   @map("decided_at") @db.Timestamptz(3)
   decidedById    String?     @map("decided_by_id")
   decidedBy      User?       @relation("LeaveDecider", fields: [decidedById], references: [id], onDelete: SetNull)
-  // True when the requester decided their own request (sole-HR-admin exception, contracts.md Leave rule 7a).
+  // True when the requester decided their own request (sole-HR-admin exception).
   selfApproved   Boolean     @default(false) @map("self_approved")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
