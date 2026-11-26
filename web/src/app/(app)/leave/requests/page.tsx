@@ -28,7 +28,10 @@ export const metadata: Metadata = { title: "Pending leave requests" };
 export default async function PendingLeavePage() {
   const session = await requireRole(Role.HR_ADMIN, { onFail: "redirect" });
   const actor = toActor(session);
-  const requests = await leaveService.listPendingLeaveRequests(actor);
+  const [requests, canDecideOwn] = await Promise.all([
+    leaveService.listPendingLeaveRequests(actor),
+    leaveService.canDecideOwnLeave(actor),
+  ]);
 
   return (
     <>
@@ -94,10 +97,22 @@ export default async function PendingLeavePage() {
                     <LocalTime value={r.createdAt} />
                   </TableCell>
                   <TableCell className="pr-4">
-                    <DecideLeaveButtons
-                      id={r.id}
-                      employeeName={r.employee.name}
-                    />
+                    {r.employee.id !== actor.employeeId ? (
+                      <DecideLeaveButtons
+                        id={r.id}
+                        employeeName={r.employee.name}
+                      />
+                    ) : canDecideOwn ? (
+                      <DecideLeaveButtons
+                        id={r.id}
+                        employeeName={r.employee.name}
+                        selfDecision
+                      />
+                    ) : (
+                      <p className="text-right text-sm text-muted-foreground">
+                        Your request. Another HR admin decides it.
+                      </p>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

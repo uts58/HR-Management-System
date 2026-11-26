@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import {
   LeaveStatusBadge,
+  SelfDecidedBadge,
   StatusPill,
 } from "@/components/common/status-badges";
 import { LocalTime } from "@/components/local-time";
@@ -29,7 +30,9 @@ import { LeaveTypeText } from "../_components/leave-type-text";
 export const metadata: Metadata = { title: "Leave history" };
 
 export default async function LeaveHistoryPage() {
-  const session = await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
+  const session = await requireRole([Role.EMPLOYEE, Role.HR_ADMIN], {
+    onFail: "redirect",
+  });
   const requests = await leaveService.listMyLeaveRequests(toActor(session));
   const unseen = requests.filter(
     (r) => r.status !== "PENDING" && !r.seenByEmployee,
@@ -95,6 +98,7 @@ export default async function LeaveHistoryPage() {
                     <div className="flex flex-col items-start gap-1">
                       <span className="flex flex-wrap items-center gap-1">
                         <LeaveStatusBadge status={r.status} />
+                        <SelfDecidedBadge request={r} />
                         {r.status !== "PENDING" && !r.seenByEmployee && (
                           <StatusPill tone="info">New</StatusPill>
                         )}

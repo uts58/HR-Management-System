@@ -53,6 +53,19 @@ export function LeaveStatusBadge({ status }: { status: LeaveStatus }) {
   return <StatusPill tone={tone}>{label}</StatusPill>;
 }
 
+export function SelfDecidedBadge({
+  request,
+}: {
+  request: { status: LeaveStatus; selfApproved: boolean };
+}) {
+  if (!request.selfApproved || request.status === "PENDING") return null;
+  return (
+    <StatusPill tone="warning">
+      {request.status === "APPROVED" ? "Self-approved" : "Self-rejected"}
+    </StatusPill>
+  );
+}
+
 export function EmploymentStatusBadge({
   status,
 }: {

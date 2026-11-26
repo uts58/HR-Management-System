@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/common/page-header";
 import {
   EmployeeRefName,
   LeaveStatusBadge,
+  SelfDecidedBadge,
 } from "@/components/common/status-badges";
 import { LocalTime } from "@/components/local-time";
 import { Card } from "@/components/ui/card";
@@ -81,7 +82,10 @@ export default async function AllLeavePage() {
                   </TableCell>
                   <TableCell className="pr-4">
                     <div className="flex flex-col items-start gap-1">
-                      <LeaveStatusBadge status={r.status} />
+                      <span className="flex flex-wrap items-center gap-1">
+                        <LeaveStatusBadge status={r.status} />
+                        <SelfDecidedBadge request={r} />
+                      </span>
                       {r.decidedAt && (
                         <span className="text-xs text-muted-foreground">
                           <LocalTime value={r.decidedAt} dateOnly />

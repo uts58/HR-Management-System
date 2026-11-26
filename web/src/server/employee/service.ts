@@ -33,7 +33,7 @@ import {
   uniqueViolationToConflict,
   validationError,
 } from "../errors";
-import { assertRole, fullName } from "../shared";
+import { assertRole, fullName, lockHrAdminSet } from "../shared";
 
 export const MESSAGES = {
   notFound: "Employee not found.",
@@ -48,8 +48,6 @@ export const MESSAGES = {
   unknownDepartment: "Select an existing department",
   unknownPosition: "Select an existing position",
 } as const;
-
-const TERMINATION_LOCK_KEY = 72_001;
 
 const detailSelect = {
   id: true,
@@ -373,7 +371,7 @@ export function createEmployeeService(
       assertRole(actor, Role.HR_ADMIN);
       const id = entityIdSchema.parse(rawId);
       return db.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT 1 FROM pg_advisory_xact_lock(${TERMINATION_LOCK_KEY}::bigint)`;
+        await lockHrAdminSet(tx);
 
         const target = await tx.employee.findFirst({
           where: { id },

@@ -1,9 +1,9 @@
 # HR Management System
 
 A web app for managing employees, departments and positions, leave requests,
-performance appraisals and company notices. Three roles share one login:
-`HR_ADMIN` and `HR` manage people and records, and employees see their own
-data and the notice board.
+performance appraisals and company notices. Two roles share one login:
+`HR_ADMIN` manages people and records, and `EMPLOYEE` sees their own data and
+the notice board. Both can apply for leave.
 
 The app lives in [`web/`](web/). Deployment files (`docker-compose.yml`,
 `compose.dev.yml`, `compose.prod.yml`, `docker/`) are at the repo root.

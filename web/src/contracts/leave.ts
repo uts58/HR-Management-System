@@ -34,6 +34,8 @@ export interface LeaveRequest {
   seenByEmployee: boolean;
   createdAt: UtcTimestamp;
   decidedAt: UtcTimestamp | null;
+  /** The requester decided it themselves (sole active HR admin exception). */
+  selfApproved: boolean;
 }
 
 export interface ApplyForLeaveInput {
@@ -57,6 +59,9 @@ export interface LeaveService {
   listAllLeaveRequests(actor: Actor): Promise<LeaveRequest[]>;
 
   countPendingLeaveRequests(actor: Actor): Promise<number>;
+
+  /** True when the actor is the only active HR admin and so may decide their own requests. */
+  canDecideOwnLeave(actor: Actor): Promise<boolean>;
 
   decideLeaveRequest(
     actor: Actor,

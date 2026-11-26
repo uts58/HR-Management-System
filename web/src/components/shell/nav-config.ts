@@ -71,6 +71,12 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
           icon: CalendarClockIcon,
         },
         { label: "All leave", href: "/leave/all", icon: CalendarCheckIcon },
+        {
+          label: "Apply for leave",
+          href: "/leave/apply",
+          icon: CalendarPlusIcon,
+        },
+        { label: "My leave", href: "/leave/history", icon: HistoryIcon },
       ],
     },
     {

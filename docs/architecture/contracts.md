@@ -177,14 +177,15 @@ Implemented by Backend in `web/src/server/leave/`. Types: `contracts/leave.ts`.
 
 | Function | Role | Input → Output | Errors |
 |---|---|---|---|
-| `applyForLeave(actor, ApplyForLeaveInput)` | EMPLOYEE | → `LeaveRequest` | `VALIDATION`, `FORBIDDEN` |
-| `listMyLeaveRequests(actor)` | EMPLOYEE | → `LeaveRequest[]` (newest first) | `FORBIDDEN` |
-| `markMyLeaveDecisionsSeen(actor)` | EMPLOYEE | → `number` (rows changed) | `FORBIDDEN` |
-| `countMyUnseenDecisions(actor)` | EMPLOYEE | → `number` | `FORBIDDEN` |
+| `applyForLeave(actor, ApplyForLeaveInput)` | EMPLOYEE, HR_ADMIN | → `LeaveRequest` | `VALIDATION`, `FORBIDDEN` |
+| `listMyLeaveRequests(actor)` | EMPLOYEE, HR_ADMIN | → `LeaveRequest[]` (newest first) | `FORBIDDEN` |
+| `markMyLeaveDecisionsSeen(actor)` | EMPLOYEE, HR_ADMIN | → `number` (rows changed) | `FORBIDDEN` |
+| `countMyUnseenDecisions(actor)` | EMPLOYEE, HR_ADMIN | → `number` | `FORBIDDEN` |
 | `listPendingLeaveRequests(actor)` | HR_ADMIN | → `LeaveRequest[]` (oldest first) | `FORBIDDEN` |
 | `listAllLeaveRequests(actor)` | HR_ADMIN | → `LeaveRequest[]` (newest first) | `FORBIDDEN` |
 | `countPendingLeaveRequests(actor)` | HR_ADMIN | → `number` | `FORBIDDEN` |
-| `decideLeaveRequest(actor, id, 'APPROVED' \| 'REJECTED')` | HR_ADMIN | → `LeaveRequest` | `NOT_FOUND`, `CONFLICT` |
+| `decideLeaveRequest(actor, id, 'APPROVED' \| 'REJECTED')` | HR_ADMIN | → `LeaveRequest` | `NOT_FOUND`, `CONFLICT`, `FORBIDDEN` (own request, rule 7a) |
+| `canDecideOwnLeave(actor)` | HR_ADMIN | → `boolean` (actor is the only active HR admin) | `FORBIDDEN` |
 
 ### State machine
 
@@ -207,11 +208,11 @@ Legacy integers: 0 = PENDING, 1 = APPROVED, 2 = REJECTED.
 1. `leaveType` is an enum (director ruling): `SICK | ANNUAL | CASUAL | MATERNITY | UNPAID` (`LEAVE_TYPES`), with display labels matching the legacy text (`LEAVE_TYPE_LABELS`). `startDate`/`endDate` are `IsoDate`, `endDate ≥ startDate`. `reason` is optional, ≤1000. Past dates are allowed (e.g. sick leave logged afterwards).
 2. New requests are always `PENDING` for `actor.employeeId`. The employee id is never read from input.
 3. **[CHANGE]** Only `PENDING` requests can be decided. Deciding again gives `CONFLICT`. Legacy `GET /assignLeave?id=&status=` accepted any integer status at any time, from any logged-in user.
-4. A decision sets `decidedAt = now`, `decidedBy = actor.userId` **[NEW, audit]**, `seenByEmployee = false`.
+4. A decision sets `decidedAt = now`, `decidedBy = actor.userId` **[NEW, audit]**, `seenByEmployee = false`, and `selfApproved` (true only for a self-decision under rule 7a).
 5. **Notification (legacy `read` flag):** the employee dashboard shows "Your leave request has been reviewed (N)" when `countMyUnseenDecisions > 0`. Opening leave history shows the list, and the page then calls `markMyLeaveDecisionsSeen`. **[CHANGE]** Legacy did that update inside the GET handler. We keep reads free of side effects so link prefetching can't mark items as seen.
 6. HR dashboard shows "Pending leave requests (N)" linking to the approval queue. **[CHANGE / bug fix]** Legacy compared `title == 'in'`, which is never true, so HR never saw the count and saw the employee message instead.
 7. No balance tracking, no overlap check, no cancellation (none exist in legacy).
-7a. HR admins can't apply for leave (legacy parity, director ruling: out of scope until after cutover).
+7a. **[CHANGE, founder ruling, #27]** HR admins can apply for leave and see their own history, like employees. Nobody decides their own request: `decideLeaveRequest` on a request whose employee is `actor.employeeId` is `FORBIDDEN`. Exception: when the actor is the only active HR admin (no other `HR_ADMIN` login that is enabled and whose employee, if any, is not terminated), they may decide it, and the decision is stored with `selfApproved = true` and shown as "Self-approved"/"Self-rejected" wherever the decision appears. The admin count is read inside the decision transaction under the same advisory lock that `terminateEmployee` and `create-admin` take, so it can't change before the decision commits. The UI shows no decide buttons on a request the viewer may not decide. The audit log (#29) will record self-decisions.
 7b. Terminating an employee rejects their PENDING requests (Employee rule 5). Their decided history stays visible to HR.
 
 ---

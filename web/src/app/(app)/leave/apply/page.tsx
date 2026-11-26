@@ -9,7 +9,7 @@ import { ApplyLeaveForm } from "../_components/leave-client";
 export const metadata: Metadata = { title: "Apply for leave" };
 
 export default async function ApplyLeavePage() {
-  await requireRole(Role.EMPLOYEE, { onFail: "redirect" });
+  await requireRole([Role.EMPLOYEE, Role.HR_ADMIN], { onFail: "redirect" });
   return (
     <>
       <PageHeader

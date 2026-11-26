@@ -19,10 +19,12 @@ import {
   decideLeaveRequestSchema,
 } from "@/lib/validation/leave";
 import { db } from "../db";
-import { conflictError, notFoundError } from "../errors";
+import { conflictError, forbiddenError, notFoundError } from "../errors";
 import {
   assertRole,
+  countOtherActiveHrAdmins,
   employeeRefSelect,
+  lockHrAdminSet,
   newestFirst,
   oldestFirst,
   requireOwnEmployeeId,
@@ -31,6 +33,11 @@ import {
 
 export const ALREADY_DECIDED_MESSAGE =
   "This leave request has already been decided.";
+
+const NOT_FOUND_MESSAGE = "This leave request was not found.";
+
+export const SELF_DECISION_MESSAGE =
+  "You can't decide your own leave request. Another HR admin must decide it.";
 
 const leaveSelect = {
   id: true,
@@ -42,6 +49,7 @@ const leaveSelect = {
   seenByEmployee: true,
   createdAt: true,
   decidedAt: true,
+  selfApproved: true,
   employee: { select: employeeRefSelect },
 } as const satisfies Prisma.LeaveRequestSelect;
 
@@ -59,6 +67,7 @@ function toLeaveRequest(r: LeaveRow): LeaveRequest {
     seenByEmployee: r.seenByEmployee,
     createdAt: toIsoInstant(r.createdAt),
     decidedAt: toIsoInstantOrNull(r.decidedAt),
+    selfApproved: r.selfApproved,
   };
 }
 
@@ -71,7 +80,7 @@ const unseenDecisions = (employeeId: number) =>
 
 export const leaveService: LeaveService = {
   async applyForLeave(actor: Actor, raw) {
-    assertRole(actor, Role.EMPLOYEE);
+    assertRole(actor, Role.EMPLOYEE, Role.HR_ADMIN);
     const employeeId = requireOwnEmployeeId(actor);
     const input = applyForLeaveSchema.parse(raw);
     const row = await db.leaveRequest.create({
@@ -90,7 +99,7 @@ export const leaveService: LeaveService = {
   },
 
   async listMyLeaveRequests(actor) {
-    assertRole(actor, Role.EMPLOYEE);
+    assertRole(actor, Role.EMPLOYEE, Role.HR_ADMIN);
     const employeeId = requireOwnEmployeeId(actor);
     const rows = await db.leaveRequest.findMany({
       where: { employeeId },
@@ -101,7 +110,7 @@ export const leaveService: LeaveService = {
   },
 
   async markMyLeaveDecisionsSeen(actor) {
-    assertRole(actor, Role.EMPLOYEE);
+    assertRole(actor, Role.EMPLOYEE, Role.HR_ADMIN);
     const employeeId = requireOwnEmployeeId(actor);
     const { count } = await db.leaveRequest.updateMany({
       where: unseenDecisions(employeeId),
@@ -111,7 +120,7 @@ export const leaveService: LeaveService = {
   },
 
   async countMyUnseenDecisions(actor) {
-    assertRole(actor, Role.EMPLOYEE);
+    assertRole(actor, Role.EMPLOYEE, Role.HR_ADMIN);
     const employeeId = requireOwnEmployeeId(actor);
     return db.leaveRequest.count({ where: unseenDecisions(employeeId) });
   },
@@ -140,6 +149,11 @@ export const leaveService: LeaveService = {
     return db.leaveRequest.count({ where: { status: "PENDING" } });
   },
 
+  async canDecideOwnLeave(actor) {
+    assertRole(actor, Role.HR_ADMIN);
+    return (await countOtherActiveHrAdmins(db, actor.userId)) === 0;
+  },
+
   async decideLeaveRequest(
     actor,
     rawId: LeaveRequestId,
@@ -151,6 +165,21 @@ export const leaveService: LeaveService = {
       decision: rawDecision,
     });
     return db.$transaction(async (tx) => {
+      const target = await tx.leaveRequest.findUnique({
+        where: { id },
+        select: { employeeId: true },
+      });
+      if (!target) throw notFoundError(NOT_FOUND_MESSAGE);
+      const own =
+        actor.employeeId != null && target.employeeId === actor.employeeId;
+      if (own) {
+        // Rule 7a: only the sole active HR admin may decide their own request.
+        // The lock keeps the admin count stable until this transaction ends.
+        await lockHrAdminSet(tx);
+        if ((await countOtherActiveHrAdmins(tx, actor.userId)) > 0) {
+          throw forbiddenError(SELF_DECISION_MESSAGE);
+        }
+      }
       const { count } = await tx.leaveRequest.updateMany({
         where: { id, status: "PENDING" },
         data: {
@@ -158,13 +187,14 @@ export const leaveService: LeaveService = {
           decidedAt: new Date(),
           decidedById: actor.userId,
           seenByEmployee: false,
+          selfApproved: own,
         },
       });
       const row = await tx.leaveRequest.findUnique({
         where: { id },
         select: leaveSelect,
       });
-      if (!row) throw notFoundError("This leave request was not found.");
+      if (!row) throw notFoundError(NOT_FOUND_MESSAGE);
       if (count === 0) throw conflictError(ALREADY_DECIDED_MESSAGE);
       return toLeaveRequest(row);
     });

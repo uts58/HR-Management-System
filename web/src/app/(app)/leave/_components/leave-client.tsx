@@ -76,13 +76,18 @@ export function ApplyLeaveForm() {
 export function DecideLeaveButtons({
   id,
   employeeName,
+  selfDecision = false,
 }: {
   id: number;
   employeeName: string;
+  selfDecision?: boolean;
 }) {
   const router = useRouter();
   const decide = (decision: LeaveDecision) =>
     decideLeaveRequest({ id, decision });
+  const description = selfDecision
+    ? "This is your own request. You're the only active HR admin, so you can decide it, and it will be marked as self-approved. A decision can't be changed afterwards."
+    : `${employeeName} will see the decision on their dashboard. A decision can't be changed afterwards.`;
   return (
     <div className="flex justify-end gap-1.5">
       <ConfirmActionDialog
@@ -90,7 +95,7 @@ export function DecideLeaveButtons({
         triggerAriaLabel={`Approve leave for ${employeeName}`}
         triggerIcon={<CheckIcon aria-hidden="true" />}
         title="Approve this leave?"
-        description={`${employeeName} will see the decision on their dashboard. A decision can't be changed afterwards.`}
+        description={description}
         confirmLabel="Approve"
         pendingLabel="Approving…"
         successMessage="Leave approved."
@@ -103,7 +108,7 @@ export function DecideLeaveButtons({
         triggerIcon={<XIcon aria-hidden="true" />}
         triggerVariant="destructive"
         title="Reject this leave?"
-        description={`${employeeName} will see the decision on their dashboard. A decision can't be changed afterwards.`}
+        description={description}
         confirmLabel="Reject"
         pendingLabel="Rejecting…"
         destructive

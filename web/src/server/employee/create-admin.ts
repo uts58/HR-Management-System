@@ -8,7 +8,7 @@ import {
 } from "../account-admin-seam";
 import { db } from "../db";
 import { conflictError } from "../errors-core";
-import { fullName } from "../shared";
+import { fullName, lockHrAdminSet } from "../shared";
 
 export interface CreateHrAdminInput {
   username: string;
@@ -39,6 +39,7 @@ export async function createHrAdmin(
   const email = input.email?.trim().toLowerCase() || null;
 
   return db.$transaction(async (tx) => {
+    await lockHrAdminSet(tx);
     const existing = await tx.user.findUnique({
       where: { username },
       select: { role: true, employeeId: true },

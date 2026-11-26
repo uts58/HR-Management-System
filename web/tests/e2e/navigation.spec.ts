@@ -11,6 +11,8 @@ const HR_NAV = [
   "Manage notices",
   "Pending requests",
   "All leave",
+  "Apply for leave",
+  "My leave",
   "Manage appraisals",
   "Add appraisal",
 ];
