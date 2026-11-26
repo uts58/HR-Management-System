@@ -1,9 +1,7 @@
 import { z } from "zod";
 import {
   COUNTRIES,
-  EMPLOYEE_NUMBER_MAX,
   EMPLOYMENT_STATUSES,
-  EMPLOYMENT_TYPES,
   GENDERS,
   MARITAL_STATUSES,
   USERNAME_PATTERN,
@@ -18,8 +16,6 @@ import {
   idField,
   idInputSchema,
   isoDateField,
-  optionalEnumField,
-  optionalIsoDateField,
   optionalText,
   requiredText,
 } from "./common";
@@ -88,14 +84,11 @@ const employeeFields = {
   lastName: requiredText("Last name", NAME_MAX),
   departmentId: idField("Select a department"),
   positionId: idField("Select a position"),
-  employmentType: enumField(EMPLOYMENT_TYPES, "Select an employment type"),
-  hireDate: optionalIsoDateField("Hire date"),
-  employeeNumber: optionalText("Employee number", EMPLOYEE_NUMBER_MAX),
   country: enumField(COUNTRIES, "Select a country"),
   homeTown: requiredText("Home town", NAME_MAX),
   contactNo: contactNoField,
   email: emailField,
-  gender: optionalEnumField(GENDERS, "Select a gender"),
+  gender: enumField(GENDERS, "Select a gender"),
   maritalStatus: enumField(MARITAL_STATUSES, "Select a marital status"),
   dateOfBirth: dateOfBirthField,
 };

@@ -2,7 +2,6 @@ import type { EmployeeDetail } from "@/contracts";
 import { CalendarDate } from "@/components/calendar-date";
 import { DescriptionList } from "@/components/common/description-list";
 import {
-  EMPLOYMENT_TYPE_LABELS,
   GENDER_LABELS,
   MARITAL_STATUS_LABELS,
 } from "@/components/common/labels";
@@ -34,17 +33,8 @@ export function EmployeeDetails({ employee }: { employee: EmployeeDetail }) {
         { label: "Full name", value: employee.fullName },
         { label: "Employee ID", value: String(employee.id) },
         { label: "Username", value: employee.username },
-        { label: "Employee number", value: employee.employeeNumber },
         { label: "Department", value: employee.department?.label },
         { label: "Position", value: employee.position?.label },
-        {
-          label: "Employment type",
-          value: EMPLOYMENT_TYPE_LABELS[employee.employmentType],
-        },
-        {
-          label: "Hire date",
-          value: <CalendarDate value={employee.hireDate} />,
-        },
         { label: "Email", value: <EmailValue employee={employee} /> },
         { label: "Contact number", value: employee.contactNo },
         { label: "Country", value: employee.country },

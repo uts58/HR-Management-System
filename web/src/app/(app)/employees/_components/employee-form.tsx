@@ -3,8 +3,6 @@
 import { useState } from "react";
 
 import {
-  DEFAULT_EMPLOYMENT_TYPE,
-  EMPLOYEE_NUMBER_MAX,
   USERNAME_PATTERN,
   type CreateEmployeeResult,
   type EmployeeDetail,
@@ -12,20 +10,18 @@ import {
 } from "@/contracts";
 import { CredentialsPanel } from "@/components/common/credentials-panel";
 import {
-  EMPLOYMENT_TYPE_LABELS,
   GENDER_LABELS,
   MARITAL_STATUS_LABELS,
 } from "@/components/common/labels";
 import { ActionForm, SubmitButton } from "@/components/forms/action-form";
 import {
+  RadioGroupField,
   SelectField,
   TextField,
 } from "@/components/forms/form-field";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   createEmployeeSchema,
-  MAX_INPUT_DATE,
-  MIN_INPUT_DATE,
   updateEmployeeActionSchema,
 } from "@/lib/validation";
 import { createEmployee, updateEmployee } from "@/server/actions/employee";
@@ -77,7 +73,7 @@ export function EmployeeForm({
       </p>
 
       <FieldSet>
-        <FieldLegend>Personal</FieldLegend>
+        <FieldLegend>Personal details</FieldLegend>
         <div className="grid gap-5 sm:grid-cols-3">
           <TextField
             name="firstName"
@@ -103,7 +99,7 @@ export function EmployeeForm({
             defaultValue={v?.lastName}
           />
         </div>
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2">
           <TextField
             name="dateOfBirth"
             label="Date of birth"
@@ -111,16 +107,6 @@ export function EmployeeForm({
             required
             description="Must be before today."
             defaultValue={v?.dateOfBirth ?? undefined}
-          />
-          <SelectField
-            name="gender"
-            label="Gender"
-            placeholder="Not specified"
-            defaultValue={v?.gender ?? undefined}
-            options={options.genders.map((g) => ({
-              value: g,
-              label: GENDER_LABELS[g],
-            }))}
           />
           <SelectField
             name="maritalStatus"
@@ -134,6 +120,52 @@ export function EmployeeForm({
             }))}
           />
         </div>
+        <RadioGroupField
+          name="gender"
+          label="Gender"
+          required
+          defaultValue={v?.gender ?? undefined}
+          options={options.genders.map((g) => ({
+            value: g,
+            label: GENDER_LABELS[g],
+          }))}
+        />
+      </FieldSet>
+
+      <Separator />
+
+      <FieldSet>
+        <FieldLegend>Job</FieldLegend>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <SelectField
+            name="departmentId"
+            label="Department"
+            required
+            placeholder="Select department"
+            defaultValue={v?.department?.id}
+            options={options.departments.map((d) => ({
+              value: d.id,
+              label: d.label,
+            }))}
+          />
+          <SelectField
+            name="positionId"
+            label="Position"
+            required
+            placeholder="Select position"
+            defaultValue={v?.position?.id}
+            options={options.positions.map((p) => ({
+              value: p.id,
+              label: p.label,
+            }))}
+          />
+        </div>
+      </FieldSet>
+
+      <Separator />
+
+      <FieldSet>
+        <FieldLegend>Contact and address</FieldLegend>
         <div className="grid gap-5 sm:grid-cols-2">
           <TextField
             name="email"
@@ -169,65 +201,6 @@ export function EmployeeForm({
             required
             maxLength={100}
             defaultValue={v?.homeTown ?? undefined}
-          />
-        </div>
-      </FieldSet>
-
-      <Separator />
-
-      <FieldSet>
-        <FieldLegend>Job</FieldLegend>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <SelectField
-            name="departmentId"
-            label="Department"
-            required
-            placeholder="Select department"
-            defaultValue={v?.department?.id}
-            options={options.departments.map((d) => ({
-              value: d.id,
-              label: d.label,
-            }))}
-          />
-          <SelectField
-            name="positionId"
-            label="Position"
-            required
-            placeholder="Select position"
-            defaultValue={v?.position?.id}
-            options={options.positions.map((p) => ({
-              value: p.id,
-              label: p.label,
-            }))}
-          />
-        </div>
-        <div className="grid gap-5 sm:grid-cols-3">
-          <SelectField
-            name="employmentType"
-            label="Employment type"
-            required
-            defaultValue={v?.employmentType ?? DEFAULT_EMPLOYMENT_TYPE}
-            options={options.employmentTypes.map((t) => ({
-              value: t,
-              label: EMPLOYMENT_TYPE_LABELS[t],
-            }))}
-          />
-          <TextField
-            name="hireDate"
-            label="Hire date"
-            type="date"
-            min={MIN_INPUT_DATE}
-            max={MAX_INPUT_DATE}
-            defaultValue={v?.hireDate ?? undefined}
-          />
-          <TextField
-            name="employeeNumber"
-            label="Employee number"
-            maxLength={EMPLOYEE_NUMBER_MAX}
-            autoComplete="off"
-            spellCheck={false}
-            description="Must be unique."
-            defaultValue={v?.employeeNumber ?? undefined}
           />
         </div>
       </FieldSet>
