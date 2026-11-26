@@ -146,6 +146,9 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await expect(d("Gender")).toHaveText("Male");
     await expect(d("Marital status")).toHaveText("Single");
     await expect(d("Date of birth")).toHaveText("1 Jan 1990");
+    await expect(d("Employee number")).toHaveText("EMP-0002");
+    await expect(d("Employment type")).toHaveText("Full-time");
+    await expect(d("Hire date")).toHaveText("17 Jun 2019");
   });
 
   test("an unknown employee id shows the not-found page, not a server error", async ({
@@ -164,7 +167,13 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
   }) => {
     const first = `Quinn${Date.now().toString(36)}`;
     await hr.page.goto("/dashboard");
-    await hr.employees.add(newHire(first));
+    await hr.employees.add({
+      ...newHire(first),
+      gender: "Prefer not to say",
+      employmentType: "Part-time",
+      hireDate: "2026-02-01",
+      employeeNumber: ` ${first.toUpperCase()} `,
+    });
     await expect(hr.page.getByRole("status")).toContainText(
       `Employee ${first} Starter was added.`,
     );
@@ -175,6 +184,14 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     await hr.page.getByRole("link", { name: "View employee" }).click();
     await expect(hr.page.getByRole("heading", { level: 1 })).toHaveText(
       `${first} Starter`,
+    );
+    await expect(hr.employees.detail("Gender")).toHaveText("Prefer not to say");
+    await expect(hr.employees.detail("Employment type")).toHaveText(
+      "Part-time",
+    );
+    await expect(hr.employees.detail("Hire date")).toHaveText("1 Feb 2026");
+    await expect(hr.employees.detail("Employee number")).toHaveText(
+      first.toUpperCase(),
     );
     await hr.employees.openList();
     await expect(hr.employees.row(`${first} Starter`)).toContainText(
@@ -199,6 +216,22 @@ test.describe("Employees: journeys", { tag: BACKEND_TAG }, () => {
     });
     await form.getByRole("button", { name: "Add employee" }).click();
     await expectFieldError(form.getByLabel("Username"), /taken|already/i);
+  });
+
+  test("a duplicate employee number is rejected on the employee number field", async ({
+    hr,
+  }) => {
+    await hr.page.goto("/employees/new");
+    const form = hr.employees.form("Add employee");
+    await hr.employees.fill(form, {
+      ...newHire("Dupnum"),
+      employeeNumber: "EMP-0002",
+    });
+    await form.getByRole("button", { name: "Add employee" }).click();
+    await expectFieldError(
+      form.getByLabel("Employee number"),
+      "This employee number is already in use",
+    );
   });
 
   test("HR edits an employee; a rename does not change their login", async ({

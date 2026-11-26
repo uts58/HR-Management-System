@@ -173,6 +173,10 @@ export const KNOWN_UNIQUE_CONSTRAINTS = {
     field: "username",
     message: "This username is already taken",
   },
+  employees_employee_number_key: {
+    field: "employeeNumber",
+    message: "This employee number is already in use",
+  },
 } as const satisfies Record<string, UniqueConstraintRule>;
 
 export type KnownUniqueConstraint = keyof typeof KNOWN_UNIQUE_CONSTRAINTS;

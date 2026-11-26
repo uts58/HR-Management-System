@@ -69,6 +69,25 @@ export function isoDateField(label: string) {
     .transform((v) => v as IsoDate);
 }
 
+export function optionalIsoDateField(label: string) {
+  return z
+    .preprocess((v) => (isBlank(v) ? null : v), isoDateField(label).nullable())
+    .optional()
+    .transform((v) => v ?? null);
+}
+
+export function optionalEnumField<
+  const T extends readonly [string, ...string[]],
+>(values: T, message: string) {
+  return z
+    .preprocess(
+      (v) => (isBlank(v) ? null : v),
+      z.enum(values, { error: message }).nullable(),
+    )
+    .optional()
+    .transform((v) => v ?? null);
+}
+
 export function enumField<const T extends readonly [string, ...string[]]>(
   values: T,
   message: string,

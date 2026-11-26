@@ -19,7 +19,7 @@ Inputs: the legacy app (as a functional spec only), the director's rulings, and 
 | Topic | Decision | Why |
 |---|---|---|
 | Naming | Models and fields are camelCase. Tables are **plural snake_case** (`employees`, `leave_requests`), columns snake_case, all through `@map`/`@@map`. Enum types are snake_case too (`leave_status`). | Consistent naming, and it avoids reserved words: `user` and `position` are awkward unquoted in Postgres. |
-| Calendar dates | `@db.Date`: DOB, leave start/end, project start/end. | ADR-0007. No time zone, so no off-by-one birthdays. |
+| Calendar dates | `@db.Date`: DOB, hire date, leave start/end, project start/end. | ADR-0007. No time zone, so no off-by-one birthdays. |
 | Instants | `@db.Timestamptz(3)`, stored in UTC. | ADR-0007 (director decision 6). |
 | Timestamps | `createdAt` / `updatedAt` on every table. New rows always get `now()`. | |
 | Ids | `Int @default(autoincrement())` for domain tables; the database assigns them. Auth tables use `String` ids, as Better Auth expects. | Removes the legacy `max(id)+1` race in the add-employee form. |
@@ -37,6 +37,7 @@ Prisma schema can't express these. They are hand-written at the end of `migratio
 | `CHECK (end_date >= start_date)` (NULL-tolerant) on `leave_requests`; the same on `appraisals.project_start/end` | Valid ranges. |
 | `CHECK (rating BETWEEN 1 AND 5)` on `appraisals` | The form only offers 1–5. |
 | `CHECK ((employment_status = 'TERMINATED') = (terminated_at IS NOT NULL))` | Soft-delete consistency. |
+| `CHECK (employee_number IS NULL OR (employee_number <> '' AND employee_number = btrim(employee_number)))` on `employees` (migration `20261126000000_employee_job_fields`) | Services trim the employee number and store blank as NULL. The check stops `""`, `" A1"` and `"A1"` from becoming separate unique values. |
 
 ## 4. Enums and notable columns
 
@@ -47,6 +48,10 @@ Prisma schema can't express these. They are hand-written at the end of `migratio
 | `LeaveStatus` | `PENDING`, `APPROVED`, `REJECTED`. `seen_by_employee` is false while HR has decided and the employee hasn't looked yet. |
 | `NoticeType` | `GENERAL`, `URGENT`, `HOLIDAY`. |
 | `EmploymentStatus` | `ACTIVE`, `TERMINATED` (soft delete). |
+| `Gender` | `MALE`, `FEMALE`, `NON_BINARY`, `PREFER_NOT_TO_SAY`. The column stays nullable and the form allows blank ("Not specified"). |
+| `EmploymentType` | `FULL_TIME`, `PART_TIME`, `CONTRACTOR`. **NOT NULL, default `FULL_TIME`.** Every employee has some employment type, so NULL would only mean "unknown" and every reader would have to handle it. The default keeps `create-admin`, test fixtures and the future CSV import (B2) working when the source has no type. The HR form always sends a value, preselected to Full-time. |
+| `employees.employee_number` | Optional HR-assigned identifier (`TEXT`, max 50 in validation). Plain `@unique` (`employees_employee_number_key`); Postgres allows many NULLs, so "unique when set". Case-sensitive, because customers' numbering schemes are opaque to us. Services map the violation to `CONFLICT` on the `employeeNumber` field. Not to be confused with `employees.id` (shown as "Employee ID"). |
+| `employees.hire_date` | Optional calendar date (`@db.Date`, ADR-0007). Future dates are allowed (a signed offer with a later start), within the 1900–2100 input range. |
 | `users.email` + `users.email_is_placeholder` | Better Auth requires a unique email on every account, but `employees.email` is optional and not unique. The login email is the employee's email, lower-cased, when it is present, plausible and not used by another account. Otherwise it is **`<username>@users.invalid`** (RFC 2606, never routes; unique because usernames are) with `email_is_placeholder = true`. The app shows "No email on file" and never sends mail to it. |
 | `users.must_change_password` | `true` while the user holds an HR-issued temporary password (account creation, password reset). Cleared by `changePassword`. `create-admin` sets a known password, so it leaves this `false`. |
 | `users.disabled_at` | Login is blocked while it's set (director ruling 5). `terminateEmployee` sets it; it also works for users with no employee record. |

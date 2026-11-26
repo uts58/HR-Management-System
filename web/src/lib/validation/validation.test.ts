@@ -39,6 +39,9 @@ const validEmployeeForm = {
   lastName: "Lovelace",
   departmentId: "2",
   positionId: "3",
+  employmentType: "FULL_TIME",
+  hireDate: "",
+  employeeNumber: "   ",
   country: "Germany",
   homeTown: "London",
   contactNo: "+44 (20) 7946-0000",
@@ -57,6 +60,9 @@ describe("createEmployeeSchema", () => {
       lastName: "Lovelace",
       departmentId: 2,
       positionId: 3,
+      employmentType: "FULL_TIME",
+      hireDate: null,
+      employeeNumber: null,
       country: "Germany",
       homeTown: "London",
       contactNo: "+44 (20) 7946-0000",
@@ -78,7 +84,7 @@ describe("createEmployeeSchema", () => {
     expect(r.username).toBe("ada.l");
   });
 
-  it("requires every field except middle name and username", () => {
+  it("requires every field except the optional ones", () => {
     const errors = errorsOf(createEmployeeSchema, {});
     expect(Object.keys(errors).sort()).toEqual(
       [
@@ -87,8 +93,8 @@ describe("createEmployeeSchema", () => {
         "dateOfBirth",
         "departmentId",
         "email",
+        "employmentType",
         "firstName",
-        "gender",
         "homeTown",
         "lastName",
         "maritalStatus",
@@ -215,6 +221,104 @@ describe("createEmployeeSchema", () => {
       ).toBe(username);
     },
   );
+});
+
+describe("employee job fields and gender", () => {
+  it.each(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"])(
+    "accepts gender %j",
+    (gender) => {
+      expect(
+        createEmployeeSchema.parse({ ...validEmployeeForm, gender }).gender,
+      ).toBe(gender);
+    },
+  );
+
+  it.each(["", "  ", null, undefined])("gender %j is left blank", (gender) => {
+    expect(
+      createEmployeeSchema.parse({ ...validEmployeeForm, gender }).gender,
+    ).toBeNull();
+  });
+
+  it.each(["FULL_TIME", "PART_TIME", "CONTRACTOR"])(
+    "accepts employment type %j",
+    (employmentType) => {
+      expect(
+        createEmployeeSchema.parse({ ...validEmployeeForm, employmentType })
+          .employmentType,
+      ).toBe(employmentType);
+    },
+  );
+
+  it.each(["", "TEMP", "full_time"])(
+    "rejects employment type %j",
+    (employmentType) => {
+      expect(
+        errorsOf(createEmployeeSchema, {
+          ...validEmployeeForm,
+          employmentType,
+        }).employmentType,
+      ).toEqual(["Select an employment type"]);
+    },
+  );
+
+  it("hire date is an optional calendar date, future dates allowed", () => {
+    for (const hireDate of ["2020-03-01", "2027-01-04"]) {
+      expect(
+        createEmployeeSchema.parse({ ...validEmployeeForm, hireDate }).hireDate,
+      ).toBe(hireDate);
+    }
+    expect(
+      createEmployeeSchema.parse({ ...validEmployeeForm, hireDate: undefined })
+        .hireDate,
+    ).toBeNull();
+  });
+
+  it.each([
+    ["01 Mar 2020", "Hire date must be a valid date (YYYY-MM-DD)"],
+    ["2026-02-30", "Hire date must be a valid date (YYYY-MM-DD)"],
+    ["1899-12-31", "Hire date must be between 1900 and 2100"],
+  ])("rejects hire date %j", (hireDate, message) => {
+    expect(
+      errorsOf(createEmployeeSchema, { ...validEmployeeForm, hireDate })
+        .hireDate,
+    ).toEqual([message]);
+  });
+
+  it("employee number is trimmed, blank is null, max 50", () => {
+    expect(
+      createEmployeeSchema.parse({
+        ...validEmployeeForm,
+        employeeNumber: "  EMP-0042 ",
+      }).employeeNumber,
+    ).toBe("EMP-0042");
+    expect(
+      createEmployeeSchema.parse({ ...validEmployeeForm, employeeNumber: "" })
+        .employeeNumber,
+    ).toBeNull();
+    expect(
+      errorsOf(createEmployeeSchema, {
+        ...validEmployeeForm,
+        employeeNumber: "x".repeat(51),
+      }).employeeNumber,
+    ).toEqual(["Employee number must be at most 50 characters"]);
+  });
+
+  it("update takes the same fields", () => {
+    expect(
+      updateEmployeeSchema.parse({
+        ...validEmployeeForm,
+        employmentType: "CONTRACTOR",
+        hireDate: "2024-09-01",
+        employeeNumber: " C-7 ",
+        gender: "",
+      }),
+    ).toMatchObject({
+      employmentType: "CONTRACTOR",
+      hireDate: "2024-09-01",
+      employeeNumber: "C-7",
+      gender: null,
+    });
+  });
 });
 
 describe("updateEmployeeSchema", () => {

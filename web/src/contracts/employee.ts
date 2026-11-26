@@ -9,7 +9,12 @@ import type {
 } from "./common";
 import type { IssuedCredentials, Role } from "./auth";
 
-export const GENDERS = ["MALE", "FEMALE"] as const;
+export const GENDERS = [
+  "MALE",
+  "FEMALE",
+  "NON_BINARY",
+  "PREFER_NOT_TO_SAY",
+] as const;
 export type Gender = (typeof GENDERS)[number];
 
 export const MARITAL_STATUSES = ["SINGLE", "MARRIED", "DIVORCED"] as const;
@@ -26,6 +31,17 @@ export const COUNTRIES = [
   "Australia",
 ] as const;
 export type Country = (typeof COUNTRIES)[number];
+
+export const EMPLOYMENT_TYPES = [
+  "FULL_TIME",
+  "PART_TIME",
+  "CONTRACTOR",
+] as const;
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+
+export const DEFAULT_EMPLOYMENT_TYPE: EmploymentType = "FULL_TIME";
+
+export const EMPLOYEE_NUMBER_MAX = 50;
 
 export const EMPLOYMENT_STATUSES = ["ACTIVE", "TERMINATED"] as const;
 export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
@@ -53,6 +69,9 @@ export interface EmployeeDetail {
   fullName: string;
   department: Option<DepartmentId> | null;
   position: Option<PositionId> | null;
+  employmentType: EmploymentType;
+  hireDate: IsoDate | null;
+  employeeNumber: string | null;
   country: string | null;
   homeTown: string | null;
   contactNo: string | null;
@@ -79,6 +98,7 @@ export interface EmployeeFormOptions {
   countries: readonly Country[];
   genders: readonly Gender[];
   maritalStatuses: readonly MaritalStatus[];
+  employmentTypes: readonly EmploymentType[];
 }
 
 export interface CreateEmployeeInput {
@@ -87,11 +107,14 @@ export interface CreateEmployeeInput {
   lastName: string;
   departmentId: DepartmentId;
   positionId: PositionId;
+  employmentType: EmploymentType;
+  hireDate?: IsoDate | null;
+  employeeNumber?: string | null;
   country: Country;
   homeTown: string;
   contactNo: string;
   email: string;
-  gender: Gender;
+  gender?: Gender | null;
   maritalStatus: MaritalStatus;
   dateOfBirth: IsoDate;
   username?: string;

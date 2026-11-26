@@ -107,8 +107,8 @@ Implemented by Backend in `web/src/server/employee/`. Types: `contracts/employee
 | `getEmployee(actor, id)` | HR_ADMIN any (incl. TERMINATED); EMPLOYEE own only | → `EmployeeDetail` | `NOT_FOUND` (also for someone else's id) |
 | `getMyProfile(actor)` | any | → `EmployeeDetail` | `NOT_FOUND` (account has no employee record) |
 | `getEmployeeFormOptions(actor)` | HR_ADMIN | → `EmployeeFormOptions` | `FORBIDDEN` |
-| `createEmployee(actor, CreateEmployeeInput)` | HR_ADMIN | → `CreateEmployeeResult { employee, credentials }` | `VALIDATION`, `CONFLICT` (username) |
-| `updateEmployee(actor, id, UpdateEmployeeInput)` | HR_ADMIN | → `EmployeeDetail` | `NOT_FOUND`, `VALIDATION`, `CONFLICT` (terminated) |
+| `createEmployee(actor, CreateEmployeeInput)` | HR_ADMIN | → `CreateEmployeeResult { employee, credentials }` | `VALIDATION`, `CONFLICT` (username, employee number) |
+| `updateEmployee(actor, id, UpdateEmployeeInput)` | HR_ADMIN | → `EmployeeDetail` | `NOT_FOUND`, `VALIDATION`, `CONFLICT` (terminated, employee number) |
 | `terminateEmployee(actor, id)` **[CHANGE]** | HR_ADMIN | → `EmployeeDetail` | `NOT_FOUND`, `CONFLICT` (self / last active HR admin / already terminated) |
 | `resetEmployeePassword(actor, id)` **[NEW, approved]** | HR_ADMIN | → `IssuedCredentials` | `NOT_FOUND`, `CONFLICT` (terminated) |
 
@@ -121,11 +121,14 @@ The legacy form said "All fields are mandatory except Middle name". We now enfor
 | firstName, lastName | required, 1–100 | client-only check |
 | middleName | optional, ≤100 | – |
 | departmentId, positionId | required, must exist | `"0"` sentinel, not checked on the server |
+| employmentType | required, one of `EMPLOYMENT_TYPES` (`FULL_TIME` \| `PART_TIME` \| `CONTRACTOR`); the form preselects `FULL_TIME`, which is also the DB default | – |
+| hireDate | optional `IsoDate` (1900–2100, future allowed); blank is null | – |
+| employeeNumber | optional, trimmed, ≤50, blank is null. Unique when set: a duplicate is `CONFLICT` on `employeeNumber` | – |
 | country | one of `COUNTRIES` (8 values) | same list, not required on the client |
 | homeTown | required, 1–100 | client-only |
 | contactNo | required, 5–20 chars of `0-9 + - ( ) space` | digits only, enforced by keypress filter |
 | email | required, valid, ≤254, stored lower-case. **Not** unique. | client regex |
-| gender | `MALE` \| `FEMALE` | `1` / `0`, default male |
+| gender | optional: `MALE` \| `FEMALE` \| `NON_BINARY` \| `PREFER_NOT_TO_SAY`; blank is null | `1` / `0`, default male |
 | maritalStatus | `SINGLE` \| `MARRIED` \| `DIVORCED` | lower-case strings, `"0"` if not chosen |
 | dateOfBirth | `IsoDate`, in the past. The server accepts dates up to the UTC date + 1 day, because the viewer's time zone is unknown (ADR-0007 rule 4); the client form checks against the browser's local date. | free text "01 Jan 2019" |
 | username (create only) | optional, `USERNAME_PATTERN` (3–30 chars of `[a-z0-9._]`), unique (case-insensitive). Default `first.last`, with `2`, `3`… added if taken. | `person.Name = firstName` |
