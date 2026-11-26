@@ -173,7 +173,7 @@ export const leaveService: LeaveService = {
       const own =
         actor.employeeId != null && target.employeeId === actor.employeeId;
       if (own) {
-        // Rule 7a: only the sole active HR admin may decide their own request.
+        // Only the sole active HR admin may decide their own request.
         // The lock keeps the admin count stable until this transaction ends.
         await lockHrAdminSet(tx);
         if ((await countOtherActiveHrAdmins(tx, actor.userId)) > 0) {
