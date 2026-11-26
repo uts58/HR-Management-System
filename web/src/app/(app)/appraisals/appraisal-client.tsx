@@ -1,7 +1,6 @@
 "use client";
 
 import { Trash2Icon } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -13,7 +12,7 @@ import {
 import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { ActionForm, SubmitButton } from "@/components/forms/action-form";
 import { SelectField, TextField } from "@/components/forms/form-field";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { createAppraisalSchema } from "@/lib/validation";
 import { createAppraisal, deleteAppraisal } from "@/server/actions/performance";
 
@@ -71,13 +70,9 @@ export function AppraisalForm({
       </div>
       <div className="flex flex-wrap gap-2">
         <SubmitButton>Save appraisal</SubmitButton>
-        <Button
-          variant="outline"
-          size="lg"
-          render={<Link href="/appraisals" />}
-        >
+        <ButtonLink variant="outline" size="lg" href="/appraisals">
           Back to appraisals
-        </Button>
+        </ButtonLink>
       </div>
     </ActionForm>
   );

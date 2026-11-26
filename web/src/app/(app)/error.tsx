@@ -1,10 +1,9 @@
 "use client";
 
 import { TriangleAlertIcon } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useRef } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 
 export default function AppError({
   error,
@@ -48,9 +47,9 @@ export default function AppError({
       </p>
       <div className="flex gap-2">
         <Button onClick={() => retry()}>Try again</Button>
-        <Button variant="outline" render={<Link href="/dashboard" />}>
+        <ButtonLink variant="outline" href="/dashboard">
           Go to dashboard
-        </Button>
+        </ButtonLink>
       </div>
     </div>
   );

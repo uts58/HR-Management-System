@@ -1,7 +1,6 @@
 import { ShieldXIcon } from "lucide-react";
-import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 
 export function ForbiddenState({
   title = "You don't have access to this page",
@@ -21,7 +20,7 @@ export function ForbiddenState({
       </span>
       <h1 className="font-heading text-xl font-semibold">{title}</h1>
       <p className="text-sm text-muted-foreground">{description}</p>
-      <Button render={<Link href={backHref} />}>{backLabel}</Button>
+      <ButtonLink href={backHref}>{backLabel}</ButtonLink>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { PencilIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { Role, requireRole } from "@/auth";
 import { toActor } from "@/server/action";
@@ -9,7 +8,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { EmploymentStatusBadge } from "@/components/common/status-badges";
 import { EmployeeDetails } from "@/components/employees/employee-details";
 import { LocalTime } from "@/components/local-time";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { employeeService } from "@/server/employee/service";
 import { idOrNotFound, orNotFound } from "@/server/page";
@@ -49,10 +48,10 @@ export default async function EmployeeDetailPage({
         ]}
         actions={
           active ? (
-            <Button render={<Link href={`/employees/${employee.id}/edit`} />}>
+            <ButtonLink href={`/employees/${employee.id}/edit`}>
               <PencilIcon aria-hidden="true" />
               Edit
-            </Button>
+            </ButtonLink>
           ) : undefined
         }
       />

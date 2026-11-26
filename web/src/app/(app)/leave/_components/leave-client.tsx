@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckIcon, XIcon } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -17,7 +16,7 @@ import {
   TextareaField,
   TextField,
 } from "@/components/forms/form-field";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { applyForLeaveSchema } from "@/lib/validation";
 import {
   applyForLeave,
@@ -66,13 +65,9 @@ export function ApplyLeaveForm() {
       />
       <div className="flex flex-wrap gap-2">
         <SubmitButton pendingLabel="Submitting…">Submit request</SubmitButton>
-        <Button
-          variant="outline"
-          size="lg"
-          render={<Link href="/leave/history" />}
-        >
+        <ButtonLink variant="outline" size="lg" href="/leave/history">
           View my leave history
-        </Button>
+        </ButtonLink>
       </div>
     </ActionForm>
   );

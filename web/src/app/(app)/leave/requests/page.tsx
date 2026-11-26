@@ -1,13 +1,12 @@
 import { CalendarCheckIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { CalendarDateRange } from "@/components/calendar-date";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { EmployeeRefName } from "@/components/common/status-badges";
 import { LocalTime } from "@/components/local-time";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -41,9 +40,9 @@ export default async function PendingLeavePage() {
           { label: "Pending leave requests" },
         ]}
         actions={
-          <Button variant="outline" render={<Link href="/leave/all" />}>
+          <ButtonLink variant="outline" href="/leave/all">
             View all leave
-          </Button>
+          </ButtonLink>
         }
       />
       {requests.length === 0 ? (
